@@ -1,0 +1,31 @@
+kardboard: 1
+id: demo
+name: Demo-Projekt
+sync: none
+
+columns:
+  - id: planning
+    title: Planung
+  - id: backlog
+    title: Backlog
+  - id: working_on
+    title: In Arbeit
+    per_person: true
+    limit: 3
+  - id: done
+    title: Erledigt
+    done: true
+
+fields:
+  size:
+    title: Größe
+    type: enum
+    values: [XS, S, M, L, XL]
+    required: [backlog, working_on]
+  milestone:
+    title: Meilenstein
+    type: enum
+    values: [pilot, release, later]
+  tags:
+    type: list
+    values: [bug, feature, cleanup, security, ui]
