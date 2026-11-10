@@ -273,8 +273,9 @@ Zwei angemeldete Boards mit derselben `id` sind ein Fehler.
 
 Der Befehl heißt `kb`. Ohne weitere Angabe wirkt er auf das Board, in dem man
 steht: kardboard sucht vom aktuellen Ordner aufwärts nach einer `board.yaml`
-und danach in den Unterordnern des Git-Repos. `-b <id>` wählt ein angemeldetes
-Board, `--all` alle.
+und danach in den Unterordnern des Git-Repos. Liegen dort mehrere Boards, muss
+man eines wählen. `-C <ordner>` nennt den Board-Ordner direkt, `-b <id>` wählt
+ein angemeldetes Board, `--all` alle.
 
 Board:
 
@@ -316,7 +317,8 @@ Für alle Befehle gilt:
 - Eine Karte im Ordner einer anderen Person bewegt oder ändert kein Befehl ohne
   `--force`.
 - Rückgabecode `0` bei Erfolg, `1` bei einem Regelverstoß, `2` bei falschem
-  Aufruf.
+  Aufruf oder wenn es nichts gibt, worauf der Befehl wirken kann (kein Board
+  gefunden, Karte oder Spalte unbekannt).
 - Die Oberfläche tut nichts, was das CLI nicht kann. Jede Aktion dort ist genau
   einer dieser Befehle.
 
