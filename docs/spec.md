@@ -290,14 +290,14 @@ Karten:
 
 | Befehl | Wirkung |
 |---|---|
-| `kb new "<titel>" [-c spalte] [--set feld=wert]` | legt eine Karte an, Dateiname aus dem Titel |
+| `kb new "<titel>" [-c spalte] [--set feld=wert] [--id kürzel] [--as person]` | legt eine Karte an, Dateiname aus dem Titel oder aus `--id` |
 | `kb list [spalte] [--mine]` | listet Karten |
 | `kb show <karte>` | zeigt eine Karte |
 | `kb edit <karte>` | öffnet die Karte im Editor |
 | `kb set <karte> feld=wert` | ändert ein Feld im Kopf |
 | `kb move <karte> <spalte> [--as person]` | verschiebt eine Karte |
 | `kb take <karte>` | nimmt die Karte in Arbeit: erste Spalte mit `per_person`, eigener Ordner |
-| `kb give <karte> <person>` | übergibt die Karte |
+| `kb give <karte> <person>` | übergibt die Karte. Sie bleibt in ihrer Spalte, wenn diese Personenordner hat, sonst geht sie in die erste Spalte mit `per_person` |
 | `kb done <karte>` | verschiebt in die erste Spalte mit `done` |
 | `kb rename <karte> <neu>` | benennt um und zieht Verweise nach |
 
@@ -310,6 +310,24 @@ Rechner:
 | `kb remove <id>` | meldet ein Board ab, löscht nichts |
 | `kb scan <ordner>` | nimmt einen Ordner in die Suche auf |
 | `kb sync` | holt und pusht bei Boards mit `sync: push` |
+
+Zum Anlegen und Verschieben:
+
+- `kb new` legt die Karte in die erste Spalte, wenn `-c` fehlt, und setzt
+  `created` auf das heutige Datum.
+- Der Dateiname entsteht aus dem Titel: klein geschrieben, Umlaute
+  ausgeschrieben (`ä` wird `ae`), alles andere als `a–z` und `0–9` wird zu
+  einem Bindestrich. Gibt es das Kürzel schon, lehnt `kb new` ab und verlangt
+  `--id`.
+- `--set` darf mehrfach stehen. Listen gehen als `tags=bug,ui` oder
+  `tags=[bug, ui]`.
+- `kb new` und `kb move` lehnen ab, wenn der Karte ein Pflichtfeld der
+  Zielspalte fehlt. Mit `--force` geht es trotzdem.
+- In einer Spalte mit Personenordnern landet die Karte im eigenen Ordner,
+  mit `--as <person>` in dem einer anderen Person.
+- Verschieben benennt nur die Datei um. Liegt die Karte schon am Ziel,
+  geschieht nichts. Der Ordner einer Person verschwindet mit ihrer letzten
+  Karte.
 
 Für alle Befehle gilt:
 
