@@ -165,6 +165,13 @@ License 1.1. Die Schriftdateien und der Lizenztext liegen unter
 [internal/server/web/fonts](internal/server/web/fonts) und sind ins Programm
 eingebettet. Die Lizenz gilt nur für die Schrift.
 
+Die Oberfläche ist mit [Preact](https://preactjs.com) 11.0.1 (MIT License,
+Copyright 2015-present Jason Miller) und [htm](https://github.com/developit/htm)
+3.1.1 (Apache License 2.0) gebaut. Beide liegen als fertige Dateien unter
+[internal/server/web/vendor](internal/server/web/vendor), mit ihren
+Lizenztexten, Herkunft und Prüfsummen. Es gibt kein npm und keinen
+Build-Schritt; ein Test prüft, dass sich die Dateien nicht unbemerkt ändern.
+
 ## Tests
 
 ```bash

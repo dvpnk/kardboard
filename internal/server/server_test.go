@@ -3,13 +3,18 @@ package server
 import (
 	"bufio"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -256,13 +261,24 @@ func TestWebUIIsServed(t *testing.T) {
 	settings(t, "")
 	s := New("")
 	for target, want := range map[string]string{
-		"/":               `<script type="module" src="app.js">`,
-		"/theme.js":       "kb.theme",
-		"/app.js":         "kardboard web UI",
-		"/md.js":          "export function render",
-		"/app.css":        "--mono:",
-		"/favicon.svg":    "<svg",
-		"/favicon-32.png": "PNG",
+		"/":                     `<script type="module" src="app.js">`,
+		"/theme.js":             "kb.theme",
+		"/app.js":               "kardboard web UI",
+		"/preact.js":            "export const html",
+		"/state.js":             "export const state",
+		"/api.js":               "export async function act",
+		"/texts.js":             "export const t",
+		"/parts.js":             "export function Icon",
+		"/top.js":               "export function TopBar",
+		"/board.js":             "export function Main",
+		"/panels.js":            "export function Detail",
+		"/md.js":                "export function render",
+		"/vendor/preact.mjs":    "createElement",
+		"/vendor/hooks.mjs":     "useState",
+		"/vendor/htm.module.js": "export default",
+		"/app.css":              "--mono:",
+		"/favicon.svg":          "<svg",
+		"/favicon-32.png":       "PNG",
 	} {
 		rec := get(t, s, target)
 		if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), want) {
@@ -298,6 +314,92 @@ func TestWebUIIsServed(t *testing.T) {
 	}
 	if rec := get(t, s, "/nope.js"); rec.Code != http.StatusNotFound {
 		t.Errorf("unknown file: status %d", rec.Code)
+	}
+}
+
+// The page is a set of ES modules that import each other by relative path,
+// with no bundler in between. A module the browser cannot find, or that is
+// not served as JavaScript, stops the whole page, so every import must name
+// a file that is there.
+func TestWebModulesResolve(t *testing.T) {
+	settings(t, "")
+	s := New("")
+	importRE := regexp.MustCompile(`(?:import|export)\s*(?:[\w*{}\s,]*?from\s*)?"([^"]+)"`)
+	todo := []string{"app.js"}
+	seen := map[string]bool{}
+	for len(todo) > 0 {
+		name := todo[0]
+		todo = todo[1:]
+		if seen[name] {
+			continue
+		}
+		seen[name] = true
+		rec := get(t, s, "/"+name)
+		if rec.Code != http.StatusOK {
+			t.Errorf("%s: status %d", name, rec.Code)
+			continue
+		}
+		if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/javascript") {
+			t.Errorf("%s: Content-Type %q, a module must be served as JavaScript", name, ct)
+		}
+		for _, m := range importRE.FindAllStringSubmatch(rec.Body.String(), -1) {
+			spec := m[1]
+			if !strings.HasPrefix(spec, "./") && !strings.HasPrefix(spec, "../") {
+				t.Errorf("%s imports %q: the browser cannot resolve a bare name", name, spec)
+				continue
+			}
+			todo = append(todo, path.Join(path.Dir(name), spec))
+		}
+	}
+	for _, want := range []string{"preact.js", "vendor/preact.mjs", "vendor/hooks.mjs", "vendor/htm.module.js", "md.js"} {
+		if !seen[want] {
+			t.Errorf("%s is not reached from app.js", want)
+		}
+	}
+}
+
+// The files under web/vendor come from other projects. Their checksums are
+// listed in web/vendor/README.md; a file that changes without the list
+// changing is noticed here.
+func TestVendorFilesAreUnchanged(t *testing.T) {
+	want := map[string]string{
+		"preact.mjs":         "3a3201e9ccef7d30ef1273427f1b17ef8323e464b2c8d73b4fd5636af730433e",
+		"hooks.mjs":          "df45d3c5b39fc012b2397a64d4056ef06d3fbde676c9567a7c12d4d783b6bda3",
+		"htm.module.js":      "ab33dd3f38059b9be4d5f5350128eefb2356639c4e0bbe9d9e8b3ba75847e9e4",
+		"LICENSE-preact.txt": "1fe6958409c8c257a70c587a18b6f7f412b179b456630790d30b2ec9a8e4b7d4",
+		"LICENSE-htm.txt":    "740725f7252e750af735d0028cc534970772f513331e9f68150fede8fb3ce00f",
+	}
+	entries, err := fs.ReadDir(webFS, "web/vendor")
+	if err != nil {
+		t.Fatal(err)
+	}
+	readme, err := fs.ReadFile(webFS, "web/vendor/README.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if e.Name() == "README.md" {
+			continue
+		}
+		sum, ok := want[e.Name()]
+		if !ok {
+			t.Errorf("vendor/%s is not listed here and in vendor/README.md", e.Name())
+			continue
+		}
+		data, err := fs.ReadFile(webFS, "web/vendor/"+e.Name())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := fmt.Sprintf("%x", sha256.Sum256(data)); got != sum {
+			t.Errorf("vendor/%s has SHA-256 %s, want %s", e.Name(), got, sum)
+		}
+		if !strings.Contains(string(readme), sum) {
+			t.Errorf("vendor/README.md does not list the SHA-256 of %s", e.Name())
+		}
+		delete(want, e.Name())
+	}
+	for name := range want {
+		t.Errorf("vendor/%s is missing", name)
 	}
 }
 

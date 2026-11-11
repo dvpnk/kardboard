@@ -102,12 +102,18 @@ body {
 
 button, input, select { font: inherit; color: inherit; }
 button { cursor: pointer; }
+/* Class names start with the name of the part they belong to: top-, menu-,
+   filter-, proj-, settings-, col-, card-, cmenu-, panel-, detail-, act-,
+   hist-, issues-, notice-. States (is-open, is-on, is-active, is-off,
+   is-done, is-me, ...) are only ever styled together with such a class.
+   Before adding a name, search for it: three times a class meant for one
+   thing has picked up the rules of another. */
 
 /* One look for all controls: same height, same type, same frame. Buttons,
    text fields, the column picker and the name chips are all a white field
    with one hairline, so they read as one family wherever they sit. */
-.menu-button, .searchbox, .detail .close, .segments,
-.actions button, .actions select, .actions input, .notice button, .person {
+.menu-button, .filter-search, .panel-close, .settings-segments,
+.act-button, .act-select, .act-input, .notice-button, .act-person, .act-remove {
   height: var(--control);
   font: 13px/1 var(--mono);
   color: var(--text);
@@ -115,12 +121,23 @@ button { cursor: pointer; }
   border: 1px solid var(--border-strong); border-radius: var(--radius);
   padding: 0 10px;
 }
-.menu-button:hover, .menu-button.open, .detail .close:hover,
-.actions button:hover, .actions select:hover, .notice button:hover { background: var(--hover); }
-.searchbox:hover, .actions input:hover { border-color: var(--dim); }
+.menu-button:hover, .menu-button.is-open, .panel-close:hover,
+.act-button:hover, .act-select:hover, .notice-button:hover, .act-remove:hover { background: var(--hover); }
+.filter-search:hover, .act-input:hover { border-color: var(--dim); }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 
 #app { display: grid; grid-template-rows: auto 1fr; height: 100%; }
+
+/* ── Icons ───────────────────────────────────────────────────────────────── */
+
+/* Icons sit 3px lower to meet the text beside them. Where they sit in a
+   control, the control's rules set them straight. A red clock marks a card
+   past its due date, a bug a card that breaks a rule of the format. */
+.ic { display: inline-flex; flex: none; margin-top: 3px; }
+.ic-clock { color: var(--danger); }
+.ic-bug { color: var(--warn); }
+
+.dot { width: 9px; height: 9px; border-radius: 50%; flex: none; display: inline-block; }
 
 /* ── Top bar ─────────────────────────────────────────────────────────────── */
 
@@ -130,27 +147,95 @@ button { cursor: pointer; }
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
-.brand { display: inline-flex; align-items: center; gap: 8px; font: 500 16px/1 var(--mono); letter-spacing: -0.01em; margin: 0 14px 0 0; }
-.brand .mark { display: inline-flex; }
-/* The search field: framed like every control, with the magnifier in
-   front. It sits on top of the filter menu. */
-.searchbox { display: flex; align-items: center; gap: 7px; padding: 0 8px; margin: 0 0 6px; cursor: text; }
-.searchbox:focus-within { border-color: var(--text); }
-.searchbox input {
-  flex: 1; min-width: 0; height: 100%; padding: 0;
-  font: 13px var(--sans); background: none; border: 0; outline: none;
+.top-brand { display: inline-flex; align-items: center; gap: 8px; font: 500 16px/1 var(--mono); letter-spacing: -0.01em; margin: 0 14px 0 0; }
+.top-mark { display: inline-flex; }
+.top-spacer { flex: 1; }
+/* Shown in the top bar only while the page has lost its server. */
+.top-offline { font: 12px var(--mono); color: var(--warn); white-space: nowrap; }
+
+/* ── Menus ───────────────────────────────────────────────────────────────── */
+
+.menu-wrap { position: relative; min-width: 0; }
+.menu-button { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; white-space: nowrap; }
+/* A button that shows only an icon. It keeps its size when space is short. */
+.menu-square { position: relative; flex: none; width: var(--control); padding: 0; justify-content: center; }
+.menu-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menu-caret { color: var(--dim); font-size: 11px; }
+
+/* Icons inside buttons take the button's colour. */
+.menu-button .ic { color: var(--dim); margin-top: 0; }
+.menu-button:hover .ic, .menu-button.is-open .ic { color: var(--text); }
+/* A menu button whose menu holds something that is switched on, like the
+   filter button while a filter is active. */
+.menu-button.is-active, .menu-button.is-active:hover, .menu-button.is-active.is-open {
+  background: var(--text); color: var(--surface); border-color: var(--text);
 }
-.searchbox input::placeholder { color: var(--faint); }
-.searchbox input::-webkit-search-cancel-button { cursor: pointer; }
-.searchbox .icon { color: var(--dim); margin-top: 0; }
+.menu-button.is-active .ic { color: inherit; }
+.menu-square.is-active { width: auto; padding: 0 8px; gap: 6px; }
+
+/* A small mark on the menu button says that something is wrong, without
+   counting it out loud; the menu does that. */
+.menu-pip { position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; box-shadow: 0 0 0 2px var(--surface); }
+.menu-pip.is-bad { background: var(--danger); }
+.menu-pip.is-warn { background: var(--warn); }
+/* Not a fault: a board has commits to pull or to push. */
+.menu-pip.is-news { background: var(--text); }
+
+.menu-panel {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 10;
+  width: max-content; min-width: 240px; max-width: min(360px, calc(100vw - 32px));
+  max-height: min(70vh, 520px); overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border-strong); border-radius: var(--radius);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16);
+  padding: 8px;
+}
+.menu-heading {
+  font: 500 11px var(--mono); text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--dim); margin: 12px 6px 6px;
+}
+.menu-hint { font-size: 12px; color: var(--dim); margin: 8px 6px 2px; }
+.menu-hint code { font: 11.5px var(--mono); }
+.menu-rule { border: 0; border-top: 1px solid var(--border); margin: 6px 2px; }
+
+/* Entries of the menu behind the three dots. */
+.menu-item {
+  display: flex; align-items: center; gap: 9px; width: 100%; text-align: left;
+  font: 13px/1 var(--sans); padding: 8px 6px;
+  background: none; border: 0; border-radius: var(--radius);
+}
+.menu-item:hover, .menu-item:focus-visible { background: var(--hover); }
+.menu-item:disabled { opacity: 0.6; }
+.menu-item .ic { color: var(--dim); margin-top: 0; }
+.menu-item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menu-count { margin-left: auto; font: 12px var(--mono); color: var(--dim); white-space: nowrap; }
+.menu-count.is-bad { color: var(--danger); }
+.menu-count.is-warn { color: var(--warn); }
 
 /* ── Filter menu ─────────────────────────────────────────────────────────── */
 
-.menu.filters { width: 310px; max-width: calc(100vw - 32px); padding: 12px; }
-.menu.filters .searchbox { height: 34px; margin: 0 0 10px; }
+/* The search text and the number of filters on the filter button. The text
+   is cut off if it is long. */
+.filter-term { max-width: 14ch; overflow: hidden; text-overflow: ellipsis; font-family: var(--sans); }
+.filter-n { font: 12px/1 var(--mono); }
+
+.filter-panel { width: 310px; max-width: calc(100vw - 32px); padding: 12px; }
+.filter-panel .menu-heading { margin: 14px 8px 8px; }
+
+/* The search field: framed like every control, with the magnifier in
+   front. It sits on top of the filter menu. */
+.filter-search { display: flex; align-items: center; gap: 7px; height: 34px; padding: 0 8px; margin: 0 0 10px; cursor: text; }
+.filter-search:focus-within { border-color: var(--text); }
+.filter-input {
+  flex: 1; min-width: 0; height: 100%; padding: 0;
+  font: 13px var(--sans); background: none; border: 0; outline: none;
+}
+.filter-input::placeholder { color: var(--faint); }
+.filter-input::-webkit-search-cancel-button { cursor: pointer; }
+.filter-search .ic { color: var(--dim); margin-top: 0; }
 /* The keys that open the search, shown inside the empty field. */
-.keys { display: inline-flex; gap: 3px; flex: none; }
-kbd {
+.filter-keys { display: inline-flex; gap: 3px; flex: none; }
+.filter-keys kbd {
   font: 11px/1 var(--mono); color: var(--dim);
   background: var(--sunken); border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 3px;
   padding: 2px 5px;
@@ -163,40 +248,39 @@ kbd {
   border-radius: var(--radius); cursor: pointer;
 }
 .filter-row:hover { background: var(--hover); }
-.filter-row.off { color: var(--faint); cursor: default; }
-.filter-row .icon { color: var(--dim); margin-top: 0; }
-.filter-row .name { flex: 1; min-width: 0; }
-.filter-row .count, .tag-pill .count { font: 11px var(--mono); color: var(--dim); }
+.filter-row.is-off { color: var(--faint); cursor: default; }
+.filter-row .ic { color: var(--dim); margin-top: 0; }
+.filter-name { flex: 1; min-width: 0; }
+.filter-count { font: 11px var(--mono); color: var(--dim); }
 
 /* A switch instead of a tick box: it reads as "on" or "off" at a glance.
    Almost square, like everything else here. */
-.switch {
+.filter-switch {
   appearance: none; -webkit-appearance: none; flex: none; position: relative;
   width: 30px; height: 18px; margin: 0; border-radius: 3px;
   background: var(--border-strong); cursor: pointer; transition: background 120ms;
 }
-.switch::after {
+.filter-switch::after {
   content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 2px;
   background: var(--knob); transition: transform 120ms;
 }
-.switch:checked { background: var(--text); }
+.filter-switch:checked { background: var(--text); }
 /* Switched on, the knob takes the page's colour, so it stands out against
    the track in both the light and the dark design. */
-.switch:checked::after { transform: translateX(12px); background: var(--surface); }
-.switch:disabled { opacity: 0.45; cursor: default; }
-@media (prefers-reduced-motion: reduce) { .switch, .switch::after { transition: none; } }
+.filter-switch:checked::after { transform: translateX(12px); background: var(--surface); }
+.filter-switch:disabled { opacity: 0.45; cursor: default; }
+@media (prefers-reduced-motion: reduce) { .filter-switch, .filter-switch::after { transition: none; } }
 
-.menu.filters h2 { margin: 14px 8px 8px; }
 /* Tags are small buttons one switches on and off; the chosen ones are dark. */
-.tag-list { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 8px; }
-.tag-pill {
+.filter-tags { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 8px; }
+.filter-tag {
   display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px;
   font: 12px/1 var(--sans); color: var(--text);
   background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius);
 }
-.tag-pill:hover { background: var(--hover); }
-.tag-pill.on { background: var(--text); color: var(--surface); border-color: var(--text); }
-.tag-pill.on .count { color: inherit; opacity: 0.7; }
+.filter-tag:hover { background: var(--hover); }
+.filter-tag.is-on { background: var(--text); color: var(--surface); border-color: var(--text); }
+.filter-tag.is-on .filter-count { color: inherit; opacity: 0.7; }
 
 /* What the filters leave, and the way back. */
 .filter-foot {
@@ -210,163 +294,71 @@ kbd {
   text-decoration: underline; text-underline-offset: 2px;
 }
 
-/* Icons inside buttons take the button's colour. */
-.top .menu-button .icon { color: var(--dim); margin-top: 0; }
-.top .menu-button:hover .icon, .top .menu-button.open .icon { color: var(--text); }
-.menu-button.icon { position: relative; }
-/* A small mark on the bug button says that something is wrong, without
-   counting it out loud; the list behind the button does that. */
-.pip { position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; box-shadow: 0 0 0 2px var(--surface); }
-.pip.bad { background: var(--danger); }
-.pip.warn { background: var(--warn); }
-/* Not a fault: a board has commits to pull or to push. */
-.pip.news { background: var(--text); }
-.top .spacer { flex: 1; }
-/* Shown in the top bar only while the page has lost its server. */
-.offline { font: 12px var(--mono); color: var(--warn); white-space: nowrap; }
-.live { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); flex: none; }
-.live.on { background: #2f9e44; }
-/* A menu button whose menu holds something that is switched on, like the
-   filter button while a filter is active. */
-.menu-button.active, .menu-button.active:hover, .menu-button.active.open {
-  background: var(--text); color: var(--surface); border-color: var(--text);
-}
-.top .menu-button.active .icon { color: inherit; }
-.menu-button.icon.active { width: auto; padding: 0 8px; gap: 6px; }
-.menu-button .n { font: 12px/1 var(--mono); }
-/* The search text on the filter button, cut off if it is long. */
-.menu-button .term { max-width: 14ch; overflow: hidden; text-overflow: ellipsis; font-family: var(--sans); }
+/* ── Project menu ────────────────────────────────────────────────────────── */
 
-/* ── Menus ───────────────────────────────────────────────────────────────── */
-
-.menu-wrap { position: relative; min-width: 0; }
-.menu-button { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; white-space: nowrap; }
-/* "icon" here means a button that shows only an icon. The class is also the
-   name of the icons themselves, which sit 3px lower to meet the text beside
-   them; a button must not inherit that. */
-.menu-button.icon { width: var(--control); padding: 0; justify-content: center; margin-top: 0; }
-.menu-button .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.menu-button .caret { color: var(--dim); font-size: 11px; }
-.menu {
-  position: absolute; top: calc(100% + 6px); left: 0; z-index: 10;
-  width: max-content; min-width: 240px; max-width: min(360px, calc(100vw - 32px));
-  max-height: min(70vh, 520px); overflow-y: auto;
-  background: var(--surface);
-  border: 1px solid var(--border-strong); border-radius: var(--radius);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16);
-  padding: 8px;
-}
-.menu.settings { left: auto; right: 0; min-width: 220px; }
-
-/* Entries of the menu behind the three dots. */
-.menu-item {
-  display: flex; align-items: center; gap: 9px; width: 100%; text-align: left;
-  font: 13px/1 var(--sans); padding: 8px 6px;
-  background: none; border: 0; border-radius: var(--radius);
-}
-.menu-item:hover, .menu-item:focus-visible { background: var(--hover); }
-.menu-item .icon { color: var(--dim); margin-top: 0; }
-.menu-item .count { margin-left: auto; font: 12px var(--mono); color: var(--dim); }
-.menu-item .count.bad { color: var(--danger); }
-.menu-item .count.warn { color: var(--warn); }
-.menu-item .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.menu-item .count { white-space: nowrap; }
-.menu-item:disabled { opacity: 0.6; }
-.menu hr { border: 0; border-top: 1px solid var(--border); margin: 6px 2px; }
-.menu .hint.status { display: flex; align-items: baseline; gap: 8px; }
-
-/* The panel that lists what is wrong. */
-.issues .group { display: flex; align-items: center; gap: 7px; font: 500 13px var(--mono); margin: 16px 0 4px; }
-.issues .problem { padding: 6px 4px; }
-
-.problem {
-  display: block; width: 100%; text-align: left; margin: 0;
-  background: none; border: 0; border-radius: var(--radius); padding: 5px 6px;
-  font: 12px/1.45 var(--sans); color: var(--dim);
-}
-button.problem:hover { background: var(--hover); }
-.problem strong { display: block; font-weight: 500; color: var(--text); overflow-wrap: anywhere; }
-.problem span { display: block; overflow-wrap: anywhere; }
-.menu h2 {
-  font: 500 11px var(--mono); text-transform: uppercase; letter-spacing: 0.06em;
-  color: var(--dim); margin: 12px 6px 6px;
-}
-.menu .hint { font-size: 12px; color: var(--dim); margin: 8px 6px 2px; }
-.menu .hint code { font: 11.5px var(--mono); }
-.menu .check { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: var(--radius); }
-.menu .check:hover { background: var(--hover); }
-.menu .check.off { color: var(--faint); }
-.menu input[type="checkbox"] { margin: 0; accent-color: var(--text); }
-.menu .linkish {
-  background: none; border: 0; padding: 4px 6px; margin-top: 2px;
-  font: 12px var(--mono); color: var(--dim); text-decoration: underline; text-underline-offset: 2px;
-}
-.segments { display: grid; grid-template-columns: repeat(3, 1fr); margin: 0 6px; padding: 0; overflow: hidden; }
-.segments button { font: inherit; padding: 0 6px; background: none; border: 0; color: var(--dim); }
-.segments button + button { border-left: 1px solid var(--border-strong); }
-.segments button:hover { background: var(--hover); }
-.segments button.on { background: var(--text); color: var(--surface); }
-
-
-.project { display: flex; align-items: center; gap: 4px; border-radius: var(--radius); }
-.project:hover { background: var(--hover); }
-.project.off { color: var(--faint); }
-.project input { margin: 0 0 0 6px; }
-.project .pick {
+.proj-row { display: flex; align-items: center; gap: 4px; border-radius: var(--radius); }
+.proj-row:hover { background: var(--hover); }
+.proj-row.is-off { color: var(--faint); }
+.proj-check { margin: 0; accent-color: var(--text); }
+.proj-pick {
   flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px;
   background: none; border: 0; padding: 5px 6px; text-align: left; border-radius: var(--radius);
 }
-.project .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.project .count { font: 12px var(--mono); color: var(--dim); }
+.proj-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.proj-count { font: 12px var(--mono); color: var(--dim); }
+.proj-rescan {
+  background: none; border: 0; padding: 4px 6px; margin-top: 2px;
+  font: 12px var(--mono); color: var(--dim); text-decoration: underline; text-underline-offset: 2px;
+}
+
+/* ── Menu behind the three dots ──────────────────────────────────────────── */
+
+.settings-panel { left: auto; right: 0; min-width: 220px; }
+.settings-segments { display: grid; grid-template-columns: repeat(3, 1fr); margin: 0 6px; padding: 0; overflow: hidden; }
+.settings-segments button { font: inherit; padding: 0 6px; background: none; border: 0; color: var(--dim); }
+.settings-segments button + button { border-left: 1px solid var(--border-strong); }
+.settings-segments button:hover { background: var(--hover); }
+.settings-segments button.is-on { background: var(--text); color: var(--surface); }
+.settings-status { display: flex; align-items: baseline; gap: 8px; }
+.settings-live { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); flex: none; }
+.settings-live.is-on { background: #2f9e44; }
 
 /* ── Shell ───────────────────────────────────────────────────────────────── */
 
 .shell { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 0; }
-.shell.with-detail { grid-template-columns: minmax(0, 1fr) minmax(360px, 520px); }
+.shell.is-split { grid-template-columns: minmax(0, 1fr) minmax(360px, 520px); }
 
-.dot { width: 9px; height: 9px; border-radius: 50%; flex: none; display: inline-block; }
+.shell-main { overflow: auto; padding: 14px 16px 40px; min-width: 0; }
 
-main { overflow: auto; padding: 14px 16px 40px; min-width: 0; }
-
-.empty { max-width: 560px; margin: 48px auto; color: var(--dim); }
-.empty h2 { font: 500 16px var(--mono); color: var(--text); margin: 0 0 8px; }
-.empty code { font: 13px var(--mono); background: var(--sunken); padding: 1px 5px; border-radius: var(--radius); }
-
-/* ── Lane ────────────────────────────────────────────────────────────────── */
-
-.lane + .lane { margin-top: 22px; }
-.badge {
-  font: 11px var(--mono); padding: 1px 6px; white-space: nowrap;
-  border: 1px solid var(--border-strong); border-radius: var(--radius); color: var(--dim);
-}
-.badge.bad { color: var(--danger); }
-.badge.warn { color: var(--warn); }
-/* A board that cannot be shown says why, in one quiet line. */
-.lane-error {
+.main-empty { max-width: 560px; margin: 48px auto; color: var(--dim); }
+.main-empty h2 { font: 500 16px var(--mono); color: var(--text); margin: 0 0 8px; }
+.main-empty code { font: 13px var(--mono); background: var(--sunken); padding: 1px 5px; border-radius: var(--radius); }
+/* What cannot be loaded says why, in one quiet line. */
+.main-error {
   border-left: 2px solid var(--danger);
   color: var(--dim); font: 12px/1.45 var(--sans); padding: 1px 10px;
 }
 
-.lane-error + .columns, .lane-error + .lane-error { margin-top: 10px; }
+/* ── Columns ─────────────────────────────────────────────────────────────── */
 
 /* Columns share the width while it is scarce and stop growing at 320px:
    wider than that, a card's title and its facts drift too far apart. */
-.columns {
+.cols {
   display: grid; grid-auto-flow: column; grid-auto-columns: minmax(220px, 320px);
   justify-content: start; gap: 10px; overflow-x: auto; padding-bottom: 4px;
 }
-.column { background: var(--sunken); border-radius: var(--radius); padding: 8px 6px 6px; min-width: 0; align-self: start; }
+.col { background: var(--sunken); border-radius: var(--radius); padding: 8px 6px 6px; min-width: 0; align-self: start; }
 /* The column for work in progress stands out a little: it is where the
    eye should land first. */
-.column.doing { background: var(--doing); }
-.column-head { display: flex; justify-content: space-between; gap: 8px; font: 500 12px var(--mono); color: var(--dim); margin: 0 4px 8px; }
-.column-head .over { color: var(--warn); }
-.column .none { font: 12px var(--mono); color: var(--faint); margin: 2px; }
-.more {
+.col.is-doing { background: var(--doing); }
+.col-head { display: flex; justify-content: space-between; gap: 8px; font: 500 12px var(--mono); color: var(--dim); margin: 0 4px 8px; }
+.col-over { color: var(--warn); }
+.col-none { font: 12px var(--mono); color: var(--faint); margin: 2px; }
+.col-more {
   width: 100%; background: none; border: 0; text-align: left;
   padding: 6px 4px; font: 12px var(--mono); color: var(--dim);
 }
-.more:hover { color: var(--text); }
+.col-more:hover { color: var(--text); }
 
 /* ── Card ────────────────────────────────────────────────────────────────── */
 
@@ -375,96 +367,106 @@ main { overflow: auto; padding: 14px 16px 40px; min-width: 0; }
   background: var(--surface);
   border: 1px solid transparent; border-radius: var(--radius);
   padding: 9px 10px; margin: 0 0 4px;
+  cursor: pointer;
 }
-.card { cursor: pointer; }
 .card:hover { border-color: var(--border-strong); }
-.card.open { border-color: var(--text); }
-.card .head { display: flex; align-items: flex-start; gap: 8px; }
-.card .title { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.card .title code, .detail h1 code { font-family: var(--mono); font-size: 0.92em; background: var(--sunken); padding: 0 3px; border-radius: var(--radius); }
-.card.done .title { color: var(--dim); }
+.card.is-open { border-color: var(--text); }
+.card-head { position: relative; display: flex; align-items: flex-start; gap: 8px; }
+.card-title { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.card-title code, .panel-title code { font-family: var(--mono); font-size: 0.92em; background: var(--sunken); padding: 0 3px; border-radius: var(--radius); }
+.card.is-done .card-title { color: var(--dim); }
 
 /* The marks (overdue, broken) sit at the right edge of the card. The three
    dots that open the card's menu appear there when the pointer or the
    keyboard is on the card, and push the marks aside. The room for that is
    kept free between title and marks all the time, so the title never
    wraps differently. */
-.card .head { position: relative; }
-.card .marks {
+.card-marks {
   display: inline-flex; flex: none; gap: 6px; margin-left: 18px;
   transition: transform 160ms ease;
 }
-.card-menu-button {
+.card-dots {
   position: absolute; top: 0; right: 0;
   width: 22px; height: 20px; padding: 0;
   font: 13px/1 var(--mono); color: var(--dim);
   background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius);
   opacity: 0; transition: opacity 160ms ease;
 }
-.card:hover .card-menu-button, .card:focus-within .card-menu-button, .card-menu-button.open { opacity: 1; }
-.card:hover .marks, .card:focus-within .marks, .card .marks.aside { transform: translateX(-26px); }
+.card:hover .card-dots, .card:focus-within .card-dots, .card-dots.is-open { opacity: 1; }
+.card:hover .card-marks, .card:focus-within .card-marks, .card-marks.is-aside { transform: translateX(-26px); }
 @media (prefers-reduced-motion: reduce) {
-  .card .marks, .card-menu-button { transition: none; }
+  .card-marks, .card-dots { transition: none; }
 }
-.card-menu-button:hover, .card-menu-button.open { background: var(--hover); color: var(--text); }
-
-.menu.card-menu { position: fixed; left: auto; min-width: 190px; padding: 6px; }
-.card-menu button {
-  display: block; width: 100%; text-align: left;
-  font: 13px/1 var(--sans); padding: 8px 8px;
-  background: none; border: 0; border-radius: var(--radius);
-}
-.card-menu button:hover, .card-menu button:focus-visible { background: var(--hover); }
-.card-menu hr { border: 0; border-top: 1px solid var(--border); margin: 5px 2px; }
-.card-menu hr:first-child, .card-menu hr:last-child { display: none; }
-
-/* Marks at the top right: a red clock for a card past its due date, a bug
-   for a card that breaks a rule of the format. */
-.icon { display: inline-flex; flex: none; margin-top: 3px; }
-.icon-clock { color: var(--danger); }
-.icon-bug { color: var(--warn); }
+.card-dots:hover, .card-dots.is-open { background: var(--hover); color: var(--text); }
 
 /* The lines below the title. Each has a left and a right place and never
    wraps, so the same fact sits at the same spot on every card. */
-.card .line {
+.card-line {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   margin-top: 5px; font: 12px/1.4 var(--sans); color: var(--dim);
   white-space: nowrap;
 }
-.card .facts { display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; }
-.card .facts > * { flex: none; }
-.card .due, .card .people { flex: none; }
+.card-facts { display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; }
+.card-facts > * { flex: none; }
+.card-due, .card-people { flex: none; }
 /* Size and milestone are small filled marks. A frame is reserved for
    things one can click, so a mark must not have one. */
-.chip {
+.card-chip {
   font: 10px/1.7 var(--mono); color: var(--dim);
   background: var(--badge); border-radius: var(--radius); padding: 0 5px;
 }
-.proj { display: flex; align-items: center; gap: 5px; min-width: 0; }
-.proj .dot { width: 7px; height: 7px; }
-.proj-name { overflow: hidden; text-overflow: ellipsis; }
-.people { display: flex; gap: 8px; }
-.who.me { color: var(--text); font-weight: 500; }
+.card-project { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.card-project .dot { width: 7px; height: 7px; }
+.card-project-name { overflow: hidden; text-overflow: ellipsis; }
+.card-people { display: flex; gap: 8px; }
+.card-who.is-me { color: var(--text); font-weight: 500; }
 
-/* ── Detail ──────────────────────────────────────────────────────────────── */
+.card[draggable="true"] { cursor: grab; }
+.card.is-dragging { opacity: 0.4; }
+.col.is-drop { outline: 2px dashed var(--text); outline-offset: -2px; background: var(--hover); }
 
-.detail {
+/* ── Card menu ───────────────────────────────────────────────────────────── */
+
+.cmenu { position: fixed; left: auto; min-width: 190px; padding: 6px; }
+.cmenu button {
+  display: block; width: 100%; text-align: left;
+  font: 13px/1 var(--sans); padding: 8px 8px;
+  background: none; border: 0; border-radius: var(--radius);
+}
+.cmenu button:hover, .cmenu button:focus-visible { background: var(--hover); }
+.cmenu-rule { border: 0; border-top: 1px solid var(--border); margin: 5px 2px; }
+.cmenu-rule:first-child, .cmenu-rule:last-child { display: none; }
+
+/* ── Panel on the right ──────────────────────────────────────────────────── */
+
+.panel {
   border-left: 1px solid var(--border);
   background: var(--surface);
   overflow-y: auto;
   padding: 14px 18px 40px;
 }
-.detail-head { display: flex; align-items: flex-start; gap: 10px; }
-.detail-head .where { flex: 1; min-width: 0; font: 12px var(--mono); color: var(--dim); overflow-wrap: anywhere; }
-.detail .close { width: var(--control); padding: 0; font-size: 16px; flex: none; }
-.detail h1 { font: 500 19px/1.3 var(--mono); margin: 10px 0 12px; overflow-wrap: anywhere; }
-.fields { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 3px 14px; font: 12px var(--mono); margin: 0 0 14px; }
-.fields dt { color: var(--dim); }
-.fields dd { margin: 0; overflow-wrap: anywhere; }
-/* What is wrong with the open card: a quiet field like the controls, no red. */
-.problems { list-style: none; margin: 0 0 14px; padding: 1px 0 1px 10px; border-left: 2px solid var(--warn); font: 12px/1.45 var(--sans); color: var(--dim); }
-.problems li + li { margin-top: 4px; }
+.panel-head { display: flex; align-items: flex-start; gap: 10px; }
+.panel-where { flex: 1; min-width: 0; font: 12px var(--mono); color: var(--dim); overflow-wrap: anywhere; }
+.panel-project { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.panel-project .dot { width: 7px; height: 7px; }
+.panel-close { width: var(--control); padding: 0; font-size: 16px; flex: none; }
+.panel-title { font: 500 19px/1.3 var(--mono); margin: 10px 0 12px; overflow-wrap: anywhere; }
+.panel-section {
+  font: 500 11px var(--mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim);
+  margin: 22px 0 4px; padding-top: 12px; border-top: 1px solid var(--border);
+}
+.panel-note { font: 12px var(--mono); color: var(--dim); background: var(--sunken); border-radius: var(--radius); padding: 8px 10px; margin: 0 0 14px; }
 
+/* ── Card in the panel ───────────────────────────────────────────────────── */
+
+.detail-fields { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 3px 14px; font: 12px var(--mono); margin: 0 0 14px; }
+.detail-fields dt { color: var(--dim); }
+.detail-fields dd { margin: 0; overflow-wrap: anywhere; }
+/* What is wrong with the open card: a quiet field like the controls, no red. */
+.detail-problems { list-style: none; margin: 0 0 14px; padding: 1px 0 1px 10px; border-left: 2px solid var(--warn); font: 12px/1.45 var(--sans); color: var(--dim); }
+.detail-problems li + li { margin-top: 4px; }
+
+/* The card's text, as md.js renders it. */
 .md { border-top: 1px solid var(--border); padding-top: 12px; overflow-wrap: anywhere; }
 .md > :first-child { margin-top: 0; }
 .md h1, .md h2, .md h3, .md h4 { font-family: var(--mono); font-weight: 500; margin: 1.4em 0 0.5em; line-height: 1.3; }
@@ -482,30 +484,50 @@ main { overflow: auto; padding: 14px 16px 40px; min-width: 0; }
 .md hr { border: 0; border-top: 1px solid var(--border); margin: 1.2em 0; }
 .md a { color: inherit; text-underline-offset: 2px; }
 
-@media (max-width: 760px) {
-  .top { flex-wrap: wrap; row-gap: 8px; }
-  .shell.with-detail { grid-template-columns: minmax(0, 1fr); }
-  .shell.with-detail main { display: none; }
-  .detail { border-left: 0; }
+/* What can be done with the open card. */
+.act { margin: 0 0 14px; display: grid; gap: 8px; }
+.act-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.act-button.is-primary, .notice-button.is-primary { background: var(--text); color: var(--surface); border-color: var(--text); }
+.act-button.is-primary:hover, .notice-button.is-primary:hover { opacity: 0.85; }
+.act-move { display: inline-flex; align-items: center; gap: 6px; font: 12px var(--mono); color: var(--dim); margin-left: auto; }
+.act-input { flex: 1 1 120px; min-width: 0; }
+.act-input::placeholder { color: var(--faint); }
+/* A name on the card, with the × that takes it off. */
+.act-person { display: inline-flex; align-items: center; gap: 0; padding: 0 0 0 10px; }
+.act-person.is-me { font-weight: 500; }
+.act-remove { height: auto; border: 0; background: none; padding: 0 6px; color: var(--dim); align-self: stretch; }
+.act-remove:hover { color: var(--text); }
+
+/* ── Problems and history ────────────────────────────────────────────────── */
+
+.issues-group { display: flex; align-items: center; gap: 7px; font: 500 13px var(--mono); margin: 16px 0 4px; }
+.issues-row {
+  display: block; width: 100%; text-align: left; margin: 0;
+  background: none; border: 0; border-radius: var(--radius); padding: 6px 4px;
+  font: 12px/1.45 var(--sans); color: var(--dim);
 }
-/* ── Changing cards ──────────────────────────────────────────────────────── */
+button.issues-row:hover { background: var(--hover); }
+.issues-row strong { display: block; font-weight: 500; color: var(--text); overflow-wrap: anywhere; }
+.issues-row span { display: block; overflow-wrap: anywhere; }
 
-.card[draggable="true"] { cursor: grab; }
-.card.dragging { opacity: 0.4; }
-.column.drop { outline: 2px dashed var(--text); outline-offset: -2px; background: var(--hover); }
+.hist-list { list-style: none; margin: 0; padding: 0; }
+.hist-list li + li { border-top: 1px solid var(--border); }
+/* One commit: a mark, what happened, when; below it who and which commit. */
+.hist {
+  display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; gap: 1px 10px;
+  width: 100%; text-align: left; padding: 9px 4px;
+  background: none; border: 0; border-radius: var(--radius);
+}
+button.hist:hover { background: var(--hover); }
+.hist .ic { color: var(--dim); margin-top: 3px; }
+/* The project's dot sits beside the first line, also when the text wraps. */
+.hist-headline { display: flex; align-items: flex-start; gap: 7px; min-width: 0; overflow-wrap: anywhere; }
+.hist-headline .dot { width: 7px; height: 7px; margin-top: 7px; }
+.hist-headline code { font: 0.92em var(--mono); background: var(--sunken); padding: 0 3px; border-radius: var(--radius); }
+.hist-time { font: 12px var(--mono); color: var(--dim); white-space: nowrap; }
+.hist-what { grid-column: 2 / 4; font: 12px/1.45 var(--sans); color: var(--dim); overflow-wrap: anywhere; }
 
-.actions { margin: 0 0 14px; display: grid; gap: 8px; }
-.actions .row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.actions button.primary, .notice button.primary { background: var(--text); color: var(--surface); border-color: var(--text); }
-.actions button.primary:hover, .notice button.primary:hover { opacity: 0.85; }
-.actions .move { display: inline-flex; align-items: center; gap: 6px; font: 12px var(--mono); color: var(--dim); margin-left: auto; }
-.actions input { flex: 1 1 120px; min-width: 0; }
-.actions input::placeholder { color: var(--faint); }
-.person { display: inline-flex; align-items: center; gap: 0; padding: 0 0 0 10px; }
-.person.me { font-weight: 500; }
-.person button { height: auto; border: 0; background: none; padding: 0 6px; color: var(--dim); align-self: stretch; }
-.person button:hover { color: var(--text); }
-.readonly { font: 12px var(--mono); color: var(--dim); background: var(--sunken); border-radius: var(--radius); padding: 8px 10px; margin: 0 0 14px; }
+/* ── Notice ──────────────────────────────────────────────────────────────── */
 
 .notice {
   position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
@@ -516,28 +538,13 @@ main { overflow: auto; padding: 14px 16px 40px; min-width: 0; }
   padding: 9px 12px; font: 13px var(--mono);
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
 }
-.notice .text { flex: 1; overflow-wrap: anywhere; }
+.notice-text { flex: 1; overflow-wrap: anywhere; }
 
-/* ── History ─────────────────────────────────────────────────────────────── */
+/* ── Narrow windows ──────────────────────────────────────────────────────── */
 
-.detail .section {
-  font: 500 11px var(--mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim);
-  margin: 22px 0 4px; padding-top: 12px; border-top: 1px solid var(--border);
+@media (max-width: 760px) {
+  .top { flex-wrap: wrap; row-gap: 8px; }
+  .shell.is-split { grid-template-columns: minmax(0, 1fr); }
+  .shell.is-split .shell-main { display: none; }
+  .panel { border-left: 0; }
 }
-.hist-list { list-style: none; margin: 0; padding: 0; }
-.hist-list li + li { border-top: 1px solid var(--border); }
-/* One commit: a mark, what happened, when; below it who and which commit. */
-.hist {
-  display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; gap: 1px 10px;
-  width: 100%; text-align: left; padding: 9px 4px;
-  background: none; border: 0; border-radius: var(--radius);
-}
-button.hist:hover { background: var(--hover); }
-.hist .icon { color: var(--dim); margin-top: 3px; }
-.hist .headline { display: flex; align-items: baseline; gap: 7px; min-width: 0; overflow-wrap: anywhere; }
-/* The project's dot sits beside the first line, also when the text wraps. */
-.hist .headline { align-items: flex-start; }
-.hist .headline .dot { width: 7px; height: 7px; margin-top: 7px; }
-.hist .headline code { font: 0.92em var(--mono); background: var(--sunken); padding: 0 3px; border-radius: var(--radius); }
-.hist time { font: 12px var(--mono); color: var(--dim); white-space: nowrap; }
-.hist .what { grid-column: 2 / 4; font: 12px/1.45 var(--sans); color: var(--dim); overflow-wrap: anywhere; }
