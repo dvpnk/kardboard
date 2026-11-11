@@ -10,13 +10,16 @@ columns:
     title: Backlog
   - id: working_on
     title: In Arbeit
-    per_person: true
+    doing: true
     limit: 3
   - id: done
     title: Erledigt
     done: true
 
 fields:
+  assignee:
+    type: person
+    required: [working_on]
   size:
     title: Größe
     type: enum

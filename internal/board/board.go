@@ -89,8 +89,9 @@ func (b *Board) failConfig(format string, args ...any) {
 	})
 }
 
-// scanColumn collects the cards of one column. A missing directory is an
-// empty column: Git does not keep empty directories.
+// scanColumn collects the cards of one column: the Markdown files directly
+// in its directory. A missing directory is an empty column, because Git does
+// not keep empty directories.
 func (b *Board) scanColumn(col Column) error {
 	entries, err := os.ReadDir(filepath.Join(b.Root, col.ID))
 	if err != nil {
@@ -100,31 +101,11 @@ func (b *Board) scanColumn(col Column) error {
 		return err
 	}
 	for _, e := range entries {
-		name := e.Name()
-		if strings.HasPrefix(name, ".") {
+		if strings.HasPrefix(e.Name(), ".") || !isCardFile(e) {
 			continue
 		}
-		switch {
-		case isCardFile(e):
-			card, err := b.readCard(col, "", name)
-			if err != nil {
-				return err
-			}
-			if col.PerPerson {
-				card.fail("E10", "card lies directly in %s/, which has one directory per person", col.ID)
-			}
-		case e.IsDir() && col.PerPerson:
-			files, err := os.ReadDir(filepath.Join(b.Root, col.ID, name))
-			if err != nil {
-				return err
-			}
-			for _, f := range files {
-				if !strings.HasPrefix(f.Name(), ".") && isCardFile(f) {
-					if _, err := b.readCard(col, name, f.Name()); err != nil {
-						return err
-					}
-				}
-			}
+		if _, err := b.readCard(col, e.Name()); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -134,11 +115,8 @@ func isCardFile(e fs.DirEntry) bool {
 	return e.Type().IsRegular() && strings.HasSuffix(e.Name(), ".md")
 }
 
-func (b *Board) readCard(col Column, person, file string) (*Card, error) {
+func (b *Board) readCard(col Column, file string) (*Card, error) {
 	rel := col.ID + "/" + file
-	if person != "" {
-		rel = col.ID + "/" + person + "/" + file
-	}
 	data, err := os.ReadFile(filepath.Join(b.Root, filepath.FromSlash(rel)))
 	if err != nil {
 		return nil, err
@@ -147,7 +125,6 @@ func (b *Board) readCard(col Column, person, file string) (*Card, error) {
 		ID:     strings.TrimSuffix(file, ".md"),
 		Path:   rel,
 		Column: col.ID,
-		Person: person,
 	}
 	card.parse(b.Config, string(data))
 	b.Cards = append(b.Cards, card)
@@ -155,7 +132,7 @@ func (b *Board) readCard(col Column, person, file string) (*Card, error) {
 }
 
 // checkBoardRules applies the rules that need more than one card or the
-// card's place: E06, E08, E09, E11, W01 and W02.
+// card's place: E06, E08, E09, E10, W01 and W02.
 func (b *Board) checkBoardRules() {
 	byID := map[string][]*Card{}
 	for _, c := range b.Cards {
@@ -186,7 +163,7 @@ func (b *Board) checkBoardRules() {
 			case strings.Contains(ref, "/"):
 				c.fail("W01", "reference %q points to another board and is not checked", ref)
 			case len(byID[ref]) == 0:
-				c.fail("E11", "reference %q: no such card on this board", ref)
+				c.fail("E10", "reference %q: no such card on this board", ref)
 			}
 		}
 	}
@@ -195,23 +172,17 @@ func (b *Board) checkBoardRules() {
 		if col.Limit == 0 {
 			continue
 		}
-		count := map[string]int{}
+		n := 0
 		for _, c := range b.Cards {
 			if c.Column == col.ID {
-				count[c.Person]++
+				n++
 			}
 		}
-		for person, n := range count {
-			if n > col.Limit {
-				path := col.ID
-				if person != "" {
-					path += "/" + person
-				}
-				b.problems = append(b.problems, Problem{
-					Code: "W02", Severity: SeverityWarning, Path: path,
-					Message: fmt.Sprintf("%d cards, limit is %d", n, col.Limit),
-				})
-			}
+		if n > col.Limit {
+			b.problems = append(b.problems, Problem{
+				Code: "W02", Severity: SeverityWarning, Path: col.ID,
+				Message: fmt.Sprintf("%d cards, limit is %d", n, col.Limit),
+			})
 		}
 	}
 }

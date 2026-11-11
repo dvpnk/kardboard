@@ -4,9 +4,12 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
+
+	"go.yaml.in/yaml/v3"
 )
 
 const sized = "---\nsize: S\n---\n\n# Sized\n"
@@ -39,103 +42,156 @@ func reload(t *testing.T, b *Board) *Board {
 	return fresh
 }
 
-func TestMove(t *testing.T) {
-	b := load(t, map[string]string{"backlog/a.md": sized})
+func TestMoveRenamesWithoutTouchingTheText(t *testing.T) {
+	b := load(t, map[string]string{"planning/a.md": sized})
 
-	res, err := b.Move("a.md", "working_on", MoveOptions{User: "alex"})
+	res, err := b.Change("a.md", Change{Column: "backlog"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := MoveResult{ID: "a", From: "backlog", To: "working_on/alex", Path: "working_on/alex/a.md", Moved: true}
-	if *res != want {
+	want := ChangeResult{ID: "a", From: "planning", To: "backlog", Path: "backlog/a.md", Moved: true}
+	if !reflect.DeepEqual(*res, want) {
 		t.Errorf("result = %+v, want %+v", *res, want)
 	}
-	if has(t, b, "backlog/a.md") || read(t, b, "working_on/alex/a.md") != sized {
+	if has(t, b, "planning/a.md") || read(t, b, "backlog/a.md") != sized {
 		t.Error("file was not moved unchanged")
-	}
-
-	b = reload(t, b)
-	if res, err = b.Move("a", "done", MoveOptions{User: "alex"}); err != nil || res.To != "done" {
-		t.Fatalf("res %+v, err %v", res, err)
-	}
-	if has(t, b, "working_on/alex") {
-		t.Error("empty person directory was left behind")
 	}
 	reload(t, b)
 }
 
-func TestMoveToSamePlaceDoesNothing(t *testing.T) {
-	b := load(t, map[string]string{"working_on/alex/a.md": sized})
-	res, err := b.Move("a", "working_on", MoveOptions{User: "alex"})
-	if err != nil || res.Moved || res.From != res.To {
-		t.Errorf("res %+v, err %v", res, err)
-	}
-	if !has(t, b, "working_on/alex/a.md") {
-		t.Error("card is gone")
-	}
-}
+func TestTakeAssignsAndMovesInOneStep(t *testing.T) {
+	b := load(t, map[string]string{"backlog/a.md": sized})
 
-func TestMoveKeepsPersonDirectoryWithOtherCards(t *testing.T) {
-	b := load(t, map[string]string{"working_on/alex/a.md": sized, "working_on/alex/b.md": sized})
-	if _, err := b.Move("a", "done", MoveOptions{User: "alex"}); err != nil {
+	res, err := b.Change("a", Change{Column: "working_on", Set: []string{"assignee=alex"}, User: "alex"})
+	if err != nil {
 		t.Fatal(err)
 	}
-	if !has(t, b, "working_on/alex/b.md") {
-		t.Error("other card is gone")
+	if !res.Moved || res.To != "working_on" || !reflect.DeepEqual(res.Set, map[string]any{"assignee": "alex"}) {
+		t.Errorf("result = %+v", res)
+	}
+	if got, want := read(t, b, "working_on/a.md"), "---\nsize: S\nassignee: alex\n---\n\n# Sized\n"; got != want {
+		t.Errorf("file = %q, want %q", got, want)
+	}
+	if c, _ := reload(t, b).Card("a"); c.Assignee() != "alex" {
+		t.Errorf("assignee = %q", c.Assignee())
 	}
 }
 
-func TestMoveRules(t *testing.T) {
+func TestAssignWithoutMoving(t *testing.T) {
+	b := load(t, map[string]string{"backlog/a.md": sized})
+
+	res, err := b.Change("a", Change{Set: []string{"assignee=laura"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Moved || res.From != "backlog" || res.To != "backlog" {
+		t.Errorf("result = %+v", res)
+	}
+	c, _ := reload(t, b).Card("a")
+	if c.Assignee() != "laura" || c.Column != "backlog" {
+		t.Errorf("card = %+v", c)
+	}
+
+	// The card is laura's now. She can hand it over and drop it.
+	b = reload(t, b)
+	if _, err = b.Change("a", Change{Set: []string{"assignee=sam"}, User: "laura"}); err != nil {
+		t.Fatal(err)
+	}
+	b = reload(t, b)
+	res, err = b.Change("a", Change{Set: []string{"assignee="}, User: "sam"})
+	if err != nil || !slices.Equal(res.Removed, []string{"assignee"}) {
+		t.Fatalf("res %+v, err %v", res, err)
+	}
+	if got := read(t, b, "backlog/a.md"); got != sized {
+		t.Errorf("file = %q, want the original %q", got, sized)
+	}
+}
+
+func TestNothingToChange(t *testing.T) {
+	const card = "---\nassignee: alex\nsize: S\ntags: [bug]\n---\n\n# A\n"
+	b := load(t, map[string]string{"working_on/a.md": card})
+
+	// Same column, same values: allowed for anyone, and the file stays as it is.
+	for _, ch := range []Change{
+		{Column: "working_on"},
+		{Set: []string{"assignee=alex"}},
+		{Column: "working_on", Set: []string{"size=S", "tags=bug"}},
+		{Set: []string{"owner="}}, // removing what is not there
+	} {
+		res, err := b.Change("a", ch)
+		if err != nil || res.Changed() {
+			t.Errorf("change %+v: res %+v, err %v", ch, res, err)
+		}
+	}
+	if read(t, b, "working_on/a.md") != card {
+		t.Error("file was rewritten")
+	}
+}
+
+func TestChangeRules(t *testing.T) {
 	files := func() map[string]string {
 		return map[string]string{
-			"planning/unsized.md":    "# No size\n",
-			"backlog/sized.md":       sized,
-			"working_on/sam/sams.md": sized,
-			"planning/twice.md":      "# A\n",
-			"done/twice.md":          "# A\n",
+			"planning/unsized.md": "# No size\n",
+			"backlog/sized.md":    sized,
+			"backlog/sams.md":     "---\nassignee: sam\nsize: S\n---\n\n# Sam's, not started\n",
+			"working_on/busy.md":  "---\nassignee: sam\nsize: S\n---\n\n# Sam's, in progress\n",
+			"planning/twice.md":   "# A\n",
+			"done/twice.md":       "# A\n",
 		}
 	}
 	tests := []struct {
 		name    string
-		id, col string
-		opt     MoveOptions
+		id      string
+		ch      Change
 		refused bool   // want a RefusedError
 		wantErr string // part of the message, "" for success
 	}{
-		{"unknown card", "nope", "done", MoveOptions{}, false, `no card "nope"`},
-		{"unknown column", "sized", "nope", MoveOptions{}, false, `no column "nope"`},
-		{"ambiguous card", "twice", "backlog", MoveOptions{}, false, "exists 2 times"},
-		{"person for a plain column", "sized", "done", MoveOptions{Person: "sam"}, false, "no directories per person"},
-		{"invalid person", "sized", "working_on", MoveOptions{Person: "Sam Smith"}, false, "not a valid person name"},
-		{"person column without a name", "sized", "working_on", MoveOptions{}, false, ErrNeedUser.Error()},
+		{"unknown card", "nope", Change{Column: "done"}, false, `no card "nope"`},
+		{"unknown column", "sized", Change{Column: "nope"}, false, `no column "nope"`},
+		{"ambiguous card", "twice", Change{Column: "backlog"}, false, "exists 2 times"},
+		{"unknown field", "sized", Change{Set: []string{"prio=1"}}, false, `unknown field "prio"`},
+		{"reserved field", "sized", Change{Set: []string{"status=done"}}, false, "cannot be set"},
+		{"wrong value", "sized", Change{Set: []string{"size=XXL"}}, false, "size: must be one of"},
+		{"invalid person", "sized", Change{Set: []string{"assignee=Sam Smith"}}, false, "assignee: must be a person's short name"},
+		{"field twice", "sized", Change{Set: []string{"size=S", "size=M"}}, false, "given twice"},
 
-		{"required field missing", "unsized", "backlog", MoveOptions{}, true, "lacks size, required in backlog"},
-		{"required field missing, forced", "unsized", "backlog", MoveOptions{Force: true}, false, ""},
+		{"required field missing in target", "unsized", Change{Column: "backlog"}, true, "would lack size, required in backlog"},
+		{"required field missing, forced", "unsized", Change{Column: "backlog", Force: true}, false, ""},
+		{"required field supplied with the move", "unsized", Change{Column: "backlog", Set: []string{"size=M"}}, false, ""},
+		{"in progress needs an assignee", "sized", Change{Column: "working_on"}, true, "would lack assignee, required in working_on"},
+		{"removing a required field", "sized", Change{Set: []string{"size="}}, true, "would lack size, required in backlog"},
+		{"removing a required field, forced", "sized", Change{Set: []string{"size="}, Force: true}, false, ""},
+		{"removing a required field while moving where it is optional", "sized", Change{Column: "planning", Set: []string{"size="}}, false, ""},
+		{"a field missing before does not block other edits", "unsized", Change{Set: []string{"owner=Einkauf"}}, false, ""},
 
-		{"someone else's card", "sams", "done", MoveOptions{User: "alex"}, true, "in the directory of sam"},
-		{"someone else's card, forced", "sams", "done", MoveOptions{User: "alex", Force: true}, false, ""},
-		{"someone else's card, user unknown", "sams", "done", MoveOptions{}, false, ErrNeedUser.Error()},
-		{"own card", "sams", "done", MoveOptions{User: "sam"}, false, ""},
-		{"own card handed over", "sams", "working_on", MoveOptions{User: "sam", Person: "alex"}, false, ""},
-		{"unassigned card for someone else", "sized", "working_on", MoveOptions{User: "alex", Person: "sam"}, false, ""},
-		{"plain move needs no user", "sized", "done", MoveOptions{}, false, ""},
+		{"someone else's card, move", "busy", Change{Column: "done", User: "alex"}, true, "is assigned to sam"},
+		{"someone else's card, reassign", "busy", Change{Set: []string{"assignee=alex"}, User: "alex"}, true, "is assigned to sam"},
+		{"someone else's card, edit", "busy", Change{Set: []string{"tags=bug"}, User: "alex"}, true, "is assigned to sam"},
+		{"someone else's card in the backlog", "sams", Change{Column: "working_on", Set: []string{"assignee=alex"}, User: "alex"}, true, "is assigned to sam"},
+		{"someone else's card, forced", "busy", Change{Column: "done", User: "alex", Force: true}, false, ""},
+		{"someone else's card, user unknown", "busy", Change{Column: "done"}, false, ErrNeedUser.Error()},
+		{"someone else's card, user unknown, forced", "busy", Change{Column: "done", Force: true}, false, ""},
+		{"own card", "busy", Change{Column: "done", User: "sam"}, false, ""},
+		{"own card handed over", "busy", Change{Set: []string{"assignee=alex"}, User: "sam"}, false, ""},
+		{"own card given up where an assignee is required", "busy", Change{Set: []string{"assignee="}, User: "sam"}, true, "would lack assignee"},
+		{"nobody's card needs no user", "sized", Change{Column: "done"}, false, ""},
+		{"nobody's card assigned to someone else", "sized", Change{Set: []string{"assignee=sam"}, User: "alex"}, false, ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			b := load(t, files())
-			before, _ := b.Card(tt.id)
-			oldPath := ""
-			if before != nil {
-				oldPath = before.Path
+			oldPath, oldText := "", ""
+			if c, ok := b.Card(tt.id); ok {
+				oldPath, oldText = c.Path, read(t, b, c.Path)
 			}
 
-			res, err := b.Move(tt.id, tt.col, tt.opt)
+			res, err := b.Change(tt.id, tt.ch)
 			if tt.wantErr == "" {
 				if err != nil {
 					t.Fatalf("unexpected error: %v", err)
 				}
-				if !res.Moved || !has(t, b, res.Path) || has(t, b, oldPath) {
-					t.Errorf("card did not move: %+v", res)
+				if !res.Changed() || !has(t, b, res.Path) || (res.Moved && has(t, b, oldPath)) {
+					t.Errorf("change did not happen: %+v", res)
 				}
 				return
 			}
@@ -146,16 +202,15 @@ func TestMoveRules(t *testing.T) {
 			if errors.As(err, &refused) != tt.refused {
 				t.Errorf("RefusedError = %v, want %v", !tt.refused, tt.refused)
 			}
-			if oldPath != "" && !has(t, b, oldPath) {
-				t.Error("a rejected move changed the board")
+			if oldPath != "" && (!has(t, b, oldPath) || read(t, b, oldPath) != oldText) {
+				t.Error("a rejected change touched the card")
 			}
 		})
 	}
 }
 
-func TestMoveDoesNotOverwrite(t *testing.T) {
-	// A file that appeared at the target after the board was read must
-	// survive.
+func TestRejectedChangeLeavesNoTrace(t *testing.T) {
+	// The edit is fine but the move is not: neither must happen.
 	b := load(t, map[string]string{"backlog/a.md": sized})
 	if err := os.MkdirAll(filepath.Join(b.Root, "done"), 0o755); err != nil {
 		t.Fatal(err)
@@ -163,30 +218,164 @@ func TestMoveDoesNotOverwrite(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(b.Root, "done", "a.md"), []byte("other"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.Move("a", "done", MoveOptions{}); err == nil || !strings.Contains(err.Error(), "already exists") {
+	_, err := b.Change("a", Change{Column: "done", Set: []string{"tags=bug"}})
+	if err == nil || !strings.Contains(err.Error(), "already exists") {
 		t.Errorf("err = %v", err)
 	}
-	if read(t, b, "done/a.md") != "other" || !has(t, b, "backlog/a.md") {
-		t.Error("existing file was overwritten")
+	if read(t, b, "done/a.md") != "other" || read(t, b, "backlog/a.md") != sized {
+		t.Error("the board was changed")
 	}
+	entries, _ := os.ReadDir(filepath.Join(b.Root, "backlog"))
+	if len(entries) != 1 {
+		t.Errorf("temporary files left behind: %v", entries)
+	}
+}
+
+func TestChangeRefusesBrokenHeader(t *testing.T) {
+	const broken = "---\nsize: [S\n---\n# A\n"
+	b := load(t, map[string]string{"planning/a.md": broken})
+	if _, err := b.Change("a", Change{Set: []string{"owner=x"}}); err == nil || !strings.Contains(err.Error(), "not valid YAML") {
+		t.Errorf("err = %v", err)
+	}
+	if read(t, b, "planning/a.md") != broken {
+		t.Error("file was changed")
+	}
+	// Moving does not read the header and still works.
+	if _, err := b.Change("a", Change{Column: "done"}); err != nil {
+		t.Errorf("move: %v", err)
+	}
+}
+
+func TestChangeRepairsAWrongValue(t *testing.T) {
+	b := load(t, map[string]string{"backlog/a.md": "---\nsize: XXL\n---\n# A\n"})
+	if _, err := b.Change("a", Change{Set: []string{"size=L"}}); err != nil {
+		t.Fatal(err)
+	}
+	reload(t, b)
+
+	// A wrong value can also be removed, although the board never accepted it.
+	b = load(t, map[string]string{"planning/a.md": "---\nsize: XXL\n---\n# A\n"})
+	res, err := b.Change("a", Change{Set: []string{"size="}})
+	if err != nil || !slices.Equal(res.Removed, []string{"size"}) {
+		t.Fatalf("res %+v, err %v", res, err)
+	}
+	reload(t, b)
 }
 
 func TestChangesNeedSyncNone(t *testing.T) {
 	for _, sync := range []string{"commit", "push"} {
 		b := load(t, map[string]string{
-			ConfigFile:      "kardboard: 1\nid: x\nsync: " + sync + "\ncolumns:\n  - id: backlog\n  - id: done\n",
-			"backlog/a.md":  "# A\n",
-			"done/.gitkeep": "",
+			ConfigFile:     "kardboard: 1\nid: x\nsync: " + sync + "\ncolumns:\n  - id: backlog\n  - id: done\n",
+			"backlog/a.md": "# A\n",
 		})
-		if _, err := b.Move("a", "done", MoveOptions{}); err == nil || !strings.Contains(err.Error(), "sync: "+sync) {
+		if _, err := b.Change("a", Change{Column: "done"}); err == nil || !strings.Contains(err.Error(), "sync: "+sync) {
 			t.Errorf("move with sync %s: err = %v", sync, err)
+		}
+		if _, err := b.Change("a", Change{Set: []string{"assignee=sam"}}); err == nil || !strings.Contains(err.Error(), "sync: "+sync) {
+			t.Errorf("assign with sync %s: err = %v", sync, err)
 		}
 		if _, err := b.New("B", NewOptions{}); err == nil || !strings.Contains(err.Error(), "sync: "+sync) {
 			t.Errorf("new with sync %s: err = %v", sync, err)
 		}
-		if !has(t, b, "backlog/a.md") || has(t, b, "backlog/b.md") {
+		if read(t, b, "backlog/a.md") != "# A\n" || has(t, b, "backlog/b.md") {
 			t.Error("board was changed")
 		}
+	}
+}
+
+func TestEditHead(t *testing.T) {
+	str := func(s string) *yaml.Node { return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: s} }
+	list := func(items ...string) *yaml.Node {
+		n := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq", Style: yaml.FlowStyle}
+		for _, i := range items {
+			n.Content = append(n.Content, str(i))
+		}
+		return n
+	}
+	tests := []struct {
+		name  string
+		in    string
+		field string
+		value *yaml.Node
+		want  string
+	}{
+		{"add to a card without header", "# A\n\nText\n", "assignee", str("alex"),
+			"---\nassignee: alex\n---\n\n# A\n\nText\n"},
+		{"add to a card without header and leading blank lines", "\n\n# A\n", "assignee", str("alex"),
+			"---\nassignee: alex\n---\n\n# A\n"},
+		{"add as the last field", "---\nsize: S\n---\n\n# A\n", "assignee", str("alex"),
+			"---\nsize: S\nassignee: alex\n---\n\n# A\n"},
+		{"add to an empty header", "---\n---\n# A\n", "assignee", str("alex"),
+			"---\nassignee: alex\n---\n# A\n"},
+		{"replace in place", "---\nsize: S\nassignee: alex\ntags: [bug]\n---\n# A\n", "assignee", str("sam"),
+			"---\nsize: S\nassignee: sam\ntags: [bug]\n---\n# A\n"},
+		{"replace the first field", "---\nassignee: alex\nsize: S\n---\n# A\n", "assignee", str("sam"),
+			"---\nassignee: sam\nsize: S\n---\n# A\n"},
+		{"replace the last field", "---\nsize: S\nassignee: alex\n---\n# A\n", "assignee", str("sam"),
+			"---\nsize: S\nassignee: sam\n---\n# A\n"},
+		{"replace a list written over several lines", "---\ntags:\n  - bug\n  - ui\nsize: S\n---\n# A\n", "tags", list("feature"),
+			"---\ntags: [feature]\nsize: S\n---\n# A\n"},
+		{"keep comments and blank lines of other fields",
+			"---\n# who\nassignee: alex\n\n# how big\nsize: S\n---\n# A\n", "assignee", str("sam"),
+			"---\n# who\nassignee: sam\n\n# how big\nsize: S\n---\n# A\n"},
+		{"keep a comment at the end of the header", "---\nassignee: alex\n# end\n---\n# A\n", "assignee", str("sam"),
+			"---\nassignee: sam\n# end\n---\n# A\n"},
+		{"keep other formatting untouched", "---\nsize:    S\ntags: [ bug ,ui ]\n---\n# A\n", "assignee", str("alex"),
+			"---\nsize:    S\ntags: [ bug ,ui ]\nassignee: alex\n---\n# A\n"},
+		{"quote a value that needs it", "# A\n", "owner", str("Einkauf: Nord"),
+			"---\nowner: 'Einkauf: Nord'\n---\n\n# A\n"},
+		{"quote a name that looks like something else", "# A\n", "assignee", str("true"),
+			"---\nassignee: \"true\"\n---\n\n# A\n"},
+
+		{"remove one of several", "---\nsize: S\nassignee: alex\ntags: [bug]\n---\n# A\n", "assignee", nil,
+			"---\nsize: S\ntags: [bug]\n---\n# A\n"},
+		{"remove a list written over several lines", "---\ntags:\n  - bug\n  - ui\nsize: S\n---\n# A\n", "tags", nil,
+			"---\nsize: S\n---\n# A\n"},
+		{"remove the only field drops the header", "---\nassignee: alex\n---\n\n# A\n", "assignee", nil,
+			"# A\n"},
+		{"remove what is not there", "---\nsize: S\n---\n# A\n", "assignee", nil,
+			"---\nsize: S\n---\n# A\n"},
+		{"remove from a card without header", "# A\n", "assignee", nil, "# A\n"},
+
+		{"windows line endings stay", "---\r\nsize: S\r\n---\r\n\r\n# A\r\n", "assignee", str("alex"),
+			"---\r\nsize: S\r\nassignee: alex\r\n---\r\n\r\n# A\r\n"},
+		{"byte order mark stays", "\uFEFF---\nsize: S\n---\n# A\n", "assignee", str("alex"),
+			"\uFEFF---\nsize: S\nassignee: alex\n---\n# A\n"},
+		{"text that looks like a header later on is left alone", "# A\n\n---\nsize: S\n---\n", "assignee", str("alex"),
+			"---\nassignee: alex\n---\n\n# A\n\n---\nsize: S\n---\n"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := editHead(tt.in, []string{tt.field}, map[string]*yaml.Node{tt.field: tt.value})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != tt.want {
+				t.Errorf("got:\n%q\nwant:\n%q", got, tt.want)
+			}
+		})
+	}
+
+	for name, in := range map[string]string{
+		"unclosed header":    "---\nsize: S\n# A\n",
+		"header not YAML":    "---\nsize: [S\n---\n# A\n",
+		"header is a list":   "---\n- a\n---\n# A\n",
+		"header in one line": "---\n{size: S}\n---\n# A\n",
+	} {
+		if _, err := editHead(in, []string{"assignee"}, map[string]*yaml.Node{"assignee": str("alex")}); err == nil {
+			t.Errorf("%s: no error", name)
+		}
+	}
+}
+
+func TestEditHeadSeveralFields(t *testing.T) {
+	str := func(s string) *yaml.Node { return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: s} }
+	in := "---\nsize: S\nassignee: alex\nowner: x\n---\n# A\n"
+	got, err := editHead(in, []string{"owner", "assignee", "size"}, map[string]*yaml.Node{
+		"owner": nil, "assignee": str("sam"), "size": str("M"),
+	})
+	if want := "---\nsize: M\nassignee: sam\n---\n# A\n"; err != nil || got != want {
+		t.Errorf("got %q, err %v, want %q", got, err, want)
 	}
 }
 
@@ -205,37 +394,40 @@ func TestNew(t *testing.T) {
 	}
 
 	c, err = b.New("With everything", NewOptions{
-		Column: "working_on", User: "alex", Today: "2026-11-11",
+		Column: "working_on", Today: "2026-11-11",
 		Set: []string{
-			"size=M", "tags=bug, feature", "owner=Einkauf: Nord", "estimate=2.5", "blocked=true",
-			"related=[other]", "depends_on=other,groesse-aendern", "due = 2026-12-24", "created=2026-01-01",
+			"size=M", "tags=bug, feature", "owner=Einkauf: Nord", "estimate=2.5", "blocked=true", "assignee=alex",
+			"related=[other]", "depends_on=other,groesse-aendern", "due = 2026-12-24", "created=2026-01-01", "reviewer=sam",
 		},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
+	// The header follows the order of the fields in board.yaml, not of --set.
 	want := "---\n" +
+		"assignee: alex\n" +
 		"size: M\n" +
 		"tags: [bug, feature]\n" +
 		"owner: 'Einkauf: Nord'\n" +
 		"estimate: 2.5\n" +
 		"blocked: true\n" +
 		"related: [other]\n" +
+		"reviewer: sam\n" +
 		"due: 2026-12-24\n" +
 		"depends_on: [other, groesse-aendern]\n" +
 		"created: 2026-01-01\n" +
 		"---\n\n# With everything\n"
-	if got := read(t, b, "working_on/alex/with-everything.md"); got != want {
+	if got := read(t, b, "working_on/with-everything.md"); got != want {
 		t.Errorf("file:\n%s\nwant:\n%s", got, want)
 	}
-	if c.Person != "alex" || c.Fields["estimate"] != 2.5 || c.Fields["blocked"] != true {
+	if c.Assignee() != "alex" || c.Fields["estimate"] != 2.5 || c.Fields["blocked"] != true {
 		t.Errorf("card = %+v", c)
 	}
 
-	if _, err = b.New("Explicit", NewOptions{ID: "my-id", Person: "sam", Column: "working_on", Set: []string{"size=S"}}); err != nil {
+	if _, err = b.New("Explicit", NewOptions{ID: "my-id", Column: "backlog", Set: []string{"size=S"}}); err != nil {
 		t.Fatal(err)
 	}
-	if got, want := read(t, b, "working_on/sam/my-id.md"), "---\nsize: S\n---\n\n# Explicit\n"; got != want {
+	if got, want := read(t, b, "backlog/my-id.md"), "---\nsize: S\n---\n\n# Explicit\n"; got != want {
 		t.Errorf("file = %q, want %q", got, want)
 	}
 
@@ -271,15 +463,17 @@ func TestNewRules(t *testing.T) {
 		{"id taken", "Other", NewOptions{}, false, "already exists at backlog/other.md"},
 		{"id taken, given explicitly", "A", NewOptions{ID: "other"}, false, "already exists"},
 		{"unknown column", "A", NewOptions{Column: "nope"}, false, `no column "nope"`},
-		{"person column without a name", "A", NewOptions{Column: "working_on"}, false, ErrNeedUser.Error()},
 		{"required field missing", "A", NewOptions{Column: "backlog"}, true, "column backlog requires size"},
+		{"in progress needs assignee and size", "A", NewOptions{Column: "working_on"}, true, "column working_on requires assignee, size"},
 		{"set without =", "A", NewOptions{Set: []string{"size"}}, false, "expected field=value"},
 		{"set unknown field", "A", NewOptions{Set: []string{"prio=1"}}, false, `unknown field "prio"`},
 		{"set reserved field", "A", NewOptions{Set: []string{"status=done"}}, false, "cannot be set"},
 		{"set wrong enum", "A", NewOptions{Set: []string{"size=XXL"}}, false, "size: must be one of"},
+		{"set empty value", "A", NewOptions{Set: []string{"size="}}, false, "size: must be one of"},
 		{"set wrong date", "A", NewOptions{Set: []string{"due=morgen"}}, false, "due: must be a date"},
 		{"set wrong number", "A", NewOptions{Set: []string{"estimate=viel"}}, false, "estimate: must be a number"},
 		{"set wrong list value", "A", NewOptions{Set: []string{"tags=bug,nope"}}, false, `"nope" is not one of`},
+		{"set person outside the values", "A", NewOptions{Set: []string{"reviewer=laura"}}, false, "reviewer: must be one of alex, sam"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -339,15 +533,15 @@ func TestSlug(t *testing.T) {
 
 func TestFirstColumns(t *testing.T) {
 	cfg, _ := ParseConfig([]byte(testConfig))
-	if col, ok := cfg.FirstPerPerson(); !ok || col.ID != "working_on" {
-		t.Errorf("FirstPerPerson = %+v, %v", col, ok)
+	if col, ok := cfg.FirstDoing(); !ok || col.ID != "working_on" {
+		t.Errorf("FirstDoing = %+v, %v", col, ok)
 	}
 	if col, ok := cfg.FirstDone(); !ok || col.ID != "done" {
 		t.Errorf("FirstDone = %+v, %v", col, ok)
 	}
 	plain, _ := ParseConfig([]byte("kardboard: 1\nid: x\ncolumns:\n  - id: a\n"))
-	if _, ok := plain.FirstPerPerson(); ok {
-		t.Error("FirstPerPerson found a column on a board without one")
+	if _, ok := plain.FirstDoing(); ok {
+		t.Error("FirstDoing found a column on a board without one")
 	}
 	if _, ok := plain.FirstDone(); ok {
 		t.Error("FirstDone found a column on a board without one")

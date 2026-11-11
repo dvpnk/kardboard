@@ -1,4 +1,5 @@
 ---
+assignee: sam
 size: M
 milestone: release
 tags: [feature]
@@ -10,7 +11,8 @@ created: 2026-11-11
 # Export als PDF
 
 Eine Notiz lässt sich als PDF speichern. Das Layout kommt aus den
-Druckvorlagen, deshalb zuerst die Karte `druckvorlagen`.
+Druckvorlagen, deshalb zuerst die Karte `druckvorlagen`. Die Karte ist schon
+für Sam vorgemerkt, liegt aber noch im Backlog.
 
 ## Fertig, wenn
 

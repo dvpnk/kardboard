@@ -6,8 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -20,7 +21,7 @@ import (
 // Exit codes of kb.
 const (
 	ExitOK        = 0
-	ExitViolation = 1 // the board breaks a rule of the format
+	ExitViolation = 1 // the board breaks a rule of the format, or a rule forbids the change
 	ExitUsage     = 2 // wrong call, or nothing to work on
 )
 
@@ -54,7 +55,7 @@ func Run(args []string, out, errOut io.Writer) int {
 	root.PersistentFlags().StringVarP(&a.dir, "dir", "C", "", "board directory, instead of looking it up from the current directory")
 	root.PersistentFlags().BoolVar(&a.asJSON, "json", false, "print JSON")
 	root.AddCommand(a.lintCmd(), a.listCmd(), a.showCmd())
-	root.AddCommand(a.newCmd(), a.moveCmd(), a.takeCmd(), a.giveCmd(), a.doneCmd())
+	root.AddCommand(a.newCmd(), a.moveCmd(), a.takeCmd(), a.doneCmd(), a.assignCmd(), a.unassignCmd(), a.setCmd())
 
 	err := root.Execute()
 	var refused *board.RefusedError
@@ -109,6 +110,13 @@ func (a *app) printJSON(v any) error {
 
 func formatProblem(p board.Problem) string {
 	return fmt.Sprintf("%s: %s %s", p.Path, p.Code, p.Message)
+}
+
+func formatValue(v any) string {
+	if list, ok := v.([]string); ok {
+		return strings.Join(list, ", ")
+	}
+	return fmt.Sprint(v)
 }
 
 // ── kb lint ─────────────────────────────────────────────────────────────────
@@ -208,9 +216,9 @@ func (a *app) listCmd() *cobra.Command {
 				}
 				columns = []board.Column{col}
 			}
-			person := ""
+			me := ""
 			if mine {
-				if person, err = userconfig.User(); err != nil {
+				if me, err = userconfig.User(); err != nil {
 					return err
 				}
 			}
@@ -218,7 +226,7 @@ func (a *app) listCmd() *cobra.Command {
 			cards := []*board.Card{}
 			for _, col := range columns {
 				for _, c := range b.Cards {
-					if c.Column == col.ID && (!mine || c.Person == person) {
+					if c.Column == col.ID && (!mine || c.Assignee() == me) {
 						cards = append(cards, c)
 					}
 				}
@@ -230,7 +238,7 @@ func (a *app) listCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().BoolVar(&mine, "mine", false, "only cards in your own directory")
+	cmd.Flags().BoolVar(&mine, "mine", false, "only cards assigned to you")
 	return cmd
 }
 
@@ -242,22 +250,14 @@ func columnIDs(cfg *board.Config) string {
 	return strings.Join(ids, ", ")
 }
 
-// printList prints the cards grouped by column and, in per-person columns,
-// by person. A card that breaks a rule is marked with "!".
+// printList prints the cards grouped by column. A card that breaks a rule is
+// marked with "!", an assigned card ends with "@name".
 func (a *app) printList(columns []board.Column, cards []*board.Card) {
-	// Cards below a person are indented two more columns. The id column is
-	// as wide as the longest id including that indent, so titles line up.
-	extra := func(c *board.Card) int {
-		if c.Person != "" {
-			return 2
-		}
-		return 0
-	}
 	width := 0
 	for _, c := range cards {
-		width = max(width, len(c.ID)+extra(c))
+		width = max(width, len(c.ID))
 	}
-	width = min(width, 42)
+	width = min(width, 40)
 
 	for _, col := range columns {
 		var inCol []*board.Card
@@ -267,19 +267,16 @@ func (a *app) printList(columns []board.Column, cards []*board.Card) {
 			}
 		}
 		fmt.Fprintf(a.out, "%s (%d)\n", col.Label(), len(inCol))
-		sort.SliceStable(inCol, func(i, j int) bool { return inCol[i].Person < inCol[j].Person })
-		person := ""
 		for _, c := range inCol {
-			if c.Person != person {
-				person = c.Person
-				fmt.Fprintf(a.out, "  %s:\n", person)
-			}
 			mark := " "
 			if !c.Valid() {
 				mark = "!"
 			}
-			indent := strings.Repeat(" ", 2+extra(c))
-			fmt.Fprintf(a.out, "%s%s %-*s  %s\n", indent, mark, width-extra(c), c.ID, c.Title)
+			line := fmt.Sprintf("  %s %-*s  %s", mark, width, c.ID, c.Title)
+			if who := c.Assignee(); who != "" {
+				line += "  @" + who
+			}
+			fmt.Fprintln(a.out, line)
 		}
 	}
 }
@@ -312,9 +309,6 @@ func (a *app) showCmd() *cobra.Command {
 
 			col, _ := b.Config.Column(c.Column)
 			rows := [][2]string{{"path", c.Path}, {"column", col.Label()}}
-			if c.Person != "" {
-				rows = append(rows, [2]string{"person", c.Person})
-			}
 			for _, f := range b.Config.AllFields() {
 				if v, has := c.Fields[f.Name]; has {
 					rows = append(rows, [2]string{f.Name, formatValue(v)})
@@ -336,27 +330,7 @@ func (a *app) showCmd() *cobra.Command {
 	}
 }
 
-func formatValue(v any) string {
-	if list, ok := v.([]string); ok {
-		return strings.Join(list, ", ")
-	}
-	return fmt.Sprint(v)
-}
-
-// ── kb new, move, take, give, done ──────────────────────────────────────────
-
-// user returns the user's name, or "" with the reason why it is unknown.
-// Most changes work without it, so the reason is only reported when the
-// board says it needs the name.
-var user = userconfig.User
-
-// needUser replaces board.ErrNeedUser by the reason the name is unknown.
-func needUser(err, userErr error) error {
-	if errors.Is(err, board.ErrNeedUser) && userErr != nil {
-		return userErr
-	}
-	return err
-}
+// ── kb new ──────────────────────────────────────────────────────────────────
 
 func (a *app) newCmd() *cobra.Command {
 	var opt board.NewOptions
@@ -369,12 +343,10 @@ func (a *app) newCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var userErr error
-			opt.User, userErr = user()
 			opt.Today = time.Now().Format("2006-01-02")
 			c, err := b.New(args[0], opt)
 			if err != nil {
-				return needUser(err, userErr)
+				return err
 			}
 			if a.asJSON {
 				return a.printJSON(showResult{Board: info(b), Card: c, Body: c.Body})
@@ -386,121 +358,131 @@ func (a *app) newCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&opt.Column, "column", "c", "", "column to put the card in (default: the first one)")
 	cmd.Flags().StringArrayVar(&opt.Set, "set", nil, "header value as field=value, may be repeated")
 	cmd.Flags().StringVar(&opt.ID, "id", "", "file name without .md (default: derived from the title)")
-	cmd.Flags().StringVar(&opt.Person, "as", "", "person, if the column has directories per person (default: you)")
 	cmd.Flags().BoolVar(&opt.Force, "force", false, "create the card even if the column requires a field it lacks")
 	return cmd
 }
 
-// move runs one move and prints what happened.
-func (a *app) move(b *board.Board, id, column string, opt board.MoveOptions) error {
+// ── kb move, take, done, assign, unassign, set ──────────────────────────────
+
+const forceHelp = "also change a card assigned to someone else, or leave a required field empty"
+
+// change applies one change to a card and prints what happened.
+//
+// The user's name is looked up here but only reported as missing when the
+// board needs it: a board where nobody is assigned works without any setup.
+func (a *app) change(b *board.Board, id string, ch board.Change) error {
 	var userErr error
-	opt.User, userErr = user()
-	res, err := b.Move(id, column, opt)
+	if ch.User == "" {
+		ch.User, userErr = userconfig.User()
+	}
+	res, err := b.Change(id, ch)
 	if err != nil {
-		return needUser(err, userErr)
+		if errors.Is(err, board.ErrNeedUser) && userErr != nil {
+			return fmt.Errorf("card %s is assigned to someone, so kb must know who you are: %w", id, userErr)
+		}
+		return err
 	}
 	if a.asJSON {
 		return a.printJSON(res)
 	}
-	if !res.Moved {
-		fmt.Fprintf(a.out, "%s: already in %s\n", res.ID, res.To)
-		return nil
+
+	var parts []string
+	if res.Moved {
+		parts = append(parts, fmt.Sprintf("%s -> %s", res.From, res.To))
 	}
-	fmt.Fprintf(a.out, "%s: %s -> %s\n", res.ID, res.From, res.To)
+	for _, name := range slices.Sorted(maps.Keys(res.Set)) {
+		parts = append(parts, fmt.Sprintf("%s = %s", name, formatValue(res.Set[name])))
+	}
+	for _, name := range res.Removed {
+		parts = append(parts, name+" removed")
+	}
+	if len(parts) == 0 {
+		parts = []string{"nothing to change"}
+	}
+	fmt.Fprintf(a.out, "%s: %s\n", res.ID, strings.Join(parts, ", "))
 	return nil
 }
 
-const forceHelp = "also move a card from another person's directory or without a required field"
-
-func (a *app) moveCmd() *cobra.Command {
-	var opt board.MoveOptions
+// changeCmd builds a command that loads the board and applies one change.
+func (a *app) changeCmd(use, short string, nargs cobra.PositionalArgs, build func(b *board.Board, args []string) (board.Change, error)) *cobra.Command {
+	var force bool
 	cmd := &cobra.Command{
-		Use:   "move <card> <column>",
-		Short: "Move a card to a column",
-		Args:  cobra.ExactArgs(2),
+		Use:   use,
+		Short: short,
+		Args:  nargs,
 		RunE: func(_ *cobra.Command, args []string) error {
 			b, err := a.loadValid()
 			if err != nil {
 				return err
 			}
-			return a.move(b, args[0], args[1], opt)
+			ch, err := build(b, args)
+			if err != nil {
+				return err
+			}
+			ch.Force = force
+			return a.change(b, args[0], ch)
 		},
 	}
-	cmd.Flags().StringVar(&opt.Person, "as", "", "person, if the column has directories per person (default: you)")
-	cmd.Flags().BoolVar(&opt.Force, "force", false, forceHelp)
+	cmd.Flags().BoolVar(&force, "force", false, forceHelp)
 	return cmd
+}
+
+func (a *app) moveCmd() *cobra.Command {
+	return a.changeCmd("move <card> <column>", "Move a card to a column", cobra.ExactArgs(2),
+		func(_ *board.Board, args []string) (board.Change, error) {
+			return board.Change{Column: args[1]}, nil
+		})
 }
 
 func (a *app) takeCmd() *cobra.Command {
-	var opt board.MoveOptions
-	cmd := &cobra.Command{
-		Use:   "take <card>",
-		Short: "Start working on a card: move it to your directory",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(_ *cobra.Command, args []string) error {
-			b, err := a.loadValid()
+	return a.changeCmd("take <card>", "Start working on a card: assign it to you and move it to the doing column", cobra.ExactArgs(1),
+		func(b *board.Board, _ []string) (board.Change, error) {
+			me, err := userconfig.User()
 			if err != nil {
-				return err
+				return board.Change{}, err
 			}
-			col, ok := b.Config.FirstPerPerson()
-			if !ok {
-				return fmt.Errorf("board %s has no column with per_person: true", b.Config.ID)
+			ch := board.Change{User: me, Set: []string{board.FieldAssignee + "=" + me}}
+			// Without a doing column, taking a card only assigns it.
+			if col, ok := b.Config.FirstDoing(); ok {
+				ch.Column = col.ID
 			}
-			return a.move(b, args[0], col.ID, opt)
-		},
-	}
-	cmd.Flags().BoolVar(&opt.Force, "force", false, forceHelp)
-	return cmd
-}
-
-func (a *app) giveCmd() *cobra.Command {
-	var opt board.MoveOptions
-	cmd := &cobra.Command{
-		Use:   "give <card> <person>",
-		Short: "Hand a card over to another person",
-		Args:  cobra.ExactArgs(2),
-		RunE: func(_ *cobra.Command, args []string) error {
-			b, err := a.loadValid()
-			if err != nil {
-				return err
-			}
-			// The card stays in its column if that one has directories per
-			// person, otherwise it goes to the first column that has them.
-			col, ok := b.Config.FirstPerPerson()
-			if c, found := b.Card(args[0]); found {
-				if current, _ := b.Config.Column(c.Column); current.PerPerson {
-					col, ok = current, true
-				}
-			}
-			if !ok {
-				return fmt.Errorf("board %s has no column with per_person: true", b.Config.ID)
-			}
-			opt.Person = args[1]
-			return a.move(b, args[0], col.ID, opt)
-		},
-	}
-	cmd.Flags().BoolVar(&opt.Force, "force", false, forceHelp)
-	return cmd
+			return ch, nil
+		})
 }
 
 func (a *app) doneCmd() *cobra.Command {
-	var opt board.MoveOptions
-	cmd := &cobra.Command{
-		Use:   "done <card>",
-		Short: "Move a card to the column for finished work",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(_ *cobra.Command, args []string) error {
-			b, err := a.loadValid()
-			if err != nil {
-				return err
-			}
+	return a.changeCmd("done <card>", "Move a card to the column for finished work", cobra.ExactArgs(1),
+		func(b *board.Board, _ []string) (board.Change, error) {
 			col, ok := b.Config.FirstDone()
 			if !ok {
-				return fmt.Errorf("board %s has no column with done: true", b.Config.ID)
+				return board.Change{}, fmt.Errorf("board %s has no column with done: true", b.Config.ID)
 			}
-			return a.move(b, args[0], col.ID, opt)
-		},
-	}
-	cmd.Flags().BoolVar(&opt.Force, "force", false, forceHelp)
+			return board.Change{Column: col.ID}, nil
+		})
+}
+
+func (a *app) assignCmd() *cobra.Command {
+	cmd := a.changeCmd("assign <card> <person>", "Say whose card it is, without moving it", cobra.ExactArgs(2),
+		func(_ *board.Board, args []string) (board.Change, error) {
+			if strings.TrimSpace(args[1]) == "" {
+				return board.Change{}, errors.New("the person's name is empty, use `kb unassign` to remove it")
+			}
+			return board.Change{Set: []string{board.FieldAssignee + "=" + args[1]}}, nil
+		})
+	cmd.Aliases = []string{"give"}
 	return cmd
+}
+
+func (a *app) unassignCmd() *cobra.Command {
+	return a.changeCmd("unassign <card>", "Make a card nobody's", cobra.ExactArgs(1),
+		func(*board.Board, []string) (board.Change, error) {
+			return board.Change{Set: []string{board.FieldAssignee + "="}}, nil
+		})
+}
+
+func (a *app) setCmd() *cobra.Command {
+	return a.changeCmd("set <card> <field=value>...", "Change header fields; an empty value removes the field", cobra.MinimumNArgs(2),
+		func(_ *board.Board, args []string) (board.Change, error) {
+			return board.Change{Set: args[1:]}, nil
+		})
 }

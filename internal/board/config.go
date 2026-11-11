@@ -35,17 +35,22 @@ const (
 	TypeDate   FieldType = "date"
 	TypeNumber FieldType = "number"
 	TypeBool   FieldType = "bool"
+	TypePerson FieldType = "person"
 	TypeCards  FieldType = "cards"
 )
 
-var fieldTypes = []FieldType{TypeText, TypeEnum, TypeList, TypeDate, TypeNumber, TypeBool, TypeCards}
+var fieldTypes = []FieldType{TypeText, TypeEnum, TypeList, TypeDate, TypeNumber, TypeBool, TypePerson, TypeCards}
 
 // reservedKeys must not appear in a card header: the path, the file name and
 // the heading already carry this information.
-var reservedKeys = []string{"status", "column", "assignee", "id", "title"}
+var reservedKeys = []string{"status", "column", "id", "title"}
+
+// FieldAssignee is the built-in field that says whose card it is.
+const FieldAssignee = "assignee"
 
 // builtinFields may be used without a declaration in board.yaml.
 var builtinFields = []Field{
+	{Name: FieldAssignee, Type: TypePerson},
 	{Name: "tags", Type: TypeList},
 	{Name: "due", Type: TypeDate},
 	{Name: "depends_on", Type: TypeCards},
@@ -64,11 +69,13 @@ type Config struct {
 
 // Column is one column of the board. Its ID is the directory name.
 type Column struct {
-	ID        string `yaml:"id"`
-	Title     string `yaml:"title"`
-	PerPerson bool   `yaml:"per_person"`
-	Done      bool   `yaml:"done"`
-	Limit     int    `yaml:"limit"`
+	ID    string `yaml:"id"`
+	Title string `yaml:"title"`
+	// Doing marks the column for work in progress, the target of `kb take`.
+	Doing bool `yaml:"doing"`
+	// Done marks the column for finished work, the target of `kb done`.
+	Done  bool `yaml:"done"`
+	Limit int  `yaml:"limit"`
 }
 
 // Label is the display name of the column.
@@ -270,10 +277,10 @@ func (c *Config) validate() []string {
 			if len(f.Values) == 0 {
 				fail("fields.%s: enum needs values", f.Name)
 			}
-		case TypeList:
+		case TypeList, TypePerson:
 		default:
 			if len(f.Values) > 0 {
-				fail("fields.%s: values are only allowed for enum and list", f.Name)
+				fail("fields.%s: values are only allowed for enum, list and person", f.Name)
 			}
 		}
 		for _, col := range f.Required.Columns {

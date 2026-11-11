@@ -25,7 +25,6 @@ type Card struct {
 	// Path is relative to the board root and uses forward slashes.
 	Path   string `json:"path"`
 	Column string `json:"column"`
-	Person string `json:"person,omitempty"`
 	Title  string `json:"title"`
 	// Fields holds the header values that passed their type check.
 	Fields   map[string]any `json:"fields"`
@@ -37,6 +36,12 @@ type Card struct {
 	refs []string
 	// rejected names the fields that are present but failed their check.
 	rejected []string
+}
+
+// Assignee returns whose card it is, or "" if it is nobody's.
+func (c *Card) Assignee() string {
+	name, _ := c.Fields[FieldAssignee].(string)
+	return name
 }
 
 // Valid reports whether the card has no errors. Warnings do not count.
@@ -230,6 +235,15 @@ func checkValue(f Field, n *yaml.Node) (any, string) {
 			}
 		}
 		return nil, "must be true or false"
+
+	case TypePerson:
+		if !isScalar || !slugRe.MatchString(n.Value) {
+			return nil, "must be a person's short name (a-z, 0-9, -)"
+		}
+		if len(f.Values) > 0 && !slices.Contains(f.Values, n.Value) {
+			return nil, fmt.Sprintf("must be one of %s", strings.Join(f.Values, ", "))
+		}
+		return n.Value, ""
 
 	case TypeCards:
 		items, ok := scalarList(n)
