@@ -1,7 +1,8 @@
-/* kardboard: neutral, dense, almost square. Black and white with hairlines;
-   colour only says which project a card belongs to and what is wrong.
-   Headings, column heads and card metadata are set in a monospace face,
-   card titles and text in the system's sans-serif. */
+/* kardboard: neutral, calm, almost square. Cards are plain fields on the
+   column, without frames; lines are kept for the few things that need one.
+   Colour only says which project a card belongs to and what needs attention.
+   The name and the column heads are set in a monospace face, everything a
+   card says in the system's sans-serif. */
 
 /* JetBrains Mono ships inside kb (see fonts/README.md), so the page asks no
    other server for it. */
@@ -26,12 +27,16 @@
   --border: #dfdfe3;
   --border-strong: #c4c4cb;
   --hover: #f0f0f2;
+  --badge: #e8e8ec;
   --focus: #1a1a1d;
   --danger: #c92a2a;
   --danger-bg: #fdecec;
   --warn: #b35c00;
 
   --radius: 2px;
+  /* Every button, field and menu trigger has this height and the same type
+     size, wherever it sits. */
+  --control: 30px;
   --mono: "JetBrains Mono", ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   color-scheme: light;
@@ -51,6 +56,7 @@
   --border: #333338;
   --border-strong: #46464d;
   --hover: #2a2a2e;
+  --badge: #36363c;
   --focus: #e6e6e9;
   --danger: #ff8787;
   --danger-bg: #3a1f1f;
@@ -68,6 +74,7 @@
     --border: #333338;
     --border-strong: #46464d;
     --hover: #2a2a2e;
+    --badge: #36363c;
     --focus: #e6e6e9;
     --danger: #ff8787;
     --danger-bg: #3a1f1f;
@@ -87,8 +94,24 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-button, input { font: inherit; color: inherit; }
+button, input, select { font: inherit; color: inherit; }
 button { cursor: pointer; }
+
+/* One look for all controls: same height, same type, same frame. Buttons,
+   text fields, the column picker and the name chips are all a white field
+   with one hairline, so they read as one family wherever they sit. */
+.menu-button, .active-filter, .top .filter, .detail .close, .segments,
+.actions button, .actions select, .actions input, .notice button, .person {
+  height: var(--control);
+  font: 13px/1 var(--mono);
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border-strong); border-radius: var(--radius);
+  padding: 0 10px;
+}
+.menu-button:hover, .menu-button.open, .detail .close:hover,
+.actions button:hover, .actions select:hover, .notice button:hover { background: var(--hover); }
+.top .filter:hover, .actions input:hover { border-color: var(--dim); }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 
 #app { display: grid; grid-template-rows: auto 1fr; height: 100%; }
@@ -102,34 +125,22 @@ button { cursor: pointer; }
   border-bottom: 1px solid var(--border);
 }
 .brand { font: 500 16px/1 var(--mono); letter-spacing: -0.01em; margin: 0 6px 0 0; }
-.top .filter {
-  flex: 0 1 260px; min-width: 90px;
-  padding: 5px 8px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-}
+.top .filter { flex: 0 1 260px; min-width: 90px; font-family: var(--sans); }
 .top .filter::placeholder { color: var(--faint); }
 .top .spacer { flex: 1; }
 .live { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); flex: none; }
 .live.on { background: #2f9e44; }
 .active-filter {
   display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
-  font: 12px var(--mono); padding: 4px 8px;
-  background: var(--text); color: var(--surface);
-  border: 1px solid var(--text); border-radius: var(--radius);
+  background: var(--text); color: var(--surface); border-color: var(--text);
 }
 .active-filter:hover { opacity: 0.85; }
 
 /* ── Menus ───────────────────────────────────────────────────────────────── */
 
 .menu-wrap { position: relative; min-width: 0; }
-.menu-button {
-  display: inline-flex; align-items: center; gap: 8px; max-width: 100%;
-  font: 13px var(--mono); padding: 5px 9px;
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-}
-.menu-button:hover, .menu-button.open { background: var(--hover); border-color: var(--border-strong); }
+.menu-button { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; white-space: nowrap; }
+.menu-button.icon { width: var(--control); padding: 0; justify-content: center; }
 .menu-button .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .menu-button .caret { color: var(--dim); font-size: 11px; }
 .menu {
@@ -142,6 +153,21 @@ button { cursor: pointer; }
   padding: 8px;
 }
 .menu.settings { left: auto; right: 0; min-width: 220px; }
+
+/* The count of problems in the top bar opens their list. */
+.menu-button.bad { color: var(--danger); }
+.menu-button.warn { color: var(--warn); }
+.menu.issues { left: auto; right: 0; width: min(460px, calc(100vw - 32px)); max-width: none; }
+.menu.issues h2 { display: flex; align-items: center; gap: 7px; text-transform: none; letter-spacing: 0; font-size: 12px; color: var(--text); margin-top: 10px; }
+.menu.issues h2:first-child { margin-top: 2px; }
+.problem {
+  display: block; width: 100%; text-align: left; margin: 0;
+  background: none; border: 0; border-radius: var(--radius); padding: 5px 6px;
+  font: 12px/1.45 var(--sans); color: var(--dim);
+}
+button.problem:hover { background: var(--hover); }
+.problem strong { display: block; font-weight: 500; color: var(--text); overflow-wrap: anywhere; }
+.problem span { display: block; overflow-wrap: anywhere; }
 .menu h2 {
   font: 500 11px var(--mono); text-transform: uppercase; letter-spacing: 0.06em;
   color: var(--dim); margin: 12px 6px 6px;
@@ -157,11 +183,12 @@ button { cursor: pointer; }
   background: none; border: 0; padding: 4px 6px; margin-top: 2px;
   font: 12px var(--mono); color: var(--dim); text-decoration: underline; text-underline-offset: 2px;
 }
-.segments { display: grid; grid-template-columns: repeat(3, 1fr); margin: 0 6px; border: 1px solid var(--border-strong); border-radius: var(--radius); }
-.segments button { font: 12px var(--mono); padding: 5px 6px; background: none; border: 0; color: var(--dim); }
+.segments { display: grid; grid-template-columns: repeat(3, 1fr); margin: 0 6px; padding: 0; overflow: hidden; }
+.segments button { font: inherit; padding: 0 6px; background: none; border: 0; color: var(--dim); }
 .segments button + button { border-left: 1px solid var(--border-strong); }
 .segments button:hover { background: var(--hover); }
 .segments button.on { background: var(--text); color: var(--surface); }
+
 
 .project { display: flex; align-items: center; gap: 4px; border-radius: var(--radius); }
 .project:hover { background: var(--hover); }
@@ -194,52 +221,97 @@ main { overflow: auto; padding: 14px 16px 40px; min-width: 0; }
   font: 11px var(--mono); padding: 1px 6px; white-space: nowrap;
   border: 1px solid var(--border-strong); border-radius: var(--radius); color: var(--dim);
 }
-.badge.bad { border-color: var(--danger); color: var(--danger); }
-.badge.warn { border-color: var(--warn); color: var(--warn); }
+.badge.bad { color: var(--danger); }
+.badge.warn { color: var(--warn); }
+/* A board that cannot be shown says why, in one quiet line. */
 .lane-error {
-  background: var(--danger-bg); color: var(--danger);
-  border: 1px solid var(--danger); border-radius: var(--radius);
-  padding: 8px 10px; font: 13px var(--mono);
+  border-left: 2px solid var(--danger);
+  color: var(--dim); font: 12px/1.45 var(--sans); padding: 1px 10px;
 }
 
 .lane-error + .columns, .lane-error + .lane-error { margin-top: 10px; }
 
-.columns { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(210px, 1fr); gap: 10px; overflow-x: auto; padding-bottom: 4px; }
-.column { background: var(--sunken); border-radius: var(--radius); padding: 8px; min-width: 0; align-self: start; }
-.column-head { display: flex; justify-content: space-between; gap: 8px; font: 500 12px var(--mono); color: var(--dim); margin: 0 2px 8px; }
+/* Columns share the width while it is scarce and stop growing at 320px:
+   wider than that, a card's title and its facts drift too far apart. */
+.columns {
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(220px, 320px);
+  justify-content: start; gap: 10px; overflow-x: auto; padding-bottom: 4px;
+}
+.column { background: var(--sunken); border-radius: var(--radius); padding: 8px 6px 6px; min-width: 0; align-self: start; }
+.column-head { display: flex; justify-content: space-between; gap: 8px; font: 500 12px var(--mono); color: var(--dim); margin: 0 4px 8px; }
 .column-head .over { color: var(--warn); }
 .column .none { font: 12px var(--mono); color: var(--faint); margin: 2px; }
 .more {
-  width: 100%; background: none; border: 1px dashed var(--border-strong); border-radius: var(--radius);
-  padding: 5px; font: 12px var(--mono); color: var(--dim);
+  width: 100%; background: none; border: 0; text-align: left;
+  padding: 6px 4px; font: 12px var(--mono); color: var(--dim);
 }
-.more:hover { background: var(--hover); }
+.more:hover { color: var(--text); }
 
 /* ── Card ────────────────────────────────────────────────────────────────── */
 
 .card {
   display: block; width: 100%; text-align: left;
   background: var(--surface);
-  border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 8px 9px; margin: 0 0 6px;
+  border: 1px solid transparent; border-radius: var(--radius);
+  padding: 9px 10px; margin: 0 0 4px;
 }
+.card { cursor: pointer; }
 .card:hover { border-color: var(--border-strong); }
-.card.open { border-color: var(--text); box-shadow: 0 0 0 1px var(--text); }
-.card.bad { border-left: 3px solid var(--danger); border-radius: 0; }
-.card .title { display: block; overflow-wrap: anywhere; }
+.card.open { border-color: var(--text); }
+.card .head { display: flex; align-items: flex-start; gap: 8px; }
+.card .title { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .card .title code, .detail h1 code { font-family: var(--mono); font-size: 0.92em; background: var(--sunken); padding: 0 3px; border-radius: var(--radius); }
 .card.done .title { color: var(--dim); }
-.card .meta {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px;
-  margin-top: 6px; font: 11px var(--mono); color: var(--dim);
+
+/* The three dots at the top right open the card's menu. They are invisible
+   until the pointer or the keyboard is on the card, but always take their
+   space, so nothing moves when they appear. */
+.card-menu-button {
+  flex: none; visibility: hidden;
+  width: 22px; height: 20px; margin: 0 -4px 0 -2px; padding: 0;
+  font: 13px/1 var(--mono); color: var(--dim);
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius);
 }
-.card .meta:empty { display: none; }
-.chip { border: 1px solid var(--border-strong); border-radius: var(--radius); padding: 0 5px; }
-.who { margin-left: auto; color: var(--text); }
-.who.me { font-weight: 500; text-decoration: underline; text-underline-offset: 2px; }
-.proj { display: inline-flex; align-items: center; gap: 5px; }
+.card:hover .card-menu-button, .card:focus-within .card-menu-button, .card-menu-button.open { visibility: visible; }
+.card-menu-button:hover, .card-menu-button.open { background: var(--hover); color: var(--text); }
+
+.menu.card-menu { position: fixed; left: auto; min-width: 190px; padding: 6px; }
+.card-menu button {
+  display: block; width: 100%; text-align: left;
+  font: 13px/1 var(--sans); padding: 8px 8px;
+  background: none; border: 0; border-radius: var(--radius);
+}
+.card-menu button:hover, .card-menu button:focus-visible { background: var(--hover); }
+.card-menu hr { border: 0; border-top: 1px solid var(--border); margin: 5px 2px; }
+.card-menu hr:first-child, .card-menu hr:last-child { display: none; }
+
+/* Marks at the top right: a red clock for a card past its due date, a bug
+   for a card that breaks a rule of the format. */
+.icon { display: inline-flex; flex: none; margin-top: 3px; }
+.icon.clock { color: var(--danger); }
+.icon.bug { color: var(--warn); }
+
+/* The lines below the title. Each has a left and a right place and never
+   wraps, so the same fact sits at the same spot on every card. */
+.card .line {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin-top: 5px; font: 12px/1.4 var(--sans); color: var(--dim);
+  white-space: nowrap;
+}
+.card .facts { display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; }
+.card .facts > * { flex: none; }
+.card .due, .card .people { flex: none; }
+/* Size and milestone are small filled marks. A frame is reserved for
+   things one can click, so a mark must not have one. */
+.chip {
+  font: 10px/1.7 var(--mono); color: var(--text);
+  background: var(--badge); border-radius: var(--radius); padding: 0 5px;
+}
+.proj { display: flex; align-items: center; gap: 5px; min-width: 0; }
 .proj .dot { width: 7px; height: 7px; }
-.overdue { color: var(--danger); }
+.proj-name { overflow: hidden; text-overflow: ellipsis; }
+.people { display: flex; gap: 8px; }
+.who.me { color: var(--text); font-weight: 500; }
 
 /* ── Detail ──────────────────────────────────────────────────────────────── */
 
@@ -251,16 +323,13 @@ main { overflow: auto; padding: 14px 16px 40px; min-width: 0; }
 }
 .detail-head { display: flex; align-items: flex-start; gap: 10px; }
 .detail-head .where { flex: 1; min-width: 0; font: 12px var(--mono); color: var(--dim); overflow-wrap: anywhere; }
-.detail .close {
-  background: none; border: 1px solid var(--border); border-radius: var(--radius);
-  width: 26px; height: 26px; line-height: 1; font-size: 16px; flex: none;
-}
-.detail .close:hover { background: var(--hover); }
+.detail .close { width: var(--control); padding: 0; font-size: 16px; flex: none; }
 .detail h1 { font: 500 19px/1.3 var(--mono); margin: 10px 0 12px; overflow-wrap: anywhere; }
 .fields { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 3px 14px; font: 12px var(--mono); margin: 0 0 14px; }
 .fields dt { color: var(--dim); }
 .fields dd { margin: 0; overflow-wrap: anywhere; }
-.problems { list-style: none; margin: 0 0 14px; padding: 8px 10px; background: var(--danger-bg); border: 1px solid var(--danger); border-radius: var(--radius); font: 12px var(--mono); color: var(--danger); }
+/* What is wrong with the open card: a quiet field like the controls, no red. */
+.problems { list-style: none; margin: 0 0 14px; padding: 1px 0 1px 10px; border-left: 2px solid var(--warn); font: 12px/1.45 var(--sans); color: var(--dim); }
 .problems li + li { margin-top: 4px; }
 
 .md { border-top: 1px solid var(--border); padding-top: 12px; overflow-wrap: anywhere; }
@@ -295,23 +364,15 @@ main { overflow: auto; padding: 14px 16px 40px; min-width: 0; }
 
 .actions { margin: 0 0 14px; display: grid; gap: 8px; }
 .actions .row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.actions button, .actions select, .actions input, .notice button {
-  font: 12px var(--mono);
-  background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius);
-  padding: 4px 9px;
-}
-.actions button:hover, .notice button:hover { background: var(--hover); }
 .actions button.primary, .notice button.primary { background: var(--text); color: var(--surface); border-color: var(--text); }
 .actions button.primary:hover, .notice button.primary:hover { opacity: 0.85; }
 .actions .move { display: inline-flex; align-items: center; gap: 6px; font: 12px var(--mono); color: var(--dim); margin-left: auto; }
 .actions input { flex: 1 1 120px; min-width: 0; }
 .actions input::placeholder { color: var(--faint); }
-.person {
-  display: inline-flex; align-items: center; gap: 2px;
-  font: 12px var(--mono); border: 1px solid var(--border-strong); border-radius: var(--radius); padding: 0 0 0 7px;
-}
+.person { display: inline-flex; align-items: center; gap: 0; padding: 0 0 0 10px; }
 .person.me { font-weight: 500; }
-.person button { border: 0; background: none; padding: 3px 6px; color: var(--dim); }
+.person button { height: auto; border: 0; background: none; padding: 0 6px; color: var(--dim); align-self: stretch; }
+.person button:hover { color: var(--text); }
 .readonly { font: 12px var(--mono); color: var(--dim); background: var(--sunken); border-radius: var(--radius); padding: 8px 10px; margin: 0 0 14px; }
 
 .notice {

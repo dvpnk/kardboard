@@ -14,6 +14,8 @@ const TEXTS = {
     pickHint: "Tick to show or hide. Click a name to see that project alone.",
     settings: "Settings", theme: "Appearance", system: "System", light: "Light", dark: "Dark",
     you: (name) => `You are @${name}`, mineOff: "show everyone's cards again",
+    overdue: (date) => `Overdue since ${date}`,
+    cardMenu: "Actions for this card", handOver: "Hand over …", to: (column) => `To ${column}`, problems: "What is wrong", unusable: "This board cannot be shown",
     mine: "Only mine", mineHint: "kb does not know who you are. Set `user` in ~/.config/kardboard/config.yaml.",
     open: "Open", doing: "In progress", done: "Done", none: "nothing here", more: (n) => `${n} more`, less: "show fewer",
     boards: (n) => `${n} ${n === 1 ? "board" : "boards"}`, cards: (n) => `${n} ${n === 1 ? "card" : "cards"}`,
@@ -33,6 +35,8 @@ const TEXTS = {
     pickHint: "Haken blendet ein oder aus. Ein Klick auf den Namen zeigt das Projekt allein.",
     settings: "Einstellungen", theme: "Darstellung", system: "System", light: "Hell", dark: "Dunkel",
     you: (name) => `Du bist @${name}`, mineOff: "wieder die Karten aller zeigen",
+    overdue: (date) => `Überfällig seit ${date}`,
+    cardMenu: "Aktionen für diese Karte", handOver: "Übergeben …", to: (column) => `Nach ${column}`, problems: "Was nicht stimmt", unusable: "Dieses Board kann nicht gezeigt werden",
     mine: "Nur meine", mineHint: "kb weiß nicht, wer du bist. Trag `user` in ~/.config/kardboard/config.yaml ein.",
     open: "Offen", doing: "In Arbeit", done: "Erledigt", none: "nichts hier", more: (n) => `${n} weitere`, less: "weniger zeigen",
     boards: (n) => `${n} ${n === 1 ? "Board" : "Boards"}`, cards: (n) => `${n} ${n === 1 ? "Karte" : "Karten"}`,
@@ -71,6 +75,8 @@ const state = {
   open: null,           // { board, id, detail } of the card in the side panel
   notice: null,         // { text, retry } shown at the bottom: an error, or a refusal that can be forced
   menu: null,           // which menu of the top bar is open: "projects", "settings" or none
+  cardMenu: null,       // { board, card, top, right } of the card whose menu is open
+  focusPerson: false,   // put the cursor into the person field once the card panel is drawn
   theme: stored("theme", "system"), // "system", "light" or "dark"
 };
 
@@ -204,6 +210,27 @@ const dot = (colour) => {
   return el;
 };
 
+// icon draws a small line icon. The shapes are drawn here, so the page needs
+// no icon font and no image files.
+const ICONS = {
+  // a clock: the card is past its due date
+  clock: ['<circle cx="12" cy="12" r="9"/>', '<path d="M12 7v5l3.5 2"/>'],
+  // a bug: the card breaks a rule of the format
+  bug: [
+    '<ellipse cx="12" cy="14" rx="5" ry="6"/>',
+    '<path d="M9 8.6a3 3 0 0 1 6 0"/>',
+    '<path d="M9.5 5.5 8 3.5M14.5 5.5 16 3.5"/>',
+    '<path d="M7 12H3.5M7.2 16.5 4 18M17 12h3.5M16.8 16.5 20 18M12 9v11"/>',
+  ],
+};
+function icon(name, label) {
+  const holder = h("span", { class: "icon " + name, title: label, role: "img", "aria-label": label });
+  holder.innerHTML = // fixed markup from the table above, never card content
+    '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" ' +
+    'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONS[name].join("") + "</svg>";
+  return holder;
+}
+
 // code turns `like this` in a UI text into <code> elements.
 const code = (text) => text.split("`").map((part, i) => (i % 2 ? h("code", {}, part) : part));
 
@@ -229,7 +256,14 @@ function draw() {
     h("div", { class: "shell" + (state.open?.detail ? " with-detail" : "") },
       drawMain(), state.open?.detail ? drawDetail() : null),
     state.notice && drawNotice(),
+    state.cardMenu && drawCardMenu(),
   ].filter(Boolean));
+
+  if (state.focusPerson && state.open?.detail) {
+    state.focusPerson = false;
+    app.querySelector(".actions input[name=person]")?.focus();
+    return;
+  }
 
   if (focused) {
     const el = document.getElementById(focused);
@@ -254,9 +288,6 @@ function drawNotice() {
 // The top bar holds the few things that are always needed: which projects,
 // the filter, what is wrong, and a menu for the rest.
 function drawTop() {
-  const boards = visibleBoards();
-  const errors = boards.reduce((n, b) => n + b.errors, 0);
-  const warnings = boards.reduce((n, b) => n + b.warnings, 0);
   const me = state.data.user;
   return h("header", { class: "top" },
     h("h1", { class: "brand" }, "kardboard"),
@@ -270,8 +301,7 @@ function drawTop() {
     state.mine && me && h("button", { type: "button", class: "active-filter", title: t.mineOff, onclick: () => setMine(false) },
       "@" + me, h("span", { "aria-hidden": "true" }, "×")),
     h("span", { class: "spacer" }),
-    errors > 0 && h("span", { class: "badge bad" }, t.errors(errors)),
-    warnings > 0 && h("span", { class: "badge warn" }, t.warnings(warnings)),
+    drawProblemsMenu(),
     h("span", { class: "live" + (state.live ? " on" : ""), role: "img", "aria-label": state.live ? t.live : t.offline, title: state.live ? t.live : t.offline }),
     drawSettingsMenu());
 }
@@ -284,12 +314,12 @@ function setMine(on) {
 
 // menu draws a button that opens a panel below it. Only one menu is open at
 // a time; a click elsewhere or Escape closes it.
-function menu(name, label, title, content) {
+function menu(name, label, title, content, kind = "") {
   const open = state.menu === name;
   return h("div", { class: "menu-wrap" },
     h("button", {
-      type: "button", class: "menu-button" + (open ? " open" : ""), "aria-haspopup": "true", "aria-expanded": String(open), title,
-      onclick: () => { state.menu = open ? null : name; draw(); },
+      type: "button", class: "menu-button " + kind + (open ? " open" : ""), "aria-haspopup": "true", "aria-expanded": String(open), title,
+      onclick: () => { state.cardMenu = null; state.menu = open ? null : name; draw(); },
     }, label),
     open && h("div", { class: "menu " + name }, content()));
 }
@@ -330,6 +360,36 @@ function drawProjectMenu() {
   ]);
 }
 
+// drawProblemsMenu is the one place that says what is wrong: boards that
+// cannot be shown, cards that break a rule, exceeded limits. The top bar
+// only shows how many there are; the list opens on demand, and a card in it
+// opens that card.
+function drawProblemsMenu() {
+  const boards = visibleBoards();
+  const errors = boards.reduce((n, b) => n + b.errors + (b.error ? 1 : 0), 0);
+  const warnings = boards.reduce((n, b) => n + b.warnings, 0);
+  if (errors + warnings === 0) return null;
+
+  const label = [errors > 0 && t.errors(errors), warnings > 0 && t.warnings(warnings)].filter(Boolean).join(" · ");
+  return menu("issues", h("span", {}, label), t.problems, () => boards.map((board) => {
+    const rows = [];
+    if (board.error) rows.push(h("p", { class: "problem" }, h("strong", {}, t.unusable), h("span", {}, board.error)));
+    for (const p of board.problems) {
+      rows.push(h("p", { class: "problem" }, h("strong", {}, p.path), h("span", {}, `${p.code} ${p.message}`)));
+    }
+    for (const card of board.cards) {
+      const found = card.problems ?? [];
+      if (found.length === 0) continue;
+      rows.push(h("button", {
+        type: "button", class: "problem",
+        onclick: () => { state.menu = null; openCard(board, card); },
+      }, h("strong", {}, card.title), found.map((p) => h("span", {}, `${p.code} ${p.message}`))));
+    }
+    if (rows.length === 0) return null;
+    return [h("h2", {}, dot(colourOf(board)), board.name), rows];
+  }), errors > 0 ? "bad" : "warn");
+}
+
 function drawSettingsMenu() {
   const me = state.data.user;
   const setTheme = (theme) => { state.theme = theme; store("theme", theme); applyTheme(); draw(); };
@@ -345,7 +405,7 @@ function drawSettingsMenu() {
         onclick: () => setTheme(theme),
       }, t[theme]))),
     me && h("p", { class: "hint you" }, t.you(me)),
-  ]);
+  ], "icon");
 }
 
 function drawMain() {
@@ -363,7 +423,7 @@ function drawMain() {
 // drawLane draws one board with its own columns. It has no heading: the top
 // bar already names the project and counts what is wrong with it.
 function drawLane(board) {
-  if (board.error) return h("section", { class: "lane" }, h("div", { class: "lane-error" }, `${board.name}: ${board.error}`));
+  if (board.error) return h("div", { class: "empty" }, h("h2", {}, t.unusable), h("p", {}, board.error));
 
   return h("section", { class: "lane" },
     h("div", { class: "columns" }, board.columns.map((col) => {
@@ -386,9 +446,7 @@ function drawOverview(boards) {
       if (matches(card, board)) groups[kind.get(card.column)].push({ card, board });
     }
   }
-  const broken = boards.filter((b) => b.error);
   return [
-    broken.map((b) => h("div", { class: "lane-error" }, `${b.name}: ${b.error}`)),
     h("div", { class: "columns" }, Object.entries(groups).map(([kind, entries]) =>
       drawColumn("overview/" + kind, t[kind], String(entries.length),
         entries.map(({ card, board }) => drawCard(card, board, { done: kind === "done", project: true })),
@@ -436,31 +494,66 @@ function endDrag() {
   if (redrawAfterDrag) { redrawAfterDrag = false; draw(); }
 }
 
+// How many names a card shows before it sums up the rest as "+2".
+const MAX_NAMES = 2;
+
+// drawCard draws one card. Every fact has its own fixed place, so cards
+// with more or fewer facts look alike and nothing jumps from one to the next:
+//
+//   title ................................ marks (overdue, broken)
+//   size, tags ............................. due date
+//   project ................................. people
+//
+// The second and third line appear only if the card has something for them.
+// Neither wraps; what does not fit is cut off and stays in the card's panel.
 function drawCard(card, board, { done = false, project = false } = {}) {
-  const bad = (card.problems ?? []).some((p) => p.severity === "error");
+  const problems = (card.problems ?? []).filter((p) => p.severity === "error");
   const isOpen = state.open?.board === board.id && state.open?.id === card.id;
-  const meta = [];
-  if (project) meta.push(h("span", { class: "proj" }, dot(colourOf(board)), board.name));
+  const due = card.fields.due;
+  const late = due && !done && due < new Date().toISOString().slice(0, 10);
+
+  const facts = [];
   for (const field of board.fields) {
     const value = card.fields[field.name];
     if (value == null) continue;
-    if (field.type === "enum") meta.push(h("span", { class: "chip" }, String(value)));
-    else if (field.name === "tags") meta.push(...value.map((tag) => h("span", {}, tag)));
-    else if (field.name === "due") {
-      const late = !done && value < new Date().toISOString().slice(0, 10);
-      meta.push(h("span", { class: late ? "overdue" : "" }, "→ " + value));
-    }
+    if (field.type === "enum") facts.push(h("span", { class: "chip", title: field.title }, String(value)));
+    else if (field.name === "tags") facts.push(...value.map((tag) => h("span", { class: "tag" }, tag)));
   }
-  for (const name of people(card)) {
-    meta.push(h("span", { class: "who" + (name === state.data.user ? " me" : "") }, "@" + name));
-  }
-  // Only the first name is pushed to the right; the others follow it.
-  meta.filter((el) => el.classList.contains("who")).slice(1).forEach((el) => { el.style.marginLeft = "0"; });
+  const who = people(card);
+  const names = who.slice(0, MAX_NAMES).map((name) =>
+    h("span", { class: "who" + (name === state.data.user ? " me" : "") }, "@" + name));
+  if (who.length > MAX_NAMES) names.push(h("span", { class: "who" }, "+" + (who.length - MAX_NAMES)));
 
-  const el = h("button", {
-    class: "card" + (bad ? " bad" : "") + (done ? " done" : "") + (isOpen ? " open" : ""),
-    type: "button", title: card.path, onclick: () => openCard(board, card),
-  }, h("span", { class: "title" }, code(card.title)), h("span", { class: "meta" }, meta));
+  const menuOpen = state.cardMenu?.board === board && state.cardMenu?.card.id === card.id;
+  const el = h("div", {
+    class: "card" + (done ? " done" : "") + (isOpen ? " open" : ""),
+    role: "button", tabindex: "0", title: card.path,
+    onclick: () => openCard(board, card),
+    onkeydown: (e) => { if (e.target === el && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openCard(board, card); } },
+  },
+    h("span", { class: "head" },
+      h("span", { class: "title" }, code(card.title)),
+      late && icon("clock", t.overdue(due)),
+      problems.length > 0 && icon("bug", problems.map((p) => `${p.code} ${p.message}`).join("\n")),
+      // The three dots only show under the pointer or with keyboard focus.
+      // Their place is kept free all the time, so the title never moves.
+      board.writable && h("button", {
+        type: "button", class: "card-menu-button" + (menuOpen ? " open" : ""),
+        "aria-label": t.cardMenu, title: t.cardMenu, "aria-haspopup": "true", "aria-expanded": String(menuOpen),
+        onclick: (e) => {
+          e.stopPropagation();
+          const box = e.currentTarget.getBoundingClientRect();
+          state.menu = null;
+          state.cardMenu = menuOpen ? null : { board, card, top: box.bottom + 4, right: window.innerWidth - box.right };
+          draw();
+        },
+      }, "⋯")),
+    (facts.length > 0 || due) && h("span", { class: "line" },
+      h("span", { class: "facts" }, facts),
+      due && h("span", { class: "due" }, "→ " + due)),
+    (project || who.length > 0) && h("span", { class: "line" },
+      project ? h("span", { class: "proj" }, dot(colourOf(board)), h("span", { class: "proj-name" }, board.name)) : h("span"),
+      who.length > 0 && h("span", { class: "people", title: who.map((n) => "@" + n).join(" ") }, names)));
 
   if (board.writable) {
     el.draggable = true;
@@ -472,6 +565,32 @@ function drawCard(card, board, { done = false, project = false } = {}) {
     });
     el.addEventListener("dragend", endDrag);
   }
+  return el;
+}
+
+// drawCardMenu draws the menu of one card: what can be done with it without
+// opening it. Each entry is an action of the command line. The entries for
+// moving are the other columns of the card's own board, so this also works
+// in the shared view, where "open" stands for several columns.
+function drawCardMenu() {
+  const { board, card, top, right } = state.cardMenu;
+  const who = people(card);
+  const me = state.data.user;
+  const doing = board.columns.find((c) => c.doing);
+  const done = board.columns.find((c) => c.done);
+  const mineAlone = who.length === 1 && who[0] === me;
+  const run = (action, extra) => { state.cardMenu = null; act(board, card.id, action, extra); };
+  const item = (label, onclick) => h("button", { type: "button", role: "menuitem", onclick }, label);
+
+  const el = h("div", { class: "menu card-menu", role: "menu", "aria-label": t.cardMenu },
+    me && !(mineAlone && (!doing || card.column === doing.id)) && item(t.take, () => run("take")),
+    item(t.handOver, () => { state.cardMenu = null; state.focusPerson = true; openCard(board, card); }),
+    done && card.column !== done.id && item(t.finish, () => run("done")),
+    h("hr"),
+    board.columns.filter((c) => c.id !== card.column && c !== done)
+      .map((c) => item(t.to(c.title), () => run("move", { column: c.id }))));
+  el.style.top = top + "px";
+  el.style.right = right + "px";
   return el;
 }
 
@@ -548,9 +667,17 @@ function drawActions(board, card, column) {
 // A click outside an open menu closes it.
 document.addEventListener("click", (e) => {
   if (state.menu && !e.target.closest(".menu-wrap")) { state.menu = null; draw(); }
+  if (state.cardMenu && !e.target.closest(".card-menu, .card-menu-button")) { state.cardMenu = null; draw(); }
 });
 
+// The card menu is placed where its button was. When the page scrolls, that
+// place is no longer right, so the menu closes.
+document.addEventListener("scroll", () => {
+  if (state.cardMenu) { state.cardMenu = null; draw(); }
+}, true);
+
 document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && state.cardMenu) { state.cardMenu = null; draw(); return; }
   if (e.key === "Escape" && state.menu) { state.menu = null; draw(); return; }
   if (e.key === "Escape" && state.open) { state.open = null; draw(); }
   if (e.key === "/" && document.activeElement?.tagName !== "INPUT") {
