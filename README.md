@@ -101,6 +101,10 @@ Karten lassen sich in eine andere Spalte ziehen. Ein Klick auf eine Karte
 öffnet ihren Text und bietet Nehmen, Abschließen, Verschieben und Zuweisen an.
 Jede dieser Handlungen ist der gleichnamige Befehl, mit denselben Regeln.
 
+Liegt ein Board in einem Git-Repository, zeigt „Verlauf“ oben rechts die
+Commits, die es berührt haben, und jede Karte ihre eigene Geschichte. Dafür
+muss `git` installiert sein.
+
 Der Server ist nur vom eigenen Rechner aus erreichbar und nimmt Änderungen nur
 von der eigenen Seite an.
 

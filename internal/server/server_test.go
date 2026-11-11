@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -651,5 +652,91 @@ func TestRunServesUntilCancelled(t *testing.T) {
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatal("server did not stop")
+	}
+}
+
+func TestHistory(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is not installed")
+	}
+	settings(t, "")
+	root := copyOfExample(t)
+	git := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{
+			"-C", root, "-c", "user.name=Alex Example", "-c", "user.email=alex@example.com",
+			"-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null",
+		}, args...)...)
+		cmd.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	s := New(root)
+
+	type history struct {
+		Available bool
+		Reason    string
+		Branch    string
+		Entries   []struct {
+			Short, Author, Date, Subject string
+			Changes                      []struct{ Kind, Card, From, To string }
+		}
+	}
+	read := func(query string) (int, history) {
+		t.Helper()
+		rec := get(t, s, "/api/history?"+query)
+		var h history
+		if rec.Code == http.StatusOK {
+			if err := json.Unmarshal(rec.Body.Bytes(), &h); err != nil {
+				t.Fatalf("%v\n%s", err, rec.Body)
+			}
+		}
+		return rec.Code, h
+	}
+
+	// A board outside a repository has no history, and says so.
+	code, h := read("board=demo")
+	if code != http.StatusOK || h.Available || h.Reason == "" || h.Entries == nil {
+		t.Errorf("without Git: code %d, %+v", code, h)
+	}
+
+	git("init", "-q", "-b", "main")
+	git("add", "-A")
+	git("commit", "-q", "-m", "Board anlegen")
+	// A move through the page is a rename on disk; the user commits it.
+	if rec := post(t, s, `{"board":"demo","card":"druckvorlagen","action":"move","column":"done"}`, nil); rec.Code != http.StatusOK {
+		t.Fatalf("move: %d %s", rec.Code, rec.Body)
+	}
+	git("add", "-A")
+	git("commit", "-q", "-m", "Druckvorlagen fertig")
+
+	code, h = read("board=demo")
+	if code != http.StatusOK || !h.Available || h.Branch != "main" || len(h.Entries) != 2 {
+		t.Fatalf("board history: code %d, %+v", code, h)
+	}
+	top := h.Entries[0]
+	if top.Subject != "Druckvorlagen fertig" || top.Author != "Alex Example" || len(top.Changes) != 1 ||
+		top.Changes[0].Kind != "moved" || top.Changes[0].Card != "druckvorlagen" || top.Changes[0].From != "backlog" || top.Changes[0].To != "done" {
+		t.Errorf("newest entry = %+v", top)
+	}
+
+	code, h = read("board=demo&card=druckvorlagen")
+	if code != http.StatusOK || len(h.Entries) != 2 || h.Entries[1].Changes[0].Kind != "added" {
+		t.Errorf("card history: code %d, %+v", code, h)
+	}
+	if code, h = read("board=demo&limit=1"); len(h.Entries) != 1 {
+		t.Errorf("limit: code %d, %d entries", code, len(h.Entries))
+	}
+	// A limit that is no number, zero or huge must not break the request.
+	for _, q := range []string{"board=demo&limit=abc", "board=demo&limit=0", "board=demo&limit=999999"} {
+		if code, _ = read(q); code != http.StatusOK {
+			t.Errorf("%s: code %d", q, code)
+		}
+	}
+	for _, q := range []string{"board=nope", "board=demo&card=nope", ""} {
+		if code, _ = read(q); code != http.StatusNotFound {
+			t.Errorf("%q: code %d, want 404", q, code)
+		}
 	}
 }

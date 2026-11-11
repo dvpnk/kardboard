@@ -15,7 +15,15 @@ const TEXTS = {
     settings: "Settings", theme: "Appearance", system: "System", light: "Light", dark: "Dark",
     you: (name) => `You are @${name}`, mineOff: "show everyone's cards again",
     overdue: (date) => `Overdue since ${date}`,
-    cardMenu: "Actions for this card", handOver: "Hand over …", to: (column) => `To ${column}`, problems: "What is wrong", unusable: "This board cannot be shown",
+    cardMenu: "Actions for this card", handOver: "Hand over …", to: (column) => `To ${column}`,
+    allGood: "Nothing is wrong.", search: "Search cards", menuTitle: "Menu",
+    filters: "Filter", overdueOnly: "Overdue", tags: "Tags", clearFilters: "Clear",
+    showing: (n, of) => `${n} of ${of} cards`,
+    liveOn: "Connected. The page follows changes to the files.",
+    liveOff: "Not connected: `kb ui` is not running. What you see may be out of date.",
+    history: "History", noGit: (name) => `${name} is not in a Git repository, so it has no history.`, noCommits: "No commits yet.",
+    hMoved: (a, b) => `${a} → ${b}`, hAdded: (col) => `new in ${col}`, hEdited: "edited", hAlsoEdited: ", edited",
+    hRenamed: (id) => `renamed from ${id}`, hRemoved: (col) => `removed from ${col}`, hCards: (n) => `${n} cards`, problems: "What is wrong", unusable: "This board cannot be shown",
     mine: "Only mine", mineHint: "kb does not know who you are. Set `user` in ~/.config/kardboard/config.yaml.",
     open: "Open", doing: "In progress", done: "Done", none: "nothing here", more: (n) => `${n} more`, less: "show fewer",
     boards: (n) => `${n} ${n === 1 ? "board" : "boards"}`, cards: (n) => `${n} ${n === 1 ? "card" : "cards"}`,
@@ -36,7 +44,15 @@ const TEXTS = {
     settings: "Einstellungen", theme: "Darstellung", system: "System", light: "Hell", dark: "Dunkel",
     you: (name) => `Du bist @${name}`, mineOff: "wieder die Karten aller zeigen",
     overdue: (date) => `Überfällig seit ${date}`,
-    cardMenu: "Aktionen für diese Karte", handOver: "Übergeben …", to: (column) => `Nach ${column}`, problems: "Was nicht stimmt", unusable: "Dieses Board kann nicht gezeigt werden",
+    cardMenu: "Aktionen für diese Karte", handOver: "Übergeben …", to: (column) => `Nach ${column}`,
+    allGood: "Alles in Ordnung.", search: "Karten suchen", menuTitle: "Menü",
+    filters: "Filter", overdueOnly: "Überfällig", tags: "Schlagworte", clearFilters: "Zurücksetzen",
+    showing: (n, of) => `${n} von ${of} Karten`,
+    liveOn: "Verbunden. Die Seite folgt Änderungen an den Dateien.",
+    liveOff: "Nicht verbunden: `kb ui` läuft nicht. Der Stand kann veraltet sein.",
+    history: "Verlauf", noGit: (name) => `${name} liegt nicht in einem Git-Repository und hat deshalb keinen Verlauf.`, noCommits: "Noch keine Commits.",
+    hMoved: (a, b) => `${a} → ${b}`, hAdded: (col) => `neu in ${col}`, hEdited: "geändert", hAlsoEdited: ", geändert",
+    hRenamed: (id) => `umbenannt von ${id}`, hRemoved: (col) => `entfernt aus ${col}`, hCards: (n) => `${n} Karten`, problems: "Was nicht stimmt", unusable: "Dieses Board kann nicht gezeigt werden",
     mine: "Nur meine", mineHint: "kb weiß nicht, wer du bist. Trag `user` in ~/.config/kardboard/config.yaml ein.",
     open: "Offen", doing: "In Arbeit", done: "Erledigt", none: "nichts hier", more: (n) => `${n} weitere`, less: "weniger zeigen",
     boards: (n) => `${n} ${n === 1 ? "Board" : "Boards"}`, cards: (n) => `${n} ${n === 1 ? "Karte" : "Karten"}`,
@@ -70,11 +86,15 @@ const state = {
   live: false,          // whether the event stream is connected
   hidden: stored("hidden", null), // keys of hidden boards; null = use the settings' default
   mine: stored("mine", false),
+  overdue: false,       // show only cards past their due date
+  tags: [],             // show only cards with one of these tags; empty = all
   filter: "",
   expanded: new Set(),  // columns shown in full, as "boardKey/columnId"
   open: null,           // { board, id, detail } of the card in the side panel
   notice: null,         // { text, retry } shown at the bottom: an error, or a refusal that can be forced
   menu: null,           // which menu of the top bar is open: "projects", "settings" or none
+  history: null,        // { rows, missing } while the history panel is open, see loadHistory
+  problems: false,      // whether the panel with what is wrong is open
   cardMenu: null,       // { board, card, top, right } of the card whose menu is open
   focusPerson: false,   // put the cursor into the person field once the card panel is drawn
   theme: stored("theme", "system"), // "system", "light" or "dark"
@@ -105,8 +125,40 @@ const isHidden = (board) => {
 const visibleBoards = () => state.data.boards.filter((b) => !isHidden(b));
 const people = (card) => card.fields.assignee ?? [];
 
+const today = () => new Date().toISOString().slice(0, 10);
+
+// Dates are written the way the browser's language writes them: 20.10.2026
+// in German, Oct 20, 2026 in American English. The texts of the page only
+// come in two languages, but dates follow the browser exactly.
+const LOCALE = navigator.language || "en";
+const FULL_DATE = new Intl.DateTimeFormat(LOCALE, { dateStyle: "medium" });
+const SHORT_DATE = new Intl.DateTimeFormat(LOCALE, { day: "numeric", month: "short" });
+
+// day formats a date written as YYYY-MM-DD. With compact, a date in the
+// current year is shown without the year, to fit on a card.
+function day(iso, compact = false) {
+  const [y, m, d] = String(iso).split("-").map(Number);
+  const date = new Date(y, m - 1, d); // local time: no shift across midnight
+  if (!y || !m || !d || Number.isNaN(date.getTime())) return String(iso);
+  return compact && y === new Date().getFullYear() ? SHORT_DATE.format(date) : FULL_DATE.format(date);
+}
+
+// isLate says whether a card is past its due date and not done.
+function isLate(card, board) {
+  const due = card.fields.due;
+  return !!due && due < today() && !board.columns.find((c) => c.id === card.column)?.done;
+}
+
+// activeFilters counts the filters that are on, the search aside.
+function activeFilters() {
+  return (state.mine && state.data.user ? 1 : 0) + (state.overdue ? 1 : 0) + state.tags.length;
+}
+
+// matches says whether a card passes the filters and the search.
 function matches(card, board) {
-  if (state.mine && !people(card).includes(state.data.user)) return false;
+  if (state.mine && state.data.user && !people(card).includes(state.data.user)) return false;
+  if (state.overdue && !isLate(card, board)) return false;
+  if (state.tags.length && !state.tags.some((tag) => (card.fields.tags ?? []).includes(tag))) return false;
   const q = state.filter.trim().toLowerCase();
   if (!q) return true;
   const hay = [card.id, card.title, board.name, ...people(card), ...(card.fields.tags ?? [])].join(" ").toLowerCase();
@@ -125,22 +177,61 @@ async function load(rescan = false) {
     state.error = String(err.message || err);
   }
   if (state.open) await loadDetail();
+  if (state.history) await loadHistory();
   draw();
 }
 
+const getJSON = async (url) => {
+  const res = await fetch(url);
+  return res.ok ? res.json() : null;
+};
+
 async function loadDetail() {
   const { board, id } = state.open;
+  const where = `board=${encodeURIComponent(board)}&id=${encodeURIComponent(id)}`;
   try {
-    const res = await fetch(`/api/card?board=${encodeURIComponent(board)}&id=${encodeURIComponent(id)}`);
-    state.open = res.ok ? { board, id, detail: await res.json() } : null; // the card is gone
+    const [detail, log] = await Promise.all([
+      getJSON("/api/card?" + where),
+      getJSON(`/api/history?board=${encodeURIComponent(board)}&card=${encodeURIComponent(id)}&limit=30`),
+    ]);
+    state.open = detail ? { board, id, detail, log } : null; // the card is gone
   } catch {
     state.open = null;
   }
 }
 
 async function openCard(board, card) {
+  state.history = null;
+  state.problems = false;
   state.open = { board: board.id, id: card.id, detail: null };
   await loadDetail();
+  draw();
+}
+
+// loadHistory reads the Git history of every visible board and merges it
+// into one list, newest first. Boards outside a Git repository are named
+// instead.
+async function loadHistory() {
+  const boards = visibleBoards().filter((b) => b.id && !b.error);
+  const logs = await Promise.all(boards.map((b) =>
+    getJSON(`/api/history?board=${encodeURIComponent(b.id)}&limit=60`).catch(() => null)));
+  const rows = [];
+  const missing = [];
+  logs.forEach((log, i) => {
+    if (!log?.available) { missing.push(boards[i]); return; }
+    for (const entry of log.entries) rows.push({ board: boards[i], entry });
+  });
+  // Compare moments, not texts: commits come from machines in different
+  // time zones, so their dates do not sort as strings.
+  rows.sort((a, b) => Date.parse(b.entry.date) - Date.parse(a.entry.date));
+  state.history = { rows: rows.slice(0, 120), missing, branch: boards.length === 1 ? logs[0]?.branch : "" };
+}
+
+async function openHistory() {
+  state.open = null;
+  state.problems = false;
+  state.history = { rows: [], missing: [], branch: "" };
+  await loadHistory();
   draw();
 }
 
@@ -215,6 +306,17 @@ const dot = (colour) => {
 const ICONS = {
   // a clock: the card is past its due date
   clock: ['<circle cx="12" cy="12" r="9"/>', '<path d="M12 7v5l3.5 2"/>'],
+  // filter menu: one's own cards
+  person: ['<circle cx="12" cy="8" r="3.6"/>', '<path d="M5 20c.9-3.7 3.6-5.6 7-5.6s6.1 1.9 7 5.6"/>'],
+  // top bar: filters, search, the history of the boards
+  filter: ['<path d="M4 5.5h16l-6.2 7.2V18l-3.6 1.8v-7.1z"/>'],
+  search: ['<circle cx="11" cy="11" r="6.5"/>', '<path d="m16 16 4.5 4.5"/>'],
+  history: ['<path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3.5 8.4"/>', '<path d="M3.5 3.8v4.6h4.6"/>', '<path d="M12 7.5V12l3 2"/>'],
+  // history rows: a card moved, appeared, went away, or was changed
+  moved: ['<path d="M5 12h14M13 6l6 6-6 6"/>'],
+  added: ['<path d="M12 5v14M5 12h14"/>'],
+  removed: ['<path d="M5 12h14"/>'],
+  commit: ['<circle cx="12" cy="12" r="3.5"/>', '<path d="M12 3v5.5M12 15.5V21"/>'],
   // a bug: the card breaks a rule of the format
   bug: [
     '<ellipse cx="12" cy="14" rx="5" ry="6"/>',
@@ -223,8 +325,10 @@ const ICONS = {
     '<path d="M7 12H3.5M7.2 16.5 4 18M17 12h3.5M16.8 16.5 20 18M12 9v11"/>',
   ],
 };
-function icon(name, label) {
-  const holder = h("span", { class: "icon " + name, title: label, role: "img", "aria-label": label });
+function icon(name, label = "") {
+  const holder = label
+    ? h("span", { class: "icon icon-" + name, title: label, role: "img", "aria-label": label })
+    : h("span", { class: "icon icon-" + name, "aria-hidden": "true" });
   holder.innerHTML = // fixed markup from the table above, never card content
     '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" ' +
     'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONS[name].join("") + "</svg>";
@@ -253,8 +357,8 @@ function draw() {
 
   app.replaceChildren(...[
     drawTop(),
-    h("div", { class: "shell" + (state.open?.detail ? " with-detail" : "") },
-      drawMain(), state.open?.detail ? drawDetail() : null),
+    h("div", { class: "shell" + (state.history || state.problems || state.open?.detail ? " with-detail" : "") },
+      drawMain(), state.history ? drawHistory() : state.problems ? drawProblems() : state.open?.detail ? drawDetail() : null),
     state.notice && drawNotice(),
     state.cardMenu && drawCardMenu(),
   ].filter(Boolean));
@@ -265,7 +369,10 @@ function draw() {
     return;
   }
 
-  if (focused) {
+  if (focusNext) {
+    document.getElementById(focusNext)?.focus();
+    focusNext = null;
+  } else if (focused) {
     const el = document.getElementById(focused);
     el?.focus();
     if (el?.id === "filter") el.setSelectionRange(el.value.length, el.value.length);
@@ -288,22 +395,100 @@ function drawNotice() {
 // The top bar holds the few things that are always needed: which projects,
 // the filter, what is wrong, and a menu for the rest.
 function drawTop() {
-  const me = state.data.user;
   return h("header", { class: "top" },
     h("h1", { class: "brand" }, "kardboard"),
+    // What is shown, from coarse to fine: which projects, and which of
+    // their cards.
     drawProjectMenu(),
-    h("input", {
-      id: "filter", class: "filter", type: "search", placeholder: t.filter, value: state.filter, "aria-label": t.filter,
-      oninput: (e) => { state.filter = e.target.value; draw(); },
-    }),
-    // "Only mine" is set in the menu. While it is on, it shows here, so
-    // nobody wonders where the other cards went.
-    state.mine && me && h("button", { type: "button", class: "active-filter", title: t.mineOff, onclick: () => setMine(false) },
-      "@" + me, h("span", { "aria-hidden": "true" }, "×")),
+    drawFilterMenu(),
     h("span", { class: "spacer" }),
-    drawProblemsMenu(),
-    h("span", { class: "live" + (state.live ? " on" : ""), role: "img", "aria-label": state.live ? t.live : t.offline, title: state.live ? t.live : t.offline }),
+    // Nothing is said while all is well. Only a lost connection shows up
+    // here, quietly; the menu explains it.
+    !state.live && h("span", { class: "offline", title: t.liveOff.replaceAll("`", "") }, t.offline),
     drawSettingsMenu());
+}
+
+// The usual shortcut for "find something here": Cmd+K on a Mac, Ctrl+K
+// elsewhere. "/" works as well.
+const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+const SEARCH_KEY = IS_MAC ? "⌘K" : "Ctrl+K";
+const SEARCH_KEYS = IS_MAC ? ["⌘", "K"] : ["Ctrl", "K"];
+
+// The id of a field to put the cursor into once the page is rebuilt.
+let focusNext = null;
+
+// openFilters opens the filter menu with the cursor in its search field.
+function openFilters() {
+  state.cardMenu = null;
+  state.menu = "filters";
+  focusNext = "filter";
+  draw();
+}
+
+// drawFilterMenu holds everything that narrows down which cards are shown:
+// the search on top, then the filters. Each filter says how many cards it
+// would leave, so one can tell before switching it on. The button is dark
+// while something narrows the view, and says what: the search text and how
+// many filters.
+function drawFilterMenu() {
+  const me = state.data.user;
+  const on = activeFilters();
+  const text = state.filter.trim();
+  const all = visibleBoards().flatMap((board) => board.cards.map((card) => ({ card, board })));
+  const count = (test) => all.filter(test).length;
+  const tagCounts = new Map();
+  for (const { card } of all) for (const tag of card.fields.tags ?? []) tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
+  const tags = [...tagCounts.keys()].sort();
+  // Tags that no visible card has any more cannot be switched off by hand.
+  state.tags = state.tags.filter((tag) => tagCounts.has(tag));
+  const toggleTag = (tag) => {
+    state.tags = state.tags.includes(tag) ? state.tags.filter((x) => x !== tag) : [...state.tags, tag];
+    draw();
+  };
+  const clear = () => { state.filter = ""; state.overdue = false; state.tags = []; setMine(false); };
+
+  // One filter: a mark, its name, how many cards it leaves, and a switch.
+  const row = (mark, label, n, checked, onchange, disabled = false) => h("label", { class: "filter-row" + (disabled ? " off" : "") },
+    icon(mark), h("span", { class: "name" }, label), h("span", { class: "count" }, String(n)),
+    h("input", { type: "checkbox", class: "switch", role: "switch", checked, disabled, onchange }));
+
+  const label = [
+    icon("filter"),
+    text && h("span", { class: "term" }, text),
+    on > 0 && h("span", { class: "n" }, String(on)),
+  ];
+  const open = state.menu === "filters";
+  return h("div", { class: "menu-wrap" },
+    h("button", {
+      type: "button", class: "menu-button icon" + (on > 0 || text ? " active" : "") + (open ? " open" : ""),
+      "aria-haspopup": "true", "aria-expanded": String(open), title: `${t.filters} (${SEARCH_KEY})`, "aria-label": t.filters,
+      onclick: () => { if (open) { state.menu = null; draw(); } else openFilters(); },
+    }, label),
+    open && h("div", { class: "menu filters" },
+      h("label", { class: "searchbox" },
+        icon("search"),
+        h("input", {
+          id: "filter", type: "search", placeholder: t.search, value: state.filter, "aria-label": t.search,
+          oninput: (e) => { state.filter = e.target.value; draw(); },
+        }),
+        // The keys that bring one here. They make way for the text.
+        !state.filter && h("span", { class: "keys", "aria-hidden": "true" }, SEARCH_KEYS.map((k) => h("kbd", {}, k)))),
+      h("div", { class: "filter-rows" },
+        row("person", t.mine, me ? count(({ card }) => people(card).includes(me)) : 0,
+          state.mine && !!me, (e) => setMine(e.target.checked), !me),
+        row("clock", t.overdueOnly, count(({ card, board }) => isLate(card, board)),
+          state.overdue, (e) => { state.overdue = e.target.checked; draw(); })),
+      !me && h("p", { class: "hint" }, code(t.mineHint)),
+      tags.length > 0 && [
+        h("h2", {}, t.tags),
+        h("div", { class: "tag-list" }, tags.map((tag) => h("button", {
+          type: "button", class: "tag-pill" + (state.tags.includes(tag) ? " on" : ""),
+          "aria-pressed": String(state.tags.includes(tag)), onclick: () => toggleTag(tag),
+        }, tag, h("span", { class: "count" }, String(tagCounts.get(tag)))))),
+      ],
+      h("div", { class: "filter-foot" },
+        h("span", {}, t.showing(count(({ card, board }) => matches(card, board)), all.length)),
+        (on > 0 || text) && h("button", { type: "button", onclick: clear }, t.clearFilters))));
 }
 
 function setMine(on) {
@@ -360,18 +545,21 @@ function drawProjectMenu() {
   ]);
 }
 
-// drawProblemsMenu is the one place that says what is wrong: boards that
-// cannot be shown, cards that break a rule, exceeded limits. The top bar
-// only shows how many there are; the list opens on demand, and a card in it
-// opens that card.
-function drawProblemsMenu() {
+// countProblems sums up what is wrong on the visible boards.
+function countProblems() {
   const boards = visibleBoards();
-  const errors = boards.reduce((n, b) => n + b.errors + (b.error ? 1 : 0), 0);
-  const warnings = boards.reduce((n, b) => n + b.warnings, 0);
-  if (errors + warnings === 0) return null;
+  return {
+    errors: boards.reduce((n, b) => n + b.errors + (b.error ? 1 : 0), 0),
+    warnings: boards.reduce((n, b) => n + b.warnings, 0),
+  };
+}
 
-  const label = [errors > 0 && t.errors(errors), warnings > 0 && t.warnings(warnings)].filter(Boolean).join(" · ");
-  return menu("issues", h("span", {}, label), t.problems, () => boards.map((board) => {
+// drawProblems is the one place that says what is wrong: boards that cannot
+// be shown, cards that break a rule, exceeded limits. A card in the list
+// opens that card.
+function drawProblems() {
+  const close = () => { state.problems = false; draw(); };
+  const groups = visibleBoards().map((board) => {
     const rows = [];
     if (board.error) rows.push(h("p", { class: "problem" }, h("strong", {}, t.unusable), h("span", {}, board.error)));
     for (const p of board.problems) {
@@ -380,31 +568,50 @@ function drawProblemsMenu() {
     for (const card of board.cards) {
       const found = card.problems ?? [];
       if (found.length === 0) continue;
-      rows.push(h("button", {
-        type: "button", class: "problem",
-        onclick: () => { state.menu = null; openCard(board, card); },
-      }, h("strong", {}, card.title), found.map((p) => h("span", {}, `${p.code} ${p.message}`))));
+      rows.push(h("button", { type: "button", class: "problem", onclick: () => openCard(board, card) },
+        h("strong", {}, code(card.title)), found.map((p) => h("span", {}, `${p.code} ${p.message}`))));
     }
-    if (rows.length === 0) return null;
-    return [h("h2", {}, dot(colourOf(board)), board.name), rows];
-  }), errors > 0 ? "bad" : "warn");
+    return rows.length ? [h("h2", { class: "group" }, dot(colourOf(board)), board.name), rows] : null;
+  }).filter(Boolean);
+
+  return h("aside", { class: "detail issues", "aria-label": t.problems },
+    h("div", { class: "detail-head" },
+      h("div", { class: "where" }),
+      h("button", { class: "close", type: "button", "aria-label": t.close, title: t.close, onclick: close }, "×")),
+    h("h1", {}, t.problems),
+    groups.length ? groups : h("p", { class: "readonly" }, t.allGood));
 }
 
+// The menu behind the three dots holds everything that is not needed all
+// the time: the history, what is wrong, the filter for one's own cards, the
+// appearance, and whether the page is connected. Its button carries a small
+// mark while something is wrong.
 function drawSettingsMenu() {
   const me = state.data.user;
+  const { errors, warnings } = countProblems();
   const setTheme = (theme) => { state.theme = theme; store("theme", theme); applyTheme(); draw(); };
-  return menu("settings", h("span", { "aria-hidden": "true" }, "⋯"), t.settings, () => [
-    h("label", { class: "check" + (me ? "" : " off") },
-      h("input", { type: "checkbox", checked: state.mine && !!me, disabled: !me, onchange: (e) => setMine(e.target.checked) }),
-      t.mine),
-    !me && h("p", { class: "hint" }, code(t.mineHint)),
+  const go = (fn) => () => { state.menu = null; fn(); };
+  const label = [
+    h("span", { "aria-hidden": "true" }, "⋯"),
+    errors + warnings > 0 && h("span", { class: "pip " + (errors > 0 ? "bad" : "warn") }),
+  ];
+  const count = [errors > 0 && t.errors(errors), warnings > 0 && t.warnings(warnings)].filter(Boolean).join(" · ");
+
+  return menu("settings", label, t.menuTitle, () => [
+    h("button", { type: "button", class: "menu-item", onclick: go(openHistory) }, icon("history"), h("span", {}, t.history)),
+    h("button", {
+      type: "button", class: "menu-item",
+      onclick: go(() => { state.open = null; state.history = null; state.problems = true; draw(); }),
+    }, icon("bug"), h("span", {}, t.problems), count && h("span", { class: "count" + (errors > 0 ? " bad" : " warn") }, count)),
     h("h2", {}, t.theme),
     h("div", { class: "segments", role: "group", "aria-label": t.theme },
       ["system", "light", "dark"].map((theme) => h("button", {
         type: "button", class: state.theme === theme ? "on" : "", "aria-pressed": String(state.theme === theme),
         onclick: () => setTheme(theme),
       }, t[theme]))),
-    me && h("p", { class: "hint you" }, t.you(me)),
+    h("hr"),
+    h("p", { class: "hint status" }, h("span", { class: "live" + (state.live ? " on" : "") }), h("span", {}, code(state.live ? t.liveOn : t.liveOff))),
+    me && h("p", { class: "hint" }, t.you(me)),
   ], "icon");
 }
 
@@ -433,7 +640,7 @@ function drawLane(board) {
       return drawColumn(`${board.key}/${col.id}`, col.title,
         col.limit > 0 ? h("span", { class: over ? "over" : "" }, t.limit(all.length, col.limit)) : String(shown.length),
         shown.map((c) => drawCard(c, board, { done: col.done })),
-        () => (dragging?.board === board ? col : null));
+        () => (dragging?.board === board ? col : null), col.doing);
     })));
 }
 
@@ -452,20 +659,21 @@ function drawOverview(boards) {
         entries.map(({ card, board }) => drawCard(card, board, { done: kind === "done", project: true })),
         // The shared columns stand for the dragged card's own columns. "Open"
         // may be several of them, so a card cannot be dropped there.
-        () => (kind === "open" ? null : dragging?.board.columns.find((c) => (kind === "done" ? c.done : c.doing)) ?? null)))),
+        () => (kind === "open" ? null : dragging?.board.columns.find((c) => (kind === "done" ? c.done : c.doing)) ?? null),
+        kind === "doing"))),
   ];
 }
 
 // drawColumn draws one column. target returns the board column that a card
 // dropped here goes to, for the card being dragged right now.
-function drawColumn(key, title, count, cards, target) {
+function drawColumn(key, title, count, cards, target, doing = false) {
   const full = state.expanded.has(key);
   const shown = full ? cards : cards.slice(0, COLLAPSE_AFTER);
   const rest = cards.length - shown.length;
   const toggle = () => { full ? state.expanded.delete(key) : state.expanded.add(key); draw(); };
-  const el = h("div", { class: "column" },
+  const el = h("div", { class: "column" + (doing ? " doing" : "") },
     h("div", { class: "column-head" }, h("span", {}, title), h("span", {}, count)),
-    cards.length === 0 && h("p", { class: "none" }, state.filter || state.mine ? t.noMatch : t.none),
+    cards.length === 0 && h("p", { class: "none" }, state.filter || activeFilters() > 0 ? t.noMatch : t.none),
     shown,
     rest > 0 && h("button", { class: "more", type: "button", onclick: toggle }, "+ " + t.more(rest)),
     full && cards.length > COLLAPSE_AFTER && h("button", { class: "more", type: "button", onclick: toggle }, t.less));
@@ -510,7 +718,7 @@ function drawCard(card, board, { done = false, project = false } = {}) {
   const problems = (card.problems ?? []).filter((p) => p.severity === "error");
   const isOpen = state.open?.board === board.id && state.open?.id === card.id;
   const due = card.fields.due;
-  const late = due && !done && due < new Date().toISOString().slice(0, 10);
+  const late = isLate(card, board);
 
   const facts = [];
   for (const field of board.fields) {
@@ -533,7 +741,7 @@ function drawCard(card, board, { done = false, project = false } = {}) {
   },
     h("span", { class: "head" },
       h("span", { class: "title" }, code(card.title)),
-      late && icon("clock", t.overdue(due)),
+      late && icon("clock", t.overdue(day(due))),
       problems.length > 0 && icon("bug", problems.map((p) => `${p.code} ${p.message}`).join("\n")),
       // The three dots only show under the pointer or with keyboard focus.
       // Their place is kept free all the time, so the title never moves.
@@ -550,7 +758,7 @@ function drawCard(card, board, { done = false, project = false } = {}) {
       }, "⋯")),
     (facts.length > 0 || due) && h("span", { class: "line" },
       h("span", { class: "facts" }, facts),
-      due && h("span", { class: "due" }, "→ " + due)),
+      due && h("span", { class: "due", title: day(due) }, "→ " + day(due, true))),
     (project || who.length > 0) && h("span", { class: "line" },
       project ? h("span", { class: "proj" }, dot(colourOf(board)), h("span", { class: "proj-name" }, board.name)) : h("span"),
       who.length > 0 && h("span", { class: "people", title: who.map((n) => "@" + n).join(" ") }, names)));
@@ -594,6 +802,79 @@ function drawCardMenu() {
   return el;
 }
 
+// ── History ─────────────────────────────────────────────────────────────────
+
+const relative = new Intl.RelativeTimeFormat(lang, { numeric: "always", style: "short" });
+function ago(date) {
+  const seconds = (new Date(date).getTime() - Date.now()) / 1000;
+  for (const [unit, size] of [["year", 31536000], ["month", 2592000], ["day", 86400], ["hour", 3600], ["minute", 60]]) {
+    if (Math.abs(seconds) >= size) return relative.format(Math.round(seconds / size), unit);
+  }
+  return relative.format(Math.round(seconds / 60), "minute");
+}
+
+// describe says in words what a commit did to one card.
+function describe(change, board) {
+  const column = (id) => board.columns.find((c) => c.id === id)?.title ?? id;
+  const also = change.edited ? t.hAlsoEdited : "";
+  switch (change.kind) {
+    case "moved": return t.hMoved(column(change.from), column(change.to)) + also;
+    case "added": return t.hAdded(column(change.to));
+    case "removed": return t.hRemoved(column(change.from));
+    case "renamed": return t.hRenamed(change.was) + also;
+    default: return t.hEdited;
+  }
+}
+
+// drawHistoryRow draws one commit. If it changed exactly one card, the row
+// is about that card and a click opens it; otherwise it shows the commit's
+// own subject. inCard is true in a card's own history, where the card need
+// not be named again.
+function drawHistoryRow({ board, entry }, { inCard = false, project = false } = {}) {
+  const cards = entry.changes.filter((c) => c.kind !== "other");
+  const one = cards.length === 1 ? cards[0] : null;
+  const card = one && board.cards.find((c) => c.id === one.card);
+
+  // A card that moved, appeared or went away is the news itself: the row
+  // names the card and says where it went. A commit that changed a card's
+  // text says more in its own subject, so that leads and the card follows.
+  const placeChanged = one && ["moved", "added", "removed"].includes(one.kind);
+  let headline = entry.subject;
+  let what;
+  if (inCard && one) { headline = describe(one, board); what = entry.subject; }
+  else if (placeChanged) { headline = card?.title ?? one.card; what = describe(one, board); }
+  else if (one) what = card?.title ?? one.card;
+  else if (cards.length > 1) what = t.hCards(cards.length);
+  else what = entry.changes.map((c) => c.path).slice(0, 3).join(", ");
+
+  const kind = placeChanged ? one.kind : "commit";
+  const content = [
+    icon(kind, ""),
+    h("span", { class: "headline" }, project && dot(colourOf(board)), code(headline)),
+    h("time", { datetime: entry.date, title: new Date(entry.date).toLocaleString(LOCALE) }, ago(entry.date)),
+    h("span", { class: "what" }, [what, entry.author, entry.short].filter(Boolean).join(" · ")),
+  ];
+  const title = `${entry.subject}\n${entry.author} · ${entry.short}`;
+  if (card && !inCard) {
+    return h("li", {}, h("button", { type: "button", class: "hist", title, onclick: () => openCard(board, card) }, content));
+  }
+  return h("li", {}, h("div", { class: "hist", title }, content));
+}
+
+function drawHistory() {
+  const { rows, missing, branch } = state.history;
+  const several = visibleBoards().length > 1;
+  const close = () => { state.history = null; draw(); };
+  return h("aside", { class: "detail history", "aria-label": t.history },
+    h("div", { class: "detail-head" },
+      h("div", { class: "where" }, branch || ""),
+      h("button", { class: "close", type: "button", "aria-label": t.close, title: t.close, onclick: close }, "×")),
+    h("h1", {}, t.history),
+    missing.map((b) => h("p", { class: "readonly" }, t.noGit(b.name))),
+    rows.length === 0 && missing.length === 0 && h("p", { class: "readonly" }, t.noCommits),
+    h("ul", { class: "hist-list" }, rows.map((row) => drawHistoryRow(row, { project: several }))));
+}
+
 function drawDetail() {
   const card = state.open.detail;
   const board = state.data.boards.find((b) => b.id === card.board);
@@ -604,7 +885,8 @@ function drawDetail() {
   for (const field of board?.fields ?? []) {
     const value = card.fields[field.name];
     if (value == null) continue;
-    rows.push(h("dt", {}, field.title), h("dd", {}, Array.isArray(value) ? value.join(", ") : String(value)));
+    const shown = field.type === "date" ? day(value) : Array.isArray(value) ? value.join(", ") : String(value);
+    rows.push(h("dt", {}, field.title), h("dd", {}, shown));
   }
 
   // The title is shown as the panel's heading, so leave it out of the text.
@@ -623,7 +905,11 @@ function drawDetail() {
     rows.length > 0 && h("dl", { class: "fields" }, rows),
     (card.problems ?? []).length > 0 && h("ul", { class: "problems" },
       card.problems.map((p) => h("li", {}, `${p.code} ${p.message}`))),
-    text);
+    text,
+    board && state.open.log?.available && state.open.log.entries.length > 0 && [
+      h("h2", { class: "section" }, t.history),
+      h("ul", { class: "hist-list" }, state.open.log.entries.map((entry) => drawHistoryRow({ board, entry }, { inCard: true }))),
+    ]);
 }
 
 // drawActions draws what can be done with the open card. Each control is
@@ -679,10 +965,17 @@ document.addEventListener("scroll", () => {
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && state.cardMenu) { state.cardMenu = null; draw(); return; }
   if (e.key === "Escape" && state.menu) { state.menu = null; draw(); return; }
+  if (e.key === "Escape" && state.history) { state.history = null; draw(); return; }
+  if (e.key === "Escape" && state.problems) { state.problems = false; draw(); return; }
   if (e.key === "Escape" && state.open) { state.open = null; draw(); }
+  if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "k") {
+    e.preventDefault();
+    openFilters();
+    return;
+  }
   if (e.key === "/" && document.activeElement?.tagName !== "INPUT") {
     e.preventDefault();
-    document.getElementById("filter")?.focus();
+    openFilters();
   }
 });
 

@@ -27,7 +27,9 @@
   --border: #dfdfe3;
   --border-strong: #c4c4cb;
   --hover: #f0f0f2;
-  --badge: #e8e8ec;
+  --badge: #f1f1f4;
+  --knob: #ffffff;
+  --doing: #e3e3e8;
   --focus: #1a1a1d;
   --danger: #c92a2a;
   --danger-bg: #fdecec;
@@ -56,7 +58,9 @@
   --border: #333338;
   --border-strong: #46464d;
   --hover: #2a2a2e;
-  --badge: #36363c;
+  --badge: #2c2c31;
+  --knob: #c8c8cf;
+  --doing: #27272c;
   --focus: #e6e6e9;
   --danger: #ff8787;
   --danger-bg: #3a1f1f;
@@ -74,7 +78,9 @@
     --border: #333338;
     --border-strong: #46464d;
     --hover: #2a2a2e;
-    --badge: #36363c;
+    --badge: #2c2c31;
+    --knob: #c8c8cf;
+    --doing: #27272c;
     --focus: #e6e6e9;
     --danger: #ff8787;
     --danger-bg: #3a1f1f;
@@ -100,7 +106,7 @@ button { cursor: pointer; }
 /* One look for all controls: same height, same type, same frame. Buttons,
    text fields, the column picker and the name chips are all a white field
    with one hairline, so they read as one family wherever they sit. */
-.menu-button, .active-filter, .top .filter, .detail .close, .segments,
+.menu-button, .searchbox, .detail .close, .segments,
 .actions button, .actions select, .actions input, .notice button, .person {
   height: var(--control);
   font: 13px/1 var(--mono);
@@ -111,7 +117,7 @@ button { cursor: pointer; }
 }
 .menu-button:hover, .menu-button.open, .detail .close:hover,
 .actions button:hover, .actions select:hover, .notice button:hover { background: var(--hover); }
-.top .filter:hover, .actions input:hover { border-color: var(--dim); }
+.searchbox:hover, .actions input:hover { border-color: var(--dim); }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 
 #app { display: grid; grid-template-rows: auto 1fr; height: 100%; }
@@ -125,16 +131,108 @@ button { cursor: pointer; }
   border-bottom: 1px solid var(--border);
 }
 .brand { font: 500 16px/1 var(--mono); letter-spacing: -0.01em; margin: 0 6px 0 0; }
-.top .filter { flex: 0 1 260px; min-width: 90px; font-family: var(--sans); }
-.top .filter::placeholder { color: var(--faint); }
+/* The search field: framed like every control, with the magnifier in
+   front. It sits on top of the filter menu. */
+.searchbox { display: flex; align-items: center; gap: 7px; padding: 0 8px; margin: 0 0 6px; cursor: text; }
+.searchbox:focus-within { border-color: var(--text); }
+.searchbox input {
+  flex: 1; min-width: 0; height: 100%; padding: 0;
+  font: 13px var(--sans); background: none; border: 0; outline: none;
+}
+.searchbox input::placeholder { color: var(--faint); }
+.searchbox input::-webkit-search-cancel-button { cursor: pointer; }
+.searchbox .icon { color: var(--dim); margin-top: 0; }
+
+/* ── Filter menu ─────────────────────────────────────────────────────────── */
+
+.menu.filters { width: 310px; max-width: calc(100vw - 32px); padding: 12px; }
+.menu.filters .searchbox { height: 34px; margin: 0 0 10px; }
+/* The keys that open the search, shown inside the empty field. */
+.keys { display: inline-flex; gap: 3px; flex: none; }
+kbd {
+  font: 11px/1 var(--mono); color: var(--dim);
+  background: var(--sunken); border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 3px;
+  padding: 2px 5px;
+}
+
+/* One filter per row: mark, name, how many cards, switch. */
+.filter-rows { display: grid; gap: 2px; }
+.filter-row {
+  display: flex; align-items: center; gap: 9px; height: 34px; padding: 0 8px;
+  border-radius: var(--radius); cursor: pointer;
+}
+.filter-row:hover { background: var(--hover); }
+.filter-row.off { color: var(--faint); cursor: default; }
+.filter-row .icon { color: var(--dim); margin-top: 0; }
+.filter-row .name { flex: 1; min-width: 0; }
+.filter-row .count, .tag-pill .count { font: 11px var(--mono); color: var(--dim); }
+
+/* A switch instead of a tick box: it reads as "on" or "off" at a glance.
+   Almost square, like everything else here. */
+.switch {
+  appearance: none; -webkit-appearance: none; flex: none; position: relative;
+  width: 30px; height: 18px; margin: 0; border-radius: 3px;
+  background: var(--border-strong); cursor: pointer; transition: background 120ms;
+}
+.switch::after {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 2px;
+  background: var(--knob); transition: transform 120ms;
+}
+.switch:checked { background: var(--text); }
+/* Switched on, the knob takes the page's colour, so it stands out against
+   the track in both the light and the dark design. */
+.switch:checked::after { transform: translateX(12px); background: var(--surface); }
+.switch:disabled { opacity: 0.45; cursor: default; }
+@media (prefers-reduced-motion: reduce) { .switch, .switch::after { transition: none; } }
+
+.menu.filters h2 { margin: 14px 8px 8px; }
+/* Tags are small buttons one switches on and off; the chosen ones are dark. */
+.tag-list { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 8px; }
+.tag-pill {
+  display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px;
+  font: 12px/1 var(--sans); color: var(--text);
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius);
+}
+.tag-pill:hover { background: var(--hover); }
+.tag-pill.on { background: var(--text); color: var(--surface); border-color: var(--text); }
+.tag-pill.on .count { color: inherit; opacity: 0.7; }
+
+/* What the filters leave, and the way back. */
+.filter-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin: 14px -12px -12px; padding: 9px 20px;
+  border-top: 1px solid var(--border); background: var(--sunken);
+  font: 12px var(--mono); color: var(--dim);
+}
+.filter-foot button {
+  font: inherit; color: var(--text); background: none; border: 0; padding: 0;
+  text-decoration: underline; text-underline-offset: 2px;
+}
+
+/* Icons inside buttons take the button's colour. */
+.top .menu-button .icon { color: var(--dim); margin-top: 0; }
+.top .menu-button:hover .icon, .top .menu-button.open .icon { color: var(--text); }
+.menu-button.icon { position: relative; }
+/* A small mark on the bug button says that something is wrong, without
+   counting it out loud; the list behind the button does that. */
+.pip { position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; box-shadow: 0 0 0 2px var(--surface); }
+.pip.bad { background: var(--danger); }
+.pip.warn { background: var(--warn); }
 .top .spacer { flex: 1; }
+/* Shown in the top bar only while the page has lost its server. */
+.offline { font: 12px var(--mono); color: var(--warn); white-space: nowrap; }
 .live { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); flex: none; }
 .live.on { background: #2f9e44; }
-.active-filter {
-  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+/* A menu button whose menu holds something that is switched on, like the
+   filter button while a filter is active. */
+.menu-button.active, .menu-button.active:hover, .menu-button.active.open {
   background: var(--text); color: var(--surface); border-color: var(--text);
 }
-.active-filter:hover { opacity: 0.85; }
+.top .menu-button.active .icon { color: inherit; }
+.menu-button.icon.active { width: auto; padding: 0 8px; gap: 6px; }
+.menu-button .n { font: 12px/1 var(--mono); }
+/* The search text on the filter button, cut off if it is long. */
+.menu-button .term { max-width: 14ch; overflow: hidden; text-overflow: ellipsis; font-family: var(--sans); }
 
 /* ── Menus ───────────────────────────────────────────────────────────────── */
 
@@ -154,12 +252,24 @@ button { cursor: pointer; }
 }
 .menu.settings { left: auto; right: 0; min-width: 220px; }
 
-/* The count of problems in the top bar opens their list. */
-.menu-button.bad { color: var(--danger); }
-.menu-button.warn { color: var(--warn); }
-.menu.issues { left: auto; right: 0; width: min(460px, calc(100vw - 32px)); max-width: none; }
-.menu.issues h2 { display: flex; align-items: center; gap: 7px; text-transform: none; letter-spacing: 0; font-size: 12px; color: var(--text); margin-top: 10px; }
-.menu.issues h2:first-child { margin-top: 2px; }
+/* Entries of the menu behind the three dots. */
+.menu-item {
+  display: flex; align-items: center; gap: 9px; width: 100%; text-align: left;
+  font: 13px/1 var(--sans); padding: 8px 6px;
+  background: none; border: 0; border-radius: var(--radius);
+}
+.menu-item:hover, .menu-item:focus-visible { background: var(--hover); }
+.menu-item .icon { color: var(--dim); margin-top: 0; }
+.menu-item .count { margin-left: auto; font: 12px var(--mono); color: var(--dim); }
+.menu-item .count.bad { color: var(--danger); }
+.menu-item .count.warn { color: var(--warn); }
+.menu hr { border: 0; border-top: 1px solid var(--border); margin: 6px 2px; }
+.menu .hint.status { display: flex; align-items: baseline; gap: 8px; }
+
+/* The panel that lists what is wrong. */
+.issues .group { display: flex; align-items: center; gap: 7px; font: 500 13px var(--mono); margin: 16px 0 4px; }
+.issues .problem { padding: 6px 4px; }
+
 .problem {
   display: block; width: 100%; text-align: left; margin: 0;
   background: none; border: 0; border-radius: var(--radius); padding: 5px 6px;
@@ -174,7 +284,6 @@ button.problem:hover { background: var(--hover); }
 }
 .menu .hint { font-size: 12px; color: var(--dim); margin: 8px 6px 2px; }
 .menu .hint code { font: 11.5px var(--mono); }
-.menu .hint.you { font-family: var(--mono); border-top: 1px solid var(--border); padding-top: 8px; margin-top: 10px; }
 .menu .check { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: var(--radius); }
 .menu .check:hover { background: var(--hover); }
 .menu .check.off { color: var(--faint); }
@@ -238,6 +347,9 @@ main { overflow: auto; padding: 14px 16px 40px; min-width: 0; }
   justify-content: start; gap: 10px; overflow-x: auto; padding-bottom: 4px;
 }
 .column { background: var(--sunken); border-radius: var(--radius); padding: 8px 6px 6px; min-width: 0; align-self: start; }
+/* The column for work in progress stands out a little: it is where the
+   eye should land first. */
+.column.doing { background: var(--doing); }
 .column-head { display: flex; justify-content: space-between; gap: 8px; font: 500 12px var(--mono); color: var(--dim); margin: 0 4px 8px; }
 .column-head .over { color: var(--warn); }
 .column .none { font: 12px var(--mono); color: var(--faint); margin: 2px; }
@@ -288,8 +400,8 @@ main { overflow: auto; padding: 14px 16px 40px; min-width: 0; }
 /* Marks at the top right: a red clock for a card past its due date, a bug
    for a card that breaks a rule of the format. */
 .icon { display: inline-flex; flex: none; margin-top: 3px; }
-.icon.clock { color: var(--danger); }
-.icon.bug { color: var(--warn); }
+.icon-clock { color: var(--danger); }
+.icon-bug { color: var(--warn); }
 
 /* The lines below the title. Each has a left and a right place and never
    wraps, so the same fact sits at the same spot on every card. */
@@ -304,7 +416,7 @@ main { overflow: auto; padding: 14px 16px 40px; min-width: 0; }
 /* Size and milestone are small filled marks. A frame is reserved for
    things one can click, so a mark must not have one. */
 .chip {
-  font: 10px/1.7 var(--mono); color: var(--text);
+  font: 10px/1.7 var(--mono); color: var(--dim);
   background: var(--badge); border-radius: var(--radius); padding: 0 5px;
 }
 .proj { display: flex; align-items: center; gap: 5px; min-width: 0; }
@@ -351,7 +463,6 @@ main { overflow: auto; padding: 14px 16px 40px; min-width: 0; }
 
 @media (max-width: 760px) {
   .top { flex-wrap: wrap; row-gap: 8px; }
-  .top .filter { flex: 1 1 140px; }
   .shell.with-detail { grid-template-columns: minmax(0, 1fr); }
   .shell.with-detail main { display: none; }
   .detail { border-left: 0; }
@@ -385,3 +496,27 @@ main { overflow: auto; padding: 14px 16px 40px; min-width: 0; }
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
 }
 .notice .text { flex: 1; overflow-wrap: anywhere; }
+
+/* ── History ─────────────────────────────────────────────────────────────── */
+
+.detail .section {
+  font: 500 11px var(--mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim);
+  margin: 22px 0 4px; padding-top: 12px; border-top: 1px solid var(--border);
+}
+.hist-list { list-style: none; margin: 0; padding: 0; }
+.hist-list li + li { border-top: 1px solid var(--border); }
+/* One commit: a mark, what happened, when; below it who and which commit. */
+.hist {
+  display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; gap: 1px 10px;
+  width: 100%; text-align: left; padding: 9px 4px;
+  background: none; border: 0; border-radius: var(--radius);
+}
+button.hist:hover { background: var(--hover); }
+.hist .icon { color: var(--dim); margin-top: 3px; }
+.hist .headline { display: flex; align-items: baseline; gap: 7px; min-width: 0; overflow-wrap: anywhere; }
+/* The project's dot sits beside the first line, also when the text wraps. */
+.hist .headline { align-items: flex-start; }
+.hist .headline .dot { width: 7px; height: 7px; margin-top: 7px; }
+.hist .headline code { font: 0.92em var(--mono); background: var(--sunken); padding: 0 3px; border-radius: var(--radius); }
+.hist time { font: 12px var(--mono); color: var(--dim); white-space: nowrap; }
+.hist .what { grid-column: 2 / 4; font: 12px/1.45 var(--sans); color: var(--dim); overflow-wrap: anywhere; }

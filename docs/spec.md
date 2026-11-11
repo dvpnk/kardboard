@@ -454,6 +454,13 @@ angemeldet ist.
   „Nur meine“ steht im Menü. Solange es an ist, zeigt die Kopfzeile das an.
 - **Hell und dunkel.** Die Seite folgt dem System. Im Menü lässt sich Hell
   oder Dunkel fest wählen; auch das merkt sich der Browser.
+- **Verlauf aus Git.** Liegt ein Board in einem Git-Repository, zeigt die
+  Seite, welche Commits es berührt haben, für das ganze Board und für jede
+  Karte einzeln. Was ein Commit getan hat, liest kardboard aus seinem Inhalt
+  und nicht aus seiner Nachricht: Eine Datei, die Git als von `backlog/` nach
+  `done/` umbenannt führt, ist eine verschobene Karte, gleich wer sie wie
+  committet hat. Das gilt für jedes Board, auch mit `sync: none`. Ein Board
+  ohne Repository hat keinen Verlauf, und die Seite sagt das.
 - **Fehler bleiben sichtbar.** Eine fehlerhafte Karte ist markiert und zeigt
   ihre Verstöße, ein unbrauchbares Board zeigt den Grund.
 - **Keine Anfrage nach außen.** Alles, was die Seite braucht, steckt im
@@ -475,6 +482,10 @@ angemeldet ist.
   Person.
 - **Felder in der Oberfläche ändern.** Sie verschiebt und weist zu. Größe,
   Schlagworte und Text ändert man im Editor oder mit `kb set`.
+- **Verlauf im CLI.** Den Verlauf gibt es nur in der Oberfläche, einen
+  Befehl wie `kb log` noch nicht.
+- **Abgleich mit dem Remote.** Ob Commits zu holen oder zu pushen sind, zeigt
+  die Seite noch nicht. Das kommt mit `sync: push`.
 - **`--all` für lesende Befehle.** `kb list --all` und `kb lint --all` über
   alle bekannten Boards gibt es noch nicht.
 - **Sprache dieses Dokuments** vor einer Veröffentlichung.

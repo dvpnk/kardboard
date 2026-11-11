@@ -16,11 +16,13 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"kardboard/internal/board"
+	"kardboard/internal/gitlog"
 	"kardboard/internal/registry"
 	"kardboard/internal/userconfig"
 )
@@ -204,6 +206,7 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/state", s.handleState)
 	mux.HandleFunc("GET /api/card", s.handleCard)
+	mux.HandleFunc("GET /api/history", s.handleHistory)
 	mux.HandleFunc("GET /api/events", s.handleEvents)
 	mux.HandleFunc("POST /api/action", s.handleAction)
 	mux.Handle("GET /", http.FileServerFS(web))
@@ -293,6 +296,35 @@ func (s *Server) handleCard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, cardJSON{Board: boardID, Card: c, Body: c.Body})
+}
+
+// handleHistory returns the Git history of a board, or of one of its cards.
+// A board outside a Git repository has none; the answer then says so.
+func (s *Server) handleHistory(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	l, ok := registry.Find(registry.Load(s.known(false)), q.Get("board"))
+	if !ok {
+		http.Error(w, fmt.Sprintf("no board %q", q.Get("board")), http.StatusNotFound)
+		return
+	}
+	limit := 60
+	if n, err := strconv.Atoi(q.Get("limit")); err == nil {
+		limit = min(max(n, 1), 200)
+	}
+	cardPath := ""
+	if id := q.Get("card"); id != "" {
+		c, ok := l.Board.Card(id)
+		if !ok {
+			http.Error(w, fmt.Sprintf("no card %q on board %s", id, q.Get("board")), http.StatusNotFound)
+			return
+		}
+		cardPath = c.Path
+	}
+	columns := make([]string, len(l.Board.Config.Columns))
+	for i, c := range l.Board.Config.Columns {
+		columns[i] = c.ID
+	}
+	writeJSON(w, gitlog.Read(r.Context(), l.Board.Root, columns, cardPath, limit))
 }
 
 // ── Changing ────────────────────────────────────────────────────────────────
