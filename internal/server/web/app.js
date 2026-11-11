@@ -1,6 +1,7 @@
 // kardboard web UI. It shows what `kb ui` reads from disk and follows
-// changes; it changes nothing itself. No framework and no build step: the
-// page is rebuilt from the state whenever the state changes.
+// changes. Cards are changed by asking the server for the same actions the
+// command line has. No framework and no build step: the page is rebuilt from
+// the state whenever the state changes.
 
 import { render as markdown } from "./md.js";
 
@@ -18,6 +19,9 @@ const TEXTS = {
     noBoards: "Add the board of a project with `kb add <dir>`, or let kardboard find all boards below a directory with `kb scan <dir>`.",
     allHidden: "All projects are hidden. Tick one on the left.",
     noMatch: "No card matches.", column: "column", board: "board", limit: (n, max) => `${n} of ${max}`,
+    take: "Take", finish: "Finish", moveTo: "Move to", addPerson: "add person", removePerson: (n) => `take ${n} off the card`,
+    anyway: "Do it anyway", cancel: "Cancel", dismiss: "Dismiss",
+    readOnly: (sync) => `This board uses sync: ${sync}. kb cannot change such boards yet, so the page only shows it.`,
   },
   de: {
     filter: "Karten filtern", projects: "Projekte", only: "nur dieses Projekt zeigen", all: "alle Projekte zeigen",
@@ -30,6 +34,9 @@ const TEXTS = {
     noBoards: "Melde das Board eines Projekts mit `kb add <ordner>` an, oder lass kardboard mit `kb scan <ordner>` alle Boards unter einem Ordner finden.",
     allHidden: "Alle Projekte sind ausgeblendet. Hake links eines an.",
     noMatch: "Keine Karte passt.", column: "Spalte", board: "Board", limit: (n, max) => `${n} von ${max}`,
+    take: "Nehmen", finish: "Abschließen", moveTo: "Verschieben nach", addPerson: "Person hinzufügen", removePerson: (n) => `${n} von der Karte nehmen`,
+    anyway: "Trotzdem ausführen", cancel: "Abbrechen", dismiss: "Schließen",
+    readOnly: (sync) => `Dieses Board nutzt sync: ${sync}. Solche Boards kann kb noch nicht ändern, deshalb zeigt die Seite es nur an.`,
   },
 };
 const lang = (navigator.language || "en").toLowerCase().startsWith("de") ? "de" : "en";
@@ -54,7 +61,13 @@ const state = {
   filter: "",
   expanded: new Set(),  // columns shown in full, as "boardKey/columnId"
   open: null,           // { board, id, detail } of the card in the side panel
+  notice: null,         // { text, retry } shown at the bottom: an error, or a refusal that can be forced
 };
+
+// The card being dragged, as { board, card }. While it is set the page is
+// not rebuilt: replacing the dragged element would end the drag.
+let dragging = null;
+let redrawAfterDrag = false;
 
 const COLLAPSE_AFTER = 8;
 const PALETTE = ["#2f9e44", "#7950f2", "#e8590c", "#1c7ed6", "#c2255c", "#0c8599", "#e67700", "#5c7cfa"];
@@ -108,6 +121,43 @@ async function openCard(board, card) {
   draw();
 }
 
+// ── Changing ────────────────────────────────────────────────────────────────
+
+// act asks the server for one action on one card. The actions are those of
+// the command line. If a rule of the board refuses, the user may repeat the
+// action with force, like --force.
+async function act(board, cardId, action, extra = {}, force = false) {
+  state.notice = null;
+  try {
+    const res = await fetch("/api/action", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Kardboard": "1" },
+      body: JSON.stringify({ board: board.id, card: cardId, action, ...extra, force }),
+    });
+    if (!res.ok) {
+      const problem = await res.json().catch(() => ({ error: res.statusText }));
+      state.notice = {
+        text: problem.error,
+        retry: problem.refused && !force ? () => act(board, cardId, action, extra, true) : null,
+      };
+    }
+  } catch (err) {
+    state.notice = { text: String(err.message || err), retry: null };
+  }
+  await load();
+}
+
+// dropAction says what dropping the dragged card on a column does, or null
+// if it cannot be dropped there. Dropping an unassigned card on the column
+// for work in progress takes it; everything else is a plain move.
+function dropAction(target) {
+  if (!dragging || !target || dragging.card.column === target.id) return null;
+  const { board, card } = dragging;
+  const firstDoing = board.columns.find((c) => c.doing);
+  if (target === firstDoing && people(card).length === 0 && state.data.user) return { action: "take" };
+  return { action: "move", extra: { column: target.id } };
+}
+
 function follow() {
   const events = new EventSource("/api/events");
   events.onopen = () => { state.live = true; draw(); };
@@ -146,6 +196,7 @@ const code = (text) => text.split("`").map((part, i) => (i % 2 ? h("code", {}, p
 // projects: a single one appears as its board, several as an overview.
 
 function draw() {
+  if (dragging) { redrawAfterDrag = true; return; }
   const app = document.getElementById("app");
   const focused = document.activeElement?.id;
   const scroll = { main: app.querySelector("main")?.scrollTop ?? 0, detail: app.querySelector(".detail")?.scrollTop ?? 0 };
@@ -156,10 +207,12 @@ function draw() {
     return;
   }
 
-  app.replaceChildren(
+  app.replaceChildren(...[
     drawTop(),
     h("div", { class: "shell" + (state.open?.detail ? " with-detail" : "") },
-      drawSide(), drawMain(), state.open?.detail ? drawDetail() : null));
+      drawSide(), drawMain(), state.open?.detail ? drawDetail() : null),
+    state.notice && drawNotice(),
+  ].filter(Boolean));
 
   if (focused) {
     const el = document.getElementById(focused);
@@ -170,6 +223,15 @@ function draw() {
   if (main) main.scrollTop = scroll.main;
   const detail = app.querySelector(".detail");
   if (detail) detail.scrollTop = scroll.detail;
+}
+
+function drawNotice() {
+  const { text, retry } = state.notice;
+  const close = () => { state.notice = null; draw(); };
+  return h("div", { class: "notice", role: "alert" },
+    h("span", { class: "text" }, text),
+    retry && h("button", { type: "button", class: "primary", onclick: retry }, t.anyway),
+    h("button", { type: "button", onclick: close }, retry ? t.cancel : t.dismiss));
 }
 
 function drawTop() {
@@ -256,7 +318,8 @@ function drawLane(board) {
       const over = col.limit > 0 && all.length > col.limit;
       return drawColumn(`${board.key}/${col.id}`, col.title,
         col.limit > 0 ? h("span", { class: over ? "over" : "" }, t.limit(all.length, col.limit)) : String(shown.length),
-        shown.map((c) => drawCard(c, board, { done: col.done })));
+        shown.map((c) => drawCard(c, board, { done: col.done })),
+        () => (dragging?.board === board ? col : null));
     })));
 }
 
@@ -274,21 +337,49 @@ function drawOverview(boards) {
     broken.map((b) => h("div", { class: "lane-error" }, `${b.name}: ${b.error}`)),
     h("div", { class: "columns" }, Object.entries(groups).map(([kind, entries]) =>
       drawColumn("overview/" + kind, t[kind], String(entries.length),
-        entries.map(({ card, board }) => drawCard(card, board, { done: kind === "done", project: true }))))),
+        entries.map(({ card, board }) => drawCard(card, board, { done: kind === "done", project: true })),
+        // The shared columns stand for the dragged card's own columns. "Open"
+        // may be several of them, so a card cannot be dropped there.
+        () => (kind === "open" ? null : dragging?.board.columns.find((c) => (kind === "done" ? c.done : c.doing)) ?? null)))),
   ];
 }
 
-function drawColumn(key, title, count, cards) {
+// drawColumn draws one column. target returns the board column that a card
+// dropped here goes to, for the card being dragged right now.
+function drawColumn(key, title, count, cards, target) {
   const full = state.expanded.has(key);
   const shown = full ? cards : cards.slice(0, COLLAPSE_AFTER);
   const rest = cards.length - shown.length;
   const toggle = () => { full ? state.expanded.delete(key) : state.expanded.add(key); draw(); };
-  return h("div", { class: "column" },
+  const el = h("div", { class: "column" },
     h("div", { class: "column-head" }, h("span", {}, title), h("span", {}, count)),
     cards.length === 0 && h("p", { class: "none" }, state.filter || state.mine ? t.noMatch : t.none),
     shown,
     rest > 0 && h("button", { class: "more", type: "button", onclick: toggle }, "+ " + t.more(rest)),
     full && cards.length > COLLAPSE_AFTER && h("button", { class: "more", type: "button", onclick: toggle }, t.less));
+
+  el.addEventListener("dragover", (e) => {
+    if (!dropAction(target())) return;
+    e.preventDefault(); // this is what allows the drop
+    e.dataTransfer.dropEffect = "move";
+    el.classList.add("drop");
+  });
+  el.addEventListener("dragleave", (e) => { if (!el.contains(e.relatedTarget)) el.classList.remove("drop"); });
+  el.addEventListener("drop", (e) => {
+    const what = dropAction(target());
+    if (!what) return;
+    e.preventDefault();
+    const { board, card } = dragging;
+    endDrag();
+    act(board, card.id, what.action, what.extra);
+  });
+  return el;
+}
+
+function endDrag() {
+  dragging = null;
+  document.querySelectorAll(".drop, .dragging").forEach((el) => el.classList.remove("drop", "dragging"));
+  if (redrawAfterDrag) { redrawAfterDrag = false; draw(); }
 }
 
 function drawCard(card, board, { done = false, project = false } = {}) {
@@ -312,10 +403,22 @@ function drawCard(card, board, { done = false, project = false } = {}) {
   // Only the first name is pushed to the right; the others follow it.
   meta.filter((el) => el.classList.contains("who")).slice(1).forEach((el) => { el.style.marginLeft = "0"; });
 
-  return h("button", {
+  const el = h("button", {
     class: "card" + (bad ? " bad" : "") + (done ? " done" : "") + (isOpen ? " open" : ""),
     type: "button", title: card.path, onclick: () => openCard(board, card),
   }, h("span", { class: "title" }, code(card.title)), h("span", { class: "meta" }, meta));
+
+  if (board.writable) {
+    el.draggable = true;
+    el.addEventListener("dragstart", (e) => {
+      dragging = { board, card };
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", card.id);
+      el.classList.add("dragging");
+    });
+    el.addEventListener("dragend", endDrag);
+  }
+  return el;
 }
 
 function drawDetail() {
@@ -343,10 +446,49 @@ function drawDetail() {
         h("br"), card.path),
       h("button", { class: "close", type: "button", "aria-label": t.close, title: t.close, onclick: close }, "×")),
     h("h1", {}, code(card.title)),
+    board && drawActions(board, card, column),
     rows.length > 0 && h("dl", { class: "fields" }, rows),
     (card.problems ?? []).length > 0 && h("ul", { class: "problems" },
       card.problems.map((p) => h("li", {}, `${p.code} ${p.message}`))),
     text);
+}
+
+// drawActions draws what can be done with the open card. Each control is
+// one action of the command line: take, done, move, assign, unassign.
+function drawActions(board, card, column) {
+  if (!board.writable) return h("p", { class: "readonly" }, t.readOnly(board.sync));
+  const who = people(card);
+  const me = state.data.user;
+  const doing = board.columns.find((c) => c.doing);
+  const done = board.columns.find((c) => c.done);
+  const mineAlone = who.length === 1 && who[0] === me;
+  const canTake = me && !(mineAlone && (!doing || card.column === doing.id));
+
+  const add = (e) => {
+    e.preventDefault();
+    const input = e.target.elements.person;
+    const names = input.value.split(",").map((n) => n.trim().toLowerCase()).filter(Boolean);
+    if (names.length) act(board, card.id, "assign", { people: names, add: true });
+  };
+
+  return h("div", { class: "actions" },
+    h("div", { class: "row" },
+      canTake && h("button", { type: "button", class: "primary", onclick: () => act(board, card.id, "take") }, t.take),
+      done && !column?.done && h("button", { type: "button", onclick: () => act(board, card.id, "done") }, t.finish),
+      h("label", { class: "move" }, t.moveTo,
+        h("select", {
+          "aria-label": t.moveTo,
+          onchange: (e) => { if (e.target.value) act(board, card.id, "move", { column: e.target.value }); },
+        },
+          h("option", { value: "" }, "…"),
+          board.columns.filter((c) => c.id !== card.column).map((c) => h("option", { value: c.id }, c.title))))),
+    h("form", { class: "row people", onsubmit: add },
+      who.map((name) => h("span", { class: "person" + (name === me ? " me" : "") }, "@" + name,
+        h("button", {
+          type: "button", "aria-label": t.removePerson(name), title: t.removePerson(name),
+          onclick: () => act(board, card.id, "unassign", { people: [name] }),
+        }, "×"))),
+      h("input", { name: "person", type: "text", placeholder: t.addPerson, "aria-label": t.addPerson, autocomplete: "off" })));
 }
 
 document.addEventListener("keydown", (e) => {

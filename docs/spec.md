@@ -420,10 +420,24 @@ angemeldet ist.
 
 - **Nur der eigene Rechner.** Der Server lauscht auf `127.0.0.1`, in der
   Vorgabe auf Port 4712, und beantwortet nur Anfragen, die `localhost` als
-  Ziel nennen. Eine fremde Webseite im selben Browser kommt so nicht an die
-  Boards.
-- **Die Oberfläche liest nur.** Sie zeigt den Stand der Dateien und ändert
-  nichts. Ändernde Anfragen lehnt der Server ab.
+  Ziel nennen.
+- **Ändern wie im CLI.** Karten lassen sich in eine andere Spalte ziehen, und
+  die Kartenansicht bietet Nehmen, Abschließen, Verschieben und das Zuweisen
+  von Personen. Jede dieser Handlungen ist genau der gleichnamige Befehl, mit
+  denselben Regeln. Lehnt eine Regel ab, zeigt die Seite den Grund und bietet
+  an, es trotzdem zu tun. Das entspricht `--force`.
+- **Ziehen auf die Arbeitsspalte nimmt die Karte.** Gehört sie noch
+  niemandem, wird man selbst eingetragen. Sonst ist Ziehen ein reines
+  Verschieben. In der gemeinsamen Ansicht mehrerer Boards steht „in Arbeit“
+  für die Arbeitsspalte und „erledigt“ für die erledigte Spalte des Boards
+  der Karte. Auf „offen“ lässt sich dort nicht ziehen, weil es mehrere
+  Spalten sein können.
+- **Fremde Webseiten können nichts ändern.** Eine ändernde Anfrage muss von
+  der eigenen Seite stammen: gleiche Herkunft, ein eigener Kopf in der
+  Anfrage und JSON als Inhalt. Ein Formular oder Skript einer anderen Seite
+  im selben Browser kann das nicht erfüllen.
+- **Boards mit `sync: commit` oder `push` zeigt die Seite nur an**, solange
+  kb die Git-Schritte noch nicht kann.
 - **Sie folgt den Dateien.** Der Server prüft die Boards jede Sekunde auf
   Änderungen und meldet sie der offenen Seite. Nach neuen Boards unter `scan`
   sucht er alle 30 Sekunden und auf Wunsch sofort.
@@ -456,9 +470,8 @@ angemeldet ist.
   damit die Regel für fremde Karten keine Ausnahme hat.
 - **Grenze je Person.** `limit` zählt die Karten der Spalte, nicht die einer
   Person.
-- **Ändern in der Oberfläche.** Heute zeigt sie nur an. Verschieben und
-  Zuweisen per Maus kommen dazu und laufen dann über dieselben Regeln wie das
-  CLI.
+- **Felder in der Oberfläche ändern.** Sie verschiebt und weist zu. Größe,
+  Schlagworte und Text ändert man im Editor oder mit `kb set`.
 - **`--all` für lesende Befehle.** `kb list --all` und `kb lint --all` über
   alle bekannten Boards gibt es noch nicht.
 - **Sprache dieses Dokuments** vor einer Veröffentlichung.

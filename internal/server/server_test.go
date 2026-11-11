@@ -89,6 +89,7 @@ type state struct {
 		}
 		Problems         []struct{ Code, Path string }
 		Errors, Warnings int
+		Writable         bool
 	}
 }
 
@@ -281,7 +282,7 @@ func TestWebUIIsServed(t *testing.T) {
 	}
 }
 
-func TestOnlyLocalhostAndOnlyReading(t *testing.T) {
+func TestOnlyLocalhost(t *testing.T) {
 	settings(t, "")
 	h := New(copyOfExample(t)).Handler()
 	do := func(method, host, target string) int {
@@ -302,12 +303,191 @@ func TestOnlyLocalhostAndOnlyReading(t *testing.T) {
 			t.Errorf("host %s: status %d, want 403", host, code)
 		}
 	}
-	for _, method := range []string{http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch} {
-		for _, target := range []string{"/api/state", "/api/card?board=demo&id=export-als-pdf", "/"} {
+	// Only /api/action changes anything, and only by POST.
+	for _, method := range []string{http.MethodPut, http.MethodDelete, http.MethodPatch} {
+		for _, target := range []string{"/api/state", "/api/action", "/"} {
 			if code := do(method, "127.0.0.1:4712", target); code != http.StatusMethodNotAllowed {
 				t.Errorf("%s %s: status %d, want 405", method, target, code)
 			}
 		}
+	}
+}
+
+// post sends an action the way kardboard's own page does.
+func post(t *testing.T, s *Server, body string, change func(*http.Request)) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:4712/api/action", strings.NewReader(body))
+	req.Header.Set("Origin", "http://127.0.0.1:4712")
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(ActionHeader, "1")
+	if change != nil {
+		change(req)
+	}
+	rec := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rec, req)
+	return rec
+}
+
+func isFile(root, rel string) bool {
+	info, err := os.Stat(filepath.Join(root, filepath.FromSlash(rel)))
+	return err == nil && info.Mode().IsRegular()
+}
+
+func readFile(t *testing.T, root, rel string) string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
+}
+
+func TestActions(t *testing.T) {
+	settings(t, "user: sam\n")
+	root := copyOfExample(t)
+	s := New(root)
+
+	steps := []struct {
+		body   string
+		status int
+		want   string // part of the response
+		file   string // a file that must exist afterwards
+	}{
+		{`{"board":"demo","card":"druckvorlagen","action":"take"}`, 200, `"to":"working_on"`, "working_on/druckvorlagen.md"},
+		{`{"board":"demo","card":"druckvorlagen","action":"take"}`, 200, `"moved":false`, "working_on/druckvorlagen.md"},
+		{`{"board":"demo","card":"druckvorlagen","action":"assign","people":["alex"],"add":true}`, 200, `"assignee":["sam","alex"]`, ""},
+		{`{"board":"demo","card":"druckvorlagen","action":"unassign","people":["sam"]}`, 200, `"assignee":["alex"]`, ""},
+		// now it is alex's card: sam is refused, and may force it
+		{`{"board":"demo","card":"druckvorlagen","action":"done"}`, 409, `"refused":true`, "working_on/druckvorlagen.md"},
+		{`{"board":"demo","card":"druckvorlagen","action":"done","force":true}`, 200, `"to":"done"`, "done/druckvorlagen.md"},
+		{`{"board":"demo","card":"offline-modus","action":"move","column":"backlog"}`, 409, "would lack size", "planning/offline-modus.md"},
+		{`{"board":"demo","card":"offline-modus","action":"set","set":["size=S","tags=ui"]}`, 200, `"size":"S"`, ""},
+		{`{"board":"demo","card":"offline-modus","action":"move","column":"backlog"}`, 200, `"to":"backlog"`, "backlog/offline-modus.md"},
+
+		{`{"board":"demo","card":"offline-modus","action":"move"}`, 400, "move needs a column", ""},
+		{`{"board":"demo","card":"offline-modus","action":"move","column":"nope"}`, 400, "no column", ""},
+		{`{"board":"demo","card":"offline-modus","action":"set","set":["size=XXL"]}`, 400, "size: must be one of", ""},
+		{`{"board":"demo","card":"offline-modus","action":"set"}`, 400, "set needs", ""},
+		{`{"board":"demo","card":"offline-modus","action":"assign"}`, 400, "no person named", ""},
+		{`{"board":"demo","card":"offline-modus","action":"delete"}`, 400, "unknown action", ""},
+		{`{"board":"demo","card":"nope","action":"done"}`, 400, "no card", ""},
+		{`{"board":"nope","card":"x","action":"done"}`, 404, "no board", ""},
+		{`{"board":"demo","card":"x","action":"done","extra":1}`, 400, "cannot read the request", ""},
+		{`not json`, 400, "cannot read the request", ""},
+	}
+	for _, st := range steps {
+		rec := post(t, s, st.body, nil)
+		if rec.Code != st.status || !strings.Contains(rec.Body.String(), st.want) {
+			t.Fatalf("%s\n  status %d, want %d\n  body %s  want it to contain %s", st.body, rec.Code, st.status, rec.Body, st.want)
+		}
+		if st.file != "" && !isFile(root, st.file) {
+			t.Errorf("%s: %s is missing", st.body, st.file)
+		}
+	}
+
+	if got, want := readFile(t, root, "done/druckvorlagen.md"), "assignee: alex\n"; !strings.Contains(got, want) {
+		t.Errorf("file = %q", got)
+	}
+	// Everything the page did leaves a valid board.
+	if st := getState(t, s, ""); st.Boards[0].Errors != 0 {
+		t.Errorf("the board has %d errors after the actions", st.Boards[0].Errors)
+	}
+}
+
+func TestActionsNeedTheUserOnlyWhenItMatters(t *testing.T) {
+	settings(t, "")
+	root := copyOfExample(t)
+	s := New(root)
+
+	// Nobody's card moves without kb knowing who asks.
+	if rec := post(t, s, `{"board":"demo","card":"druckvorlagen","action":"move","column":"done"}`, nil); rec.Code != 200 {
+		t.Errorf("move: status %d, %s", rec.Code, rec.Body)
+	}
+	for body, want := range map[string]string{
+		`{"board":"demo","card":"offline-modus","action":"take"}`:             "no user set",
+		`{"board":"demo","card":"login-fehler-bei-umlauten","action":"done"}`: "must know who you are",
+	} {
+		rec := post(t, s, body, nil)
+		if rec.Code != 400 || !strings.Contains(rec.Body.String(), want) {
+			t.Errorf("%s: status %d, body %s", body, rec.Code, rec.Body)
+		}
+	}
+	if !isFile(root, "working_on/login-fehler-bei-umlauten.md") || !isFile(root, "planning/offline-modus.md") {
+		t.Error("a rejected action changed the board")
+	}
+}
+
+func TestBoardsThatWantCommitsAreReadOnly(t *testing.T) {
+	settings(t, "")
+	root := copyOfExample(t)
+	yaml := strings.Replace(readFile(t, root, "board.yaml"), "sync: none", "sync: push", 1)
+	writeFile(t, filepath.Join(root, "board.yaml"), yaml)
+	s := New(root)
+
+	if st := getState(t, s, ""); st.Boards[0].Writable || st.Boards[0].Sync != "push" {
+		t.Errorf("board = writable %v, sync %q", st.Boards[0].Writable, st.Boards[0].Sync)
+	}
+	rec := post(t, s, `{"board":"demo","card":"druckvorlagen","action":"move","column":"done"}`, nil)
+	if rec.Code != 400 || !strings.Contains(rec.Body.String(), "sync: push") || !isFile(root, "backlog/druckvorlagen.md") {
+		t.Errorf("status %d, body %s", rec.Code, rec.Body)
+	}
+}
+
+// A page on another website can make the browser send requests to the
+// port. None of them may change a card.
+func TestOtherSitesCannotChangeCards(t *testing.T) {
+	settings(t, "user: sam\n")
+	root := copyOfExample(t)
+	s := New(root)
+	const body = `{"board":"demo","card":"druckvorlagen","action":"move","column":"done"}`
+
+	attacks := map[string]func(*http.Request){
+		"another site as origin":           func(r *http.Request) { r.Header.Set("Origin", "https://evil.example") },
+		"no origin at all":                 func(r *http.Request) { r.Header.Del("Origin") },
+		"origin null (sandboxed frame)":    func(r *http.Request) { r.Header.Set("Origin", "null") },
+		"another port on this machine":     func(r *http.Request) { r.Header.Set("Origin", "http://127.0.0.1:8080") },
+		"localhost under another name":     func(r *http.Request) { r.Header.Set("Origin", "http://localhost:4712") },
+		"https instead of http":            func(r *http.Request) { r.Header.Set("Origin", "https://127.0.0.1:4712") },
+		"origin that only starts the same": func(r *http.Request) { r.Header.Set("Origin", "http://127.0.0.1:4712.evil.example") },
+		"a plain form: no custom header":   func(r *http.Request) { r.Header.Del(ActionHeader) },
+		"a plain form: form content type": func(r *http.Request) {
+			r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		},
+		"a plain form: text content type": func(r *http.Request) { r.Header.Set("Content-Type", "text/plain") },
+		"a made-up host name (DNS rebinding)": func(r *http.Request) {
+			r.Host = "evil.example:4712"
+			r.Header.Set("Origin", "http://evil.example:4712")
+		},
+	}
+	for name, attack := range attacks {
+		rec := post(t, s, body, attack)
+		if rec.Code != http.StatusForbidden {
+			t.Errorf("%s: status %d, want 403", name, rec.Code)
+		}
+	}
+	if !isFile(root, "backlog/druckvorlagen.md") {
+		t.Fatal("an attack moved the card")
+	}
+
+	// A browser asks first before it lets another site send the custom
+	// header. The server does not grant that.
+	req := httptest.NewRequest(http.MethodOptions, "http://127.0.0.1:4712/api/action", nil)
+	req.Header.Set("Origin", "https://evil.example")
+	req.Header.Set("Access-Control-Request-Method", "POST")
+	req.Header.Set("Access-Control-Request-Headers", "x-kardboard,content-type")
+	rec := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rec, req)
+	if rec.Code < 400 || rec.Header().Get("Access-Control-Allow-Origin") != "" {
+		t.Errorf("preflight: status %d, allow-origin %q", rec.Code, rec.Header().Get("Access-Control-Allow-Origin"))
+	}
+
+	// The page's own request goes through, also when it was opened as localhost.
+	rec = post(t, s, body, func(r *http.Request) {
+		r.Host = "localhost:4712"
+		r.Header.Set("Origin", "http://localhost:4712")
+	})
+	if rec.Code != http.StatusOK || !isFile(root, "done/druckvorlagen.md") {
+		t.Errorf("own page: status %d, body %s", rec.Code, rec.Body)
 	}
 }
 

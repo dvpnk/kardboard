@@ -6,8 +6,9 @@ einzeln oder zusammen.
 
 **Stand:** früher Entwurf. Das Format steht als Entwurf. Der Befehl `kb` kann
 Boards lesen und prüfen, Karten anlegen, verschieben und zuweisen und alle
-Boards des Rechners im Browser zeigen. Die Oberfläche zeigt nur an. Ändern kann
-`kb` nur Boards mit `sync: none`; die Git-Anbindung fehlt noch.
+Boards des Rechners im Browser zeigen. Dort lassen sich Karten auch ziehen,
+nehmen und zuweisen. Ändern kann `kb` nur Boards mit `sync: none`; die
+Git-Anbindung fehlt noch.
 
 - [Format und CLI](docs/spec.md)
 - [Beispiel-Board](examples/board)
@@ -96,8 +97,12 @@ den Dateien und läuft, bis man sie mit Strg+C beendet:
 kb ui
 ```
 
-Der Server ist nur vom eigenen Rechner aus erreichbar, und die Oberfläche
-ändert nichts an den Boards.
+Karten lassen sich in eine andere Spalte ziehen. Ein Klick auf eine Karte
+öffnet ihren Text und bietet Nehmen, Abschließen, Verschieben und Zuweisen an.
+Jede dieser Handlungen ist der gleichnamige Befehl, mit denselben Regeln.
+
+Der Server ist nur vom eigenen Rechner aus erreichbar und nimmt Änderungen nur
+von der eigenen Seite an.
 
 ## Fremde Bestandteile
 

@@ -1,5 +1,6 @@
-// Package server is the local web server behind `kb ui`. It only reads: the
-// boards are shown as they are on disk, and nothing is changed through it.
+// Package server is the local web server behind `kb ui`. It shows the boards
+// as they are on disk and changes cards through the same actions as the
+// command line.
 package server
 
 import (
@@ -48,6 +49,9 @@ type Server struct {
 
 	subMu sync.Mutex
 	subs  map[chan struct{}]struct{}
+
+	// writeMu lets one change happen at a time.
+	writeMu sync.Mutex
 }
 
 // New creates a server. here, if not empty, is a board directory that is
@@ -101,8 +105,11 @@ type boardJSON struct {
 	Source string `json:"source"`
 	// Error says why the board cannot be shown. Columns and cards are
 	// empty then.
-	Error    string          `json:"error,omitempty"`
-	Sync     string          `json:"sync,omitempty"`
+	Error string `json:"error,omitempty"`
+	Sync  string `json:"sync,omitempty"`
+	// Writable says whether cards can be changed here. Boards that want Git
+	// commits cannot, until kb can make them.
+	Writable bool            `json:"writable"`
 	Columns  []columnJSON    `json:"columns"`
 	Fields   []fieldJSON     `json:"fields"`
 	Cards    []*board.Card   `json:"cards"`
@@ -157,6 +164,7 @@ func describe(l *registry.Loaded) boardJSON {
 		return out
 	}
 	out.ID, out.Sync = b.Config.ID, b.Config.Sync
+	out.Writable = b.Config.Sync == "none"
 	if b.Config.Name != "" {
 		out.Name = b.Config.Name
 	} else {
@@ -197,28 +205,52 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/state", s.handleState)
 	mux.HandleFunc("GET /api/card", s.handleCard)
 	mux.HandleFunc("GET /api/events", s.handleEvents)
+	mux.HandleFunc("POST /api/action", s.handleAction)
 	mux.Handle("GET /", http.FileServerFS(web))
 	return guard(mux)
 }
 
+// ActionHeader must be present on every changing request, see guard.
+const ActionHeader = "X-Kardboard"
+
+func isLoopback(host string) bool {
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	switch strings.Trim(host, "[]") {
+	case "127.0.0.1", "localhost", "::1":
+		return true
+	}
+	return false
+}
+
 // guard keeps other websites away from the boards. The server listens on
-// the loopback interface only, but a page in the user's browser could still
-// reach it under a made-up host name (DNS rebinding), so requests must name
-// the loopback host. It also refuses everything but reading.
+// the loopback interface only, but every page in the user's browser can
+// still send requests to it, so three things are checked.
+//
+// Reading: the request must name the loopback host. That stops a page that
+// reaches the port under a made-up host name (DNS rebinding).
+//
+// Changing: the request must also come from kardboard's own page (same
+// origin) and carry a header that browsers only let a page send to its own
+// origin. A form or script on another site can do neither.
 func guard(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		host := r.Host
-		if h, _, err := net.SplitHostPort(r.Host); err == nil {
-			host = h
-		}
-		switch strings.Trim(host, "[]") {
-		case "127.0.0.1", "localhost", "::1":
-		default:
+		if !isLoopback(r.Host) {
 			http.Error(w, "kardboard answers only on localhost", http.StatusForbidden)
 			return
 		}
-		if r.Method != http.MethodGet && r.Method != http.MethodHead {
-			http.Error(w, "kardboard's web UI only reads", http.StatusMethodNotAllowed)
+		switch r.Method {
+		case http.MethodGet, http.MethodHead:
+		case http.MethodPost:
+			origin := r.Header.Get("Origin")
+			if origin != "http://"+r.Host || r.Header.Get(ActionHeader) != "1" ||
+				!strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+				http.Error(w, "changes are only accepted from kardboard's own page", http.StatusForbidden)
+				return
+			}
+		default:
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		h := w.Header()
@@ -261,6 +293,114 @@ func (s *Server) handleCard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, cardJSON{Board: boardID, Card: c, Body: c.Body})
+}
+
+// ── Changing ────────────────────────────────────────────────────────────────
+
+// actionRequest names one action on one card. The actions are those of the
+// command line and do the same.
+type actionRequest struct {
+	Board string `json:"board"`
+	Card  string `json:"card"`
+	// Action is move, take, done, assign, unassign or set.
+	Action string `json:"action"`
+	// Column is the target of move.
+	Column string `json:"column"`
+	// People are the names for assign and unassign.
+	People []string `json:"people"`
+	// Add makes take and assign keep the people already on the card.
+	Add bool `json:"add"`
+	// Set holds "field=value" for set.
+	Set []string `json:"set"`
+	// Force overrides the rules that protect other people's cards and
+	// required fields, like --force.
+	Force bool `json:"force"`
+}
+
+type actionError struct {
+	Error string `json:"error"`
+	// Refused is true if a rule of the board forbids the action and Force
+	// would do it anyway.
+	Refused bool `json:"refused,omitempty"`
+}
+
+func fail(w http.ResponseWriter, status int, err error, refused bool) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(actionError{Error: err.Error(), Refused: refused})
+}
+
+func (s *Server) handleAction(w http.ResponseWriter, r *http.Request) {
+	var req actionRequest
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&req); err != nil {
+		fail(w, http.StatusBadRequest, fmt.Errorf("cannot read the request: %w", err), false)
+		return
+	}
+
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+
+	// Read the board afresh: the change must see the files as they are now.
+	l, ok := registry.Find(registry.Load(s.known(false)), req.Board)
+	if !ok {
+		fail(w, http.StatusNotFound, fmt.Errorf("no board %q", req.Board), false)
+		return
+	}
+	b := l.Board
+	user, userErr := userconfig.User()
+
+	var ch board.Change
+	var err error
+	switch req.Action {
+	case "move":
+		if req.Column == "" {
+			err = errors.New("move needs a column")
+		}
+		ch = board.Change{Column: req.Column}
+	case "take":
+		if userErr != nil {
+			err = userErr
+		} else {
+			ch = b.TakeChange(req.Card, user, req.Add)
+		}
+	case "done":
+		ch, err = b.DoneChange()
+	case "assign":
+		ch, err = b.AssignChange(req.Card, req.People, req.Add)
+	case "unassign":
+		ch = b.UnassignChange(req.Card, req.People)
+	case "set":
+		if len(req.Set) == 0 {
+			err = errors.New("set needs at least one field=value")
+		}
+		ch = board.Change{Set: req.Set}
+	default:
+		err = fmt.Errorf("unknown action %q", req.Action)
+	}
+	if err != nil {
+		fail(w, http.StatusBadRequest, err, false)
+		return
+	}
+	ch.User, ch.Force = user, req.Force
+
+	res, err := b.Change(req.Card, ch)
+	var refused *board.RefusedError
+	switch {
+	case err == nil:
+		s.broadcast()
+		writeJSON(w, res)
+	case errors.As(err, &refused):
+		fail(w, http.StatusConflict, err, true)
+	case errors.Is(err, board.ErrNeedUser):
+		if userErr == nil {
+			userErr = err
+		}
+		fail(w, http.StatusBadRequest, fmt.Errorf("the card is assigned to someone, so kb must know who you are: %w", userErr), false)
+	default:
+		fail(w, http.StatusBadRequest, err, false)
+	}
 }
 
 // handleEvents keeps a connection open and sends one event whenever a board

@@ -240,3 +240,41 @@ main { overflow: auto; padding: 14px 16px 40px; min-width: 0; }
   .shell.with-detail main { display: none; }
   .detail { border-left: 0; }
 }
+
+/* ── Changing cards ──────────────────────────────────────────────────────── */
+
+.card[draggable="true"] { cursor: grab; }
+.card.dragging { opacity: 0.4; }
+.column.drop { outline: 2px dashed var(--text); outline-offset: -2px; background: var(--hover); }
+
+.actions { margin: 0 0 14px; display: grid; gap: 8px; }
+.actions .row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.actions button, .actions select, .actions input, .notice button {
+  font: 12px var(--mono);
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius);
+  padding: 4px 9px;
+}
+.actions button:hover, .notice button:hover { background: var(--hover); }
+.actions button.primary, .notice button.primary { background: var(--text); color: var(--surface); border-color: var(--text); }
+.actions button.primary:hover, .notice button.primary:hover { opacity: 0.85; }
+.actions .move { display: inline-flex; align-items: center; gap: 6px; font: 12px var(--mono); color: var(--dim); margin-left: auto; }
+.actions input { flex: 1 1 120px; min-width: 0; }
+.actions input::placeholder { color: var(--faint); }
+.person {
+  display: inline-flex; align-items: center; gap: 2px;
+  font: 12px var(--mono); border: 1px solid var(--border-strong); border-radius: var(--radius); padding: 0 0 0 7px;
+}
+.person.me { font-weight: 500; }
+.person button { border: 0; background: none; padding: 3px 6px; color: var(--dim); }
+.readonly { font: 12px var(--mono); color: var(--dim); background: var(--sunken); border-radius: var(--radius); padding: 8px 10px; margin: 0 0 14px; }
+
+.notice {
+  position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+  max-width: min(720px, calc(100vw - 32px));
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--danger); border-radius: var(--radius);
+  padding: 9px 12px; font: 13px var(--mono);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+}
+.notice .text { flex: 1; overflow-wrap: anywhere; }

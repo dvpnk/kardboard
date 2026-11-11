@@ -257,7 +257,7 @@ func (a *app) uiCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "ui",
 		Short: "Show all known boards in the browser",
-		Long:  "Start a web server on this machine only and show all known boards in the browser. The page reads the boards and follows changes on disk; it changes nothing.",
+		Long:  "Start a web server on this machine only and show all known boards in the browser. The page follows changes on disk. Cards can be moved, taken and assigned there; each of these is the same action as the command of that name.",
 		Args:  cobra.NoArgs,
 		RunE: func(*cobra.Command, []string) error {
 			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
