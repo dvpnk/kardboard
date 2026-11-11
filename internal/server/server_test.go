@@ -249,6 +249,7 @@ func TestWebUIIsServed(t *testing.T) {
 	s := New("")
 	for target, want := range map[string]string{
 		"/":         `<script type="module" src="app.js">`,
+		"/theme.js": "kb.theme",
 		"/app.js":   "kardboard web UI",
 		"/md.js":    "export function render",
 		"/app.css":  "--mono:",
@@ -271,6 +272,15 @@ func TestWebUIIsServed(t *testing.T) {
 	}
 	if rec := get(t, s, "/fonts/OFL.txt"); !strings.Contains(rec.Body.String(), "SIL Open Font License, Version 1.1") {
 		t.Error("the font licence is not shipped with the fonts")
+	}
+
+	// The theme is set by a script file of its own: the page allows no
+	// inline scripts, and the choice must apply before the first paint.
+	if page := get(t, s, "/").Body.String(); !strings.Contains(page, `<script src="theme.js"></script>`) || strings.Contains(page, "<script>") {
+		t.Error("index.html must load theme.js and contain no inline script")
+	}
+	if css := get(t, s, "/app.css").Body.String(); !strings.Contains(css, `:root[data-theme="dark"]`) || !strings.Contains(css, `:root:not([data-theme="light"])`) {
+		t.Error("app.css must let the chosen theme win over the system's")
 	}
 
 	rec := get(t, s, "/")

@@ -446,11 +446,14 @@ angemeldet ist.
   mehrere, liegen ihre Karten in drei gemeinsamen Spalten: offen, in Arbeit
   (`doing`), erledigt (`done`). Jede Karte zeigt dann, zu welchem Board sie
   gehört.
-- **Ein- und Ausblenden.** Das Kästchen blendet ein Board ein oder aus, ein
-  Klick auf den Namen zeigt es allein. Welche Boards zu sehen sind, merkt sich
-  der Browser. `hidden` in den Einstellungen ist die Vorgabe, solange dort
-  noch nichts gewählt wurde.
+- **Ein- und Ausblenden.** Die Projektauswahl klappt aus der Kopfzeile auf.
+  Das Kästchen blendet ein Board ein oder aus, ein Klick auf den Namen zeigt
+  es allein. Welche Boards zu sehen sind, merkt sich der Browser. `hidden` in
+  den Einstellungen ist die Vorgabe, solange dort noch nichts gewählt wurde.
 - **Filter.** Ein Suchfeld und „Nur meine“ wirken auf alles, was zu sehen ist.
+  „Nur meine“ steht im Menü. Solange es an ist, zeigt die Kopfzeile das an.
+- **Hell und dunkel.** Die Seite folgt dem System. Im Menü lässt sich Hell
+  oder Dunkel fest wählen; auch das merkt sich der Browser.
 - **Fehler bleiben sichtbar.** Eine fehlerhafte Karte ist markiert und zeigt
   ihre Verstöße, ein unbrauchbares Board zeigt den Grund.
 - **Keine Anfrage nach außen.** Alles, was die Seite braucht, steckt im

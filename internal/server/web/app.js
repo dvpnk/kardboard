@@ -10,6 +10,10 @@ import { render as markdown } from "./md.js";
 const TEXTS = {
   en: {
     filter: "Filter cards", projects: "Projects", only: "show only this project", all: "show all projects",
+    allProjects: (n) => `All projects (${n})`, someProjects: (n, of) => `${n} of ${of} projects`, noProjects: "No project",
+    pickHint: "Tick to show or hide. Click a name to see that project alone.",
+    settings: "Settings", theme: "Appearance", system: "System", light: "Light", dark: "Dark",
+    you: (name) => `You are @${name}`, mineOff: "show everyone's cards again",
     mine: "Only mine", mineHint: "kb does not know who you are. Set `user` in ~/.config/kardboard/config.yaml.",
     open: "Open", doing: "In progress", done: "Done", none: "nothing here", more: (n) => `${n} more`, less: "show fewer",
     boards: (n) => `${n} ${n === 1 ? "board" : "boards"}`, cards: (n) => `${n} ${n === 1 ? "card" : "cards"}`,
@@ -25,6 +29,10 @@ const TEXTS = {
   },
   de: {
     filter: "Karten filtern", projects: "Projekte", only: "nur dieses Projekt zeigen", all: "alle Projekte zeigen",
+    allProjects: (n) => `Alle Projekte (${n})`, someProjects: (n, of) => `${n} von ${of} Projekten`, noProjects: "Kein Projekt",
+    pickHint: "Haken blendet ein oder aus. Ein Klick auf den Namen zeigt das Projekt allein.",
+    settings: "Einstellungen", theme: "Darstellung", system: "System", light: "Hell", dark: "Dunkel",
+    you: (name) => `Du bist @${name}`, mineOff: "wieder die Karten aller zeigen",
     mine: "Nur meine", mineHint: "kb weiß nicht, wer du bist. Trag `user` in ~/.config/kardboard/config.yaml ein.",
     open: "Offen", doing: "In Arbeit", done: "Erledigt", none: "nichts hier", more: (n) => `${n} weitere`, less: "weniger zeigen",
     boards: (n) => `${n} ${n === 1 ? "Board" : "Boards"}`, cards: (n) => `${n} ${n === 1 ? "Karte" : "Karten"}`,
@@ -62,7 +70,16 @@ const state = {
   expanded: new Set(),  // columns shown in full, as "boardKey/columnId"
   open: null,           // { board, id, detail } of the card in the side panel
   notice: null,         // { text, retry } shown at the bottom: an error, or a refusal that can be forced
+  menu: null,           // which menu of the top bar is open: "projects", "settings" or none
+  theme: stored("theme", "system"), // "system", "light" or "dark"
 };
+
+// The theme is applied to the document; theme.js already did so before the
+// first paint, this keeps it in step when the user changes it.
+function applyTheme() {
+  if (state.theme === "system") delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = state.theme;
+}
 
 // The card being dragged, as { board, card }. While it is set the page is
 // not rebuilt: replacing the dragged element would end the drag.
@@ -210,7 +227,7 @@ function draw() {
   app.replaceChildren(...[
     drawTop(),
     h("div", { class: "shell" + (state.open?.detail ? " with-detail" : "") },
-      drawSide(), drawMain(), state.open?.detail ? drawDetail() : null),
+      drawMain(), state.open?.detail ? drawDetail() : null),
     state.notice && drawNotice(),
   ].filter(Boolean));
 
@@ -234,60 +251,101 @@ function drawNotice() {
     h("button", { type: "button", onclick: close }, retry ? t.cancel : t.dismiss));
 }
 
+// The top bar holds the few things that are always needed: which projects,
+// the filter, what is wrong, and a menu for the rest.
 function drawTop() {
   const boards = visibleBoards();
-  const cards = boards.reduce((n, b) => n + b.cards.length, 0);
   const errors = boards.reduce((n, b) => n + b.errors, 0);
+  const warnings = boards.reduce((n, b) => n + b.warnings, 0);
+  const me = state.data.user;
   return h("header", { class: "top" },
     h("h1", { class: "brand" }, "kardboard"),
+    drawProjectMenu(),
     h("input", {
       id: "filter", class: "filter", type: "search", placeholder: t.filter, value: state.filter, "aria-label": t.filter,
       oninput: (e) => { state.filter = e.target.value; draw(); },
     }),
-    h("label", { class: "toggle" + (state.data.user ? "" : " off"), title: state.data.user ? "" : t.mineHint.replaceAll("`", "") },
-      h("input", {
-        type: "checkbox", checked: state.mine && !!state.data.user, disabled: !state.data.user,
-        onchange: (e) => { state.mine = e.target.checked; store("mine", state.mine); draw(); },
-      }),
-      t.mine),
+    // "Only mine" is set in the menu. While it is on, it shows here, so
+    // nobody wonders where the other cards went.
+    state.mine && me && h("button", { type: "button", class: "active-filter", title: t.mineOff, onclick: () => setMine(false) },
+      "@" + me, h("span", { "aria-hidden": "true" }, "×")),
     h("span", { class: "spacer" }),
-    h("div", { class: "status" },
-      h("span", {}, t.boards(boards.length)),
-      h("span", {}, t.cards(cards)),
-      errors > 0 && h("span", { class: "badge bad" }, t.errors(errors)),
-      state.data.user && h("span", {}, "@" + state.data.user),
-      h("span", { class: "live" + (state.live ? " on" : "") }, state.live ? t.live : t.offline)));
+    errors > 0 && h("span", { class: "badge bad" }, t.errors(errors)),
+    warnings > 0 && h("span", { class: "badge warn" }, t.warnings(warnings)),
+    h("span", { class: "live" + (state.live ? " on" : ""), role: "img", "aria-label": state.live ? t.live : t.offline, title: state.live ? t.live : t.offline }),
+    drawSettingsMenu());
 }
 
-// The side bar only chooses projects. The box shows or hides one; a click on
-// the name shows that project alone, and a second click brings all back.
-function drawSide() {
+function setMine(on) {
+  state.mine = on;
+  store("mine", on);
+  draw();
+}
+
+// menu draws a button that opens a panel below it. Only one menu is open at
+// a time; a click elsewhere or Escape closes it.
+function menu(name, label, title, content) {
+  const open = state.menu === name;
+  return h("div", { class: "menu-wrap" },
+    h("button", {
+      type: "button", class: "menu-button" + (open ? " open" : ""), "aria-haspopup": "true", "aria-expanded": String(open), title,
+      onclick: () => { state.menu = open ? null : name; draw(); },
+    }, label),
+    open && h("div", { class: "menu " + name }, content()));
+}
+
+function drawProjectMenu() {
+  const all = state.data.boards;
+  const visible = visibleBoards();
   const setHidden = (keys) => { state.hidden = keys; store("hidden", keys); draw(); };
   const toggle = (board) => {
-    const hidden = new Set(state.data.boards.filter(isHidden).map((b) => b.key));
+    const hidden = new Set(all.filter(isHidden).map((b) => b.key));
     hidden.has(board.key) ? hidden.delete(board.key) : hidden.add(board.key);
     setHidden([...hidden]);
   };
   const alone = (board) => {
-    const visible = visibleBoards();
     const isAlone = visible.length === 1 && visible[0] === board;
-    setHidden(isAlone ? [] : state.data.boards.filter((b) => b !== board).map((b) => b.key));
+    setHidden(isAlone ? [] : all.filter((b) => b !== board).map((b) => b.key));
   };
-  const visible = visibleBoards();
 
-  return h("aside", { class: "side" },
-    h("section", {},
-      h("h2", {}, t.projects),
-      state.data.boards.map((b) => {
-        const isAlone = visible.length === 1 && visible[0] === b;
-        return h("div", { class: "project" + (isHidden(b) ? " off" : "") },
-          h("input", { type: "checkbox", checked: !isHidden(b), "aria-label": b.name, onchange: () => toggle(b) }),
-          h("button", { type: "button", class: "pick", title: (isAlone ? t.all : t.only) + "\n" + b.root, onclick: () => alone(b) },
-            dot(colourOf(b)),
-            h("span", { class: "name" }, b.name),
-            h("span", { class: "count" }, b.error ? "!" : String(b.cards.length))));
-      }),
-      h("button", { class: "linkish", type: "button", onclick: () => load(true) }, t.rescan)));
+  let label;
+  if (visible.length === 1) label = [dot(colourOf(visible[0])), h("span", { class: "name" }, visible[0].name)];
+  else if (visible.length === 0) label = [h("span", { class: "name" }, t.noProjects)];
+  else if (visible.length === all.length) label = [h("span", { class: "name" }, t.allProjects(all.length))];
+  else label = [h("span", { class: "name" }, t.someProjects(visible.length, all.length))];
+  label.push(h("span", { class: "caret", "aria-hidden": "true" }, "▾"));
+
+  return menu("projects", label, t.projects, () => [
+    all.map((b) => {
+      const isAlone = visible.length === 1 && visible[0] === b;
+      return h("div", { class: "project" + (isHidden(b) ? " off" : "") },
+        h("input", { type: "checkbox", checked: !isHidden(b), "aria-label": b.name, onchange: () => toggle(b) }),
+        h("button", { type: "button", class: "pick", title: (isAlone ? t.all : t.only) + "\n" + b.root, onclick: () => alone(b) },
+          dot(colourOf(b)),
+          h("span", { class: "name" }, b.name),
+          h("span", { class: "count" }, b.error ? "!" : String(b.cards.length))));
+    }),
+    h("p", { class: "hint" }, t.pickHint),
+    h("button", { class: "linkish", type: "button", onclick: () => load(true) }, t.rescan),
+  ]);
+}
+
+function drawSettingsMenu() {
+  const me = state.data.user;
+  const setTheme = (theme) => { state.theme = theme; store("theme", theme); applyTheme(); draw(); };
+  return menu("settings", h("span", { "aria-hidden": "true" }, "⋯"), t.settings, () => [
+    h("label", { class: "check" + (me ? "" : " off") },
+      h("input", { type: "checkbox", checked: state.mine && !!me, disabled: !me, onchange: (e) => setMine(e.target.checked) }),
+      t.mine),
+    !me && h("p", { class: "hint" }, code(t.mineHint)),
+    h("h2", {}, t.theme),
+    h("div", { class: "segments", role: "group", "aria-label": t.theme },
+      ["system", "light", "dark"].map((theme) => h("button", {
+        type: "button", class: state.theme === theme ? "on" : "", "aria-pressed": String(state.theme === theme),
+        onclick: () => setTheme(theme),
+      }, t[theme]))),
+    me && h("p", { class: "hint you" }, t.you(me)),
+  ]);
 }
 
 function drawMain() {
@@ -302,16 +360,12 @@ function drawMain() {
   return h("main", {}, boards.length === 1 ? drawLane(boards[0]) : drawOverview(boards));
 }
 
+// drawLane draws one board with its own columns. It has no heading: the top
+// bar already names the project and counts what is wrong with it.
 function drawLane(board) {
-  const head = h("div", { class: "lane-head" },
-    h("h2", {}, dot(colourOf(board)), board.name),
-    !board.error && h("span", { class: "num" }, t.cards(board.cards.length)),
-    board.errors > 0 && h("span", { class: "badge bad" }, t.errors(board.errors)),
-    board.warnings > 0 && h("span", { class: "badge warn" }, t.warnings(board.warnings)),
-    h("span", { class: "path" }, board.root));
-  if (board.error) return h("section", { class: "lane" }, head, h("div", { class: "lane-error" }, board.error));
+  if (board.error) return h("section", { class: "lane" }, h("div", { class: "lane-error" }, `${board.name}: ${board.error}`));
 
-  return h("section", { class: "lane" }, head,
+  return h("section", { class: "lane" },
     h("div", { class: "columns" }, board.columns.map((col) => {
       const all = board.cards.filter((c) => c.column === col.id);
       const shown = all.filter((c) => matches(c, board));
@@ -491,7 +545,13 @@ function drawActions(board, card, column) {
       h("input", { name: "person", type: "text", placeholder: t.addPerson, "aria-label": t.addPerson, autocomplete: "off" })));
 }
 
+// A click outside an open menu closes it.
+document.addEventListener("click", (e) => {
+  if (state.menu && !e.target.closest(".menu-wrap")) { state.menu = null; draw(); }
+});
+
 document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && state.menu) { state.menu = null; draw(); return; }
   if (e.key === "Escape" && state.open) { state.open = null; draw(); }
   if (e.key === "/" && document.activeElement?.tagName !== "INPUT") {
     e.preventDefault();
@@ -499,4 +559,5 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
+applyTheme();
 load().then(follow);
