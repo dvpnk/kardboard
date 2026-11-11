@@ -378,6 +378,17 @@ function icon(name, label = "") {
   return holder;
 }
 
+// brand draws the name with the mark in front of it. The mark is the same
+// shape as favicon.svg and takes the colour of the text, so it follows the theme.
+function brand() {
+  const mark = h("span", { class: "mark", "aria-hidden": "true" });
+  mark.innerHTML = // fixed markup, never card content
+    '<svg viewBox="0 0 32 32" width="16" height="16" fill="currentColor" aria-hidden="true">' +
+    '<path d="M2 2h6v28H2z"/>' +
+    '<path fill-rule="evenodd" d="M24 2h6v28h-6C22 25 6 23 6 16S22 7 24 2ZM24 8C20 12 12 12 12 16s8 4 12 8Z"/></svg>';
+  return h("h1", { class: "brand" }, mark, "kardboard");
+}
+
 // code turns `like this` in a UI text into <code> elements.
 const code = (text) => text.split("`").map((part, i) => (i % 2 ? h("code", {}, part) : part));
 
@@ -393,7 +404,7 @@ function draw() {
   const scroll = { main: app.querySelector("main")?.scrollTop ?? 0, detail: app.querySelector(".detail")?.scrollTop ?? 0 };
 
   if (!state.data) {
-    app.replaceChildren(h("header", { class: "top" }, h("h1", { class: "brand" }, "kardboard")),
+    app.replaceChildren(h("header", { class: "top" }, brand()),
       h("main", {}, state.error ? h("div", { class: "lane-error" }, state.error) : ""));
     return;
   }
@@ -439,7 +450,7 @@ function drawNotice() {
 // the filter, what is wrong, and a menu for the rest.
 function drawTop() {
   return h("header", { class: "top" },
-    h("h1", { class: "brand" }, "kardboard"),
+    brand(),
     // What is shown, from coarse to fine: which projects, and which of
     // their cards.
     drawProjectMenu(),
@@ -797,10 +808,11 @@ function drawCard(card, board, { done = false, project = false } = {}) {
   },
     h("span", { class: "head" },
       h("span", { class: "title" }, code(card.title)),
-      late && icon("clock", t.overdue(day(due))),
-      problems.length > 0 && icon("bug", problems.map((p) => `${p.code} ${p.message}`).join("\n")),
-      // The three dots only show under the pointer or with keyboard focus.
-      // Their place is kept free all the time, so the title never moves.
+      // The marks sit at the right edge. They make way for the three dots,
+      // which only show under the pointer or with keyboard focus.
+      h("span", { class: "marks" + (menuOpen ? " aside" : "") },
+        late && icon("clock", t.overdue(day(due))),
+        problems.length > 0 && icon("bug", problems.map((p) => `${p.code} ${p.message}`).join("\n"))),
       board.writable && h("button", {
         type: "button", class: "card-menu-button" + (menuOpen ? " open" : ""),
         "aria-label": t.cardMenu, title: t.cardMenu, "aria-haspopup": "true", "aria-expanded": String(menuOpen),

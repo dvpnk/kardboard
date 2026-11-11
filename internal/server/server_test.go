@@ -256,12 +256,13 @@ func TestWebUIIsServed(t *testing.T) {
 	settings(t, "")
 	s := New("")
 	for target, want := range map[string]string{
-		"/":         `<script type="module" src="app.js">`,
-		"/theme.js": "kb.theme",
-		"/app.js":   "kardboard web UI",
-		"/md.js":    "export function render",
-		"/app.css":  "--mono:",
-		"/icon.svg": "<svg",
+		"/":               `<script type="module" src="app.js">`,
+		"/theme.js":       "kb.theme",
+		"/app.js":         "kardboard web UI",
+		"/md.js":          "export function render",
+		"/app.css":        "--mono:",
+		"/favicon.svg":    "<svg",
+		"/favicon-32.png": "PNG",
 	} {
 		rec := get(t, s, target)
 		if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), want) {

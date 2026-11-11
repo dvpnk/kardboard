@@ -130,7 +130,8 @@ button { cursor: pointer; }
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
-.brand { font: 500 16px/1 var(--mono); letter-spacing: -0.01em; margin: 0 6px 0 0; }
+.brand { display: inline-flex; align-items: center; gap: 8px; font: 500 16px/1 var(--mono); letter-spacing: -0.01em; margin: 0 14px 0 0; }
+.brand .mark { display: inline-flex; }
 /* The search field: framed like every control, with the magnifier in
    front. It sits on top of the filter menu. */
 .searchbox { display: flex; align-items: center; gap: 7px; padding: 0 8px; margin: 0 0 6px; cursor: text; }
@@ -240,7 +241,10 @@ kbd {
 
 .menu-wrap { position: relative; min-width: 0; }
 .menu-button { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; white-space: nowrap; }
-.menu-button.icon { width: var(--control); padding: 0; justify-content: center; }
+/* "icon" here means a button that shows only an icon. The class is also the
+   name of the icons themselves, which sit 3px lower to meet the text beside
+   them; a button must not inherit that. */
+.menu-button.icon { width: var(--control); padding: 0; justify-content: center; margin-top: 0; }
 .menu-button .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .menu-button .caret { color: var(--dim); font-size: 11px; }
 .menu {
@@ -380,16 +384,28 @@ main { overflow: auto; padding: 14px 16px 40px; min-width: 0; }
 .card .title code, .detail h1 code { font-family: var(--mono); font-size: 0.92em; background: var(--sunken); padding: 0 3px; border-radius: var(--radius); }
 .card.done .title { color: var(--dim); }
 
-/* The three dots at the top right open the card's menu. They are invisible
-   until the pointer or the keyboard is on the card, but always take their
-   space, so nothing moves when they appear. */
+/* The marks (overdue, broken) sit at the right edge of the card. The three
+   dots that open the card's menu appear there when the pointer or the
+   keyboard is on the card, and push the marks aside. The room for that is
+   kept free between title and marks all the time, so the title never
+   wraps differently. */
+.card .head { position: relative; }
+.card .marks {
+  display: inline-flex; flex: none; gap: 6px; margin-left: 18px;
+  transition: transform 160ms ease;
+}
 .card-menu-button {
-  flex: none; visibility: hidden;
-  width: 22px; height: 20px; margin: 0 -4px 0 -2px; padding: 0;
+  position: absolute; top: 0; right: 0;
+  width: 22px; height: 20px; padding: 0;
   font: 13px/1 var(--mono); color: var(--dim);
   background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius);
+  opacity: 0; transition: opacity 160ms ease;
 }
-.card:hover .card-menu-button, .card:focus-within .card-menu-button, .card-menu-button.open { visibility: visible; }
+.card:hover .card-menu-button, .card:focus-within .card-menu-button, .card-menu-button.open { opacity: 1; }
+.card:hover .marks, .card:focus-within .marks, .card .marks.aside { transform: translateX(-26px); }
+@media (prefers-reduced-motion: reduce) {
+  .card .marks, .card-menu-button { transition: none; }
+}
 .card-menu-button:hover, .card-menu-button.open { background: var(--hover); color: var(--text); }
 
 .menu.card-menu { position: fixed; left: auto; min-width: 190px; padding: 6px; }

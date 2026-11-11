@@ -5,7 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <title>kardboard</title>
-  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <!-- PNG for browsers that show no SVG icons; the SVG comes last, so
+       browsers that can use it prefer it. It follows light and dark tabs. -->
+  <link rel="icon" href="favicon-16.png" type="image/png" sizes="16x16">
+  <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" sizes="any">
   <script src="theme.js"></script>
   <link rel="stylesheet" href="app.css">
 </head>
