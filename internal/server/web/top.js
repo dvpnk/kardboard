@@ -173,7 +173,7 @@ function SettingsMenu() {
   const { errors, warnings } = countProblems();
   const setTheme = (theme) => { state.theme = theme; store("theme", theme); applyTheme(); refresh(); };
   const go = (fn) => () => { state.menu = null; fn(); };
-  const showProblems = () => { state.open = null; state.history = null; state.problems = true; refresh(); };
+  const showProblems = () => { state.open = null; state.edit = null; state.history = null; state.problems = true; refresh(); };
   // Boards that push to a remote. Each gets an entry that says how it
   // stands and brings it level on a click.
   const remotes = visibleBoards().filter((b) => b.sync === "push" && b.git && !b.git.error);

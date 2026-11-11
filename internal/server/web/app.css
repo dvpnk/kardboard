@@ -113,7 +113,8 @@ button { cursor: pointer; }
    text fields, the column picker and the name chips are all a white field
    with one hairline, so they read as one family wherever they sit. */
 .menu-button, .filter-search, .panel-close, .settings-segments,
-.act-button, .act-select, .act-input, .notice-button, .act-person, .act-remove {
+.act-button, .act-select, .act-input, .notice-button, .act-person, .act-remove,
+.field-input, .field-date, .field-select, .field-segments, .field-button {
   height: var(--control);
   font: 13px/1 var(--mono);
   color: var(--text);
@@ -122,8 +123,8 @@ button { cursor: pointer; }
   padding: 0 10px;
 }
 .menu-button:hover, .menu-button.is-open, .panel-close:hover,
-.act-button:hover, .act-select:hover, .notice-button:hover, .act-remove:hover { background: var(--hover); }
-.filter-search:hover, .act-input:hover { border-color: var(--dim); }
+.act-button:hover, .act-select:hover, .notice-button:hover, .act-remove:hover, .field-select:hover, .field-button:hover { background: var(--hover); }
+.filter-search:hover, .act-input:hover, .field-input:hover, .field-date:hover { border-color: var(--dim); }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 
 #app { display: grid; grid-template-rows: auto 1fr; height: 100%; }
@@ -255,31 +256,31 @@ button { cursor: pointer; }
 
 /* A switch instead of a tick box: it reads as "on" or "off" at a glance.
    Almost square, like everything else here. */
-.filter-switch {
+.filter-switch, .field-switch {
   appearance: none; -webkit-appearance: none; flex: none; position: relative;
   width: 30px; height: 18px; margin: 0; border-radius: 3px;
   background: var(--border-strong); cursor: pointer; transition: background 120ms;
 }
-.filter-switch::after {
+.filter-switch::after, .field-switch::after {
   content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 2px;
   background: var(--knob); transition: transform 120ms;
 }
-.filter-switch:checked { background: var(--text); }
+.filter-switch:checked, .field-switch:checked { background: var(--text); }
 /* Switched on, the knob takes the page's colour, so it stands out against
    the track in both the light and the dark design. */
-.filter-switch:checked::after { transform: translateX(12px); background: var(--surface); }
-.filter-switch:disabled { opacity: 0.45; cursor: default; }
-@media (prefers-reduced-motion: reduce) { .filter-switch, .filter-switch::after { transition: none; } }
+.filter-switch:checked::after, .field-switch:checked::after { transform: translateX(12px); background: var(--surface); }
+.filter-switch:disabled, .field-switch:disabled { opacity: 0.45; cursor: default; }
+@media (prefers-reduced-motion: reduce) { .filter-switch, .filter-switch::after, .field-switch, .field-switch::after { transition: none; } }
 
 /* Tags are small buttons one switches on and off; the chosen ones are dark. */
 .filter-tags { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 8px; }
-.filter-tag {
+.filter-tag, .field-tag {
   display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px;
   font: 12px/1 var(--sans); color: var(--text);
   background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius);
 }
-.filter-tag:hover { background: var(--hover); }
-.filter-tag.is-on { background: var(--text); color: var(--surface); border-color: var(--text); }
+.filter-tag:hover, .field-tag:hover { background: var(--hover); }
+.filter-tag.is-on, .field-tag.is-on { background: var(--text); color: var(--surface); border-color: var(--text); }
 .filter-tag.is-on .filter-count { color: inherit; opacity: 0.7; }
 
 /* What the filters leave, and the way back. */
@@ -462,6 +463,25 @@ button { cursor: pointer; }
 .detail-fields { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 3px 14px; font: 12px var(--mono); margin: 0 0 14px; }
 .detail-fields dt { color: var(--dim); }
 .detail-fields dd { margin: 0; overflow-wrap: anywhere; }
+/* Fields that can be changed: each value is a control of its own, so the
+   rows are as high as a control and the names sit level with them. */
+.detail-fields.is-editable { gap: 6px 14px; align-items: start; }
+.detail-fields.is-editable dt { line-height: var(--control); }
+.detail-fields.is-editable dd { min-height: var(--control); display: flex; align-items: center; min-width: 0; }
+.field-input { width: 100%; max-width: 280px; }
+.field-input::placeholder { color: var(--faint); }
+.field-date { padding: 0 8px; }
+/* Short enums: the values side by side, the chosen one dark, like the
+   choice of appearance in the menu. */
+.field-segments { display: inline-flex; padding: 0; overflow: hidden; }
+.field-segments button { font: inherit; padding: 0 10px; background: none; border: 0; color: var(--dim); }
+.field-segments button + button { border-left: 1px solid var(--border-strong); }
+.field-segments button:hover { background: var(--hover); color: var(--text); }
+.field-segments button.is-on { background: var(--text); color: var(--surface); }
+.field-tags { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0; }
+/* Save and cancel below the fields. */
+.field-buttons { display: flex; gap: 6px; margin: -2px 0 14px; }
+
 /* What is wrong with the open card: a quiet field like the controls, no red. */
 .detail-problems { list-style: none; margin: 0 0 14px; padding: 1px 0 1px 10px; border-left: 2px solid var(--warn); font: 12px/1.45 var(--sans); color: var(--dim); }
 .detail-problems li + li { margin-top: 4px; }
@@ -487,8 +507,8 @@ button { cursor: pointer; }
 /* What can be done with the open card. */
 .act { margin: 0 0 14px; display: grid; gap: 8px; }
 .act-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.act-button.is-primary, .notice-button.is-primary { background: var(--text); color: var(--surface); border-color: var(--text); }
-.act-button.is-primary:hover, .notice-button.is-primary:hover { opacity: 0.85; }
+.act-button.is-primary, .notice-button.is-primary, .field-button.is-primary { background: var(--text); color: var(--surface); border-color: var(--text); }
+.act-button.is-primary:hover, .notice-button.is-primary:hover, .field-button.is-primary:hover { opacity: 0.85; }
 .act-move { display: inline-flex; align-items: center; gap: 6px; font: 12px var(--mono); color: var(--dim); margin-left: auto; }
 .act-input { flex: 1 1 120px; min-width: 0; }
 .act-input::placeholder { color: var(--faint); }

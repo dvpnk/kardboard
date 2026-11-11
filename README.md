@@ -118,7 +118,8 @@ kb ui
 ```
 
 Karten lassen sich in eine andere Spalte ziehen. Ein Klick auf eine Karte
-öffnet ihren Text und bietet Nehmen, Abschließen, Verschieben und Zuweisen an.
+öffnet ihren Text und bietet Nehmen, Abschließen, Verschieben und Zuweisen an,
+dazu ihre Felder wie Größe, Schlagworte und Termin zum Ändern.
 Jede dieser Handlungen ist der gleichnamige Befehl, mit denselben Regeln.
 
 Liegt ein Board in einem Git-Repository, zeigt „Verlauf“ oben rechts die

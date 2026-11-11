@@ -33,6 +33,7 @@ const TEXTS = {
     remote: "Remote", upToDate: "up to date", toPull: (n) => `${n} to pull`, toPush: (n) => `${n} to push`, unreachable: "not reachable",
     syncNow: "Pull what is new and push what is waiting",
     notCommitted: "This card has changes that are not committed. Commit them first, then it can be changed here.",
+    listHint: "a, b, c", clearValue: "Click again to remove", edit: "Edit", save: "Save",
   },
   de: {
     filter: "Karten filtern", projects: "Projekte", only: "nur dieses Projekt zeigen", all: "alle Projekte zeigen",
@@ -65,6 +66,7 @@ const TEXTS = {
     remote: "Remote", upToDate: "aktuell", toPull: (n) => `${n} zu holen`, toPush: (n) => `${n} zu senden`, unreachable: "nicht erreichbar",
     syncNow: "Neues holen und Wartendes senden",
     notCommitted: "Diese Karte hat Änderungen ohne Commit. Erst committen, dann lässt sie sich hier ändern.",
+    listHint: "a, b, c", clearValue: "Noch einmal klicken zum Entfernen", edit: "Bearbeiten", save: "Speichern",
   },
 };
 export const lang = (navigator.language || "en").toLowerCase().startsWith("de") ? "de" : "en";

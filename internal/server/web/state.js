@@ -32,6 +32,7 @@ export const state = {
   theme: stored("theme", "system"), // "system", "light" or "dark"
   syncing: null,        // key of the board that is being synced with its remote right now
   drag: null,           // { board, card } while a card is being dragged
+  edit: null,           // { key, draft } while the fields of the open card are being edited, see fields.js
 };
 
 let rerender = () => {};

@@ -2,11 +2,12 @@
 // history, or what is wrong. And the notice at the bottom of the page.
 
 import { html, cls, useEffect, useRef } from "./preact.js";
-import { t, day, ago, LOCALE } from "./texts.js";
+import { t, ago, LOCALE } from "./texts.js";
 import { render as markdown } from "./md.js";
 import { state, refresh, visibleBoards, people, colourOf } from "./state.js";
 import { act, openCard } from "./api.js";
 import { Icon, Dot, code } from "./parts.js";
+import { Fields, isEditing, startEditing } from "./fields.js";
 
 // Panel is the frame the three share: a line saying where one is, a button
 // to close, the heading, and the content.
@@ -115,20 +116,12 @@ export function History() {
 }
 
 // Detail shows the open card: where it lies, what can be done with it, its
-// fields, what is wrong with it, its text and its own history.
+// fields (see fields.js), what is wrong with it, its text and its own history.
 export function Detail() {
   const card = state.open.detail;
   const board = state.data.boards.find((b) => b.id === card.board);
   const column = board?.columns.find((c) => c.id === card.column);
-  const close = () => { state.open = null; refresh(); };
-
-  const rows = [];
-  for (const field of board?.fields ?? []) {
-    const value = card.fields[field.name];
-    if (value == null) continue;
-    const shown = field.type === "date" ? day(value) : Array.isArray(value) ? value.join(", ") : String(value);
-    rows.push(html`<dt>${field.title}</dt><dd>${shown}</dd>`);
-  }
+  const close = () => { state.open = null; state.edit = null; refresh(); };
 
   // The title is shown as the panel's heading, so leave it out of the text.
   // md.js escapes everything it is given, so its markup is safe to insert.
@@ -138,7 +131,7 @@ export function Detail() {
 
   return html`<${Panel} label=${card.title} where=${where} title=${code(card.title)} onClose=${close}>
     ${board && html`<${Actions} key=${board.key + "/" + card.id} board=${board} card=${card} column=${column} />`}
-    ${rows.length > 0 && html`<dl class="detail-fields">${rows}</dl>`}
+    ${board && html`<${Fields} board=${board} card=${card} />`}
     ${(card.problems ?? []).length > 0 && html`<ul class="detail-problems">${card.problems.map((p) => html`<li>${`${p.code} ${p.message}`}</li>`)}</ul>`}
     <div class="md" dangerouslySetInnerHTML=${{ __html: markdown(body) }}></div>
     ${board && log?.available && log.entries.length > 0 && html`
@@ -187,6 +180,7 @@ function Actions({ board, card, column }) {
     <div class="act-row">
       ${canTake && html`<button type="button" class="act-button is-primary" onClick=${() => act(board, card.id, "take")}>${t.take}</button>`}
       ${done && !column?.done && html`<button type="button" class="act-button" onClick=${() => act(board, card.id, "done")}>${t.finish}</button>`}
+      ${!unsaved && !isEditing(board, card) && html`<button type="button" class="act-button" onClick=${() => startEditing(board, card)}>${t.edit}</button>`}
       <label class="act-move">${t.moveTo}
         <select class="act-select" aria-label=${t.moveTo} value="" onChange=${move}>
           <option value="">…</option>

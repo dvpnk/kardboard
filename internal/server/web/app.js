@@ -66,6 +66,7 @@ document.addEventListener("scroll", () => {
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && state.cardMenu) { state.cardMenu = null; refresh(); return; }
   if (e.key === "Escape" && state.menu) { state.menu = null; refresh(); return; }
+  if (e.key === "Escape" && state.edit) { state.edit = null; refresh(); return; }
   if (e.key === "Escape" && state.history) { state.history = null; refresh(); return; }
   if (e.key === "Escape" && state.problems) { state.problems = false; refresh(); return; }
   if (e.key === "Escape" && state.open) { state.open = null; refresh(); }

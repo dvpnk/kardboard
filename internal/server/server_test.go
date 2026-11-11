@@ -272,6 +272,7 @@ func TestWebUIIsServed(t *testing.T) {
 		"/top.js":               "export function TopBar",
 		"/board.js":             "export function Main",
 		"/panels.js":            "export function Detail",
+		"/fields.js":            "export function Fields",
 		"/md.js":                "export function render",
 		"/vendor/preact.mjs":    "createElement",
 		"/vendor/hooks.mjs":     "useState",

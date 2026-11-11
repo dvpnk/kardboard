@@ -40,6 +40,7 @@ export async function openCard(board, card) {
   state.history = null;
   state.problems = false;
   state.open = { board: board.id, id: card.id, detail: null };
+  state.edit = null;
   await loadDetail();
   refresh();
 }
@@ -65,6 +66,7 @@ async function loadHistory() {
 
 export async function openHistory() {
   state.open = null;
+  state.edit = null;
   state.problems = false;
   state.history = { rows: [], missing: [], branch: "" };
   await loadHistory();
@@ -79,8 +81,9 @@ const post = (url, body) => fetch(url, {
 
 // act asks the server for one action on one card. The actions are those of
 // the command line. If a rule of the board refuses, the user may repeat the
-// action with force, like --force.
-export async function act(board, cardId, action, extra = {}, force = false) {
+// action with force, like --force. done is called once the action has
+// happened, also if that took the second try.
+export async function act(board, cardId, action, extra = {}, force = false, done = null) {
   state.notice = null;
   try {
     const res = await post("/api/action", { board: board.id, card: cardId, action, ...extra, force });
@@ -88,12 +91,13 @@ export async function act(board, cardId, action, extra = {}, force = false) {
       const problem = await res.json().catch(() => ({ error: res.statusText }));
       state.notice = {
         text: problem.error,
-        retry: problem.refused && !force ? () => act(board, cardId, action, extra, true) : null,
+        retry: problem.refused && !force ? () => act(board, cardId, action, extra, true, done) : null,
       };
     } else {
       // The change happened, but may not have reached the remote.
-      const done = await res.json().catch(() => ({}));
-      if (done.warning) state.notice = { text: done.warning, retry: null };
+      const answer = await res.json().catch(() => ({}));
+      if (answer.warning) state.notice = { text: answer.warning, retry: null };
+      done?.();
     }
   } catch (err) {
     state.notice = { text: String(err.message || err), retry: null };

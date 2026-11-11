@@ -486,9 +486,12 @@ angemeldet ist.
   Vorgabe auf Port 4712, und beantwortet nur Anfragen, die `localhost` als
   Ziel nennen.
 - **Ändern wie im CLI.** Karten lassen sich in eine andere Spalte ziehen, und
-  die Kartenansicht bietet Nehmen, Abschließen, Verschieben und das Zuweisen
-  von Personen. Jede dieser Handlungen ist genau der gleichnamige Befehl, mit
-  denselben Regeln. Lehnt eine Regel ab, zeigt die Seite den Grund und bietet
+  die Kartenansicht bietet Nehmen, Abschließen, Verschieben, das Zuweisen
+  von Personen und das Ändern der Felder im Kopf. Jede dieser Handlungen ist
+  genau der gleichnamige Befehl, mit denselben Regeln. Felder ändert man in
+  einem Bearbeiten-Modus: Was dort geändert wird, geht erst mit „Speichern“
+  als ein einziges `kb set` an die Karte, also als ein Commit. Ein geleertes
+  Feld entfällt wie bei `kb set <karte> feld=`. Abbrechen verwirft alles. Lehnt eine Regel ab, zeigt die Seite den Grund und bietet
   an, es trotzdem zu tun. Das entspricht `--force`.
 - **Ziehen auf die Arbeitsspalte nimmt die Karte.** Gehört sie noch
   niemandem, wird man selbst eingetragen. Sonst ist Ziehen ein reines
@@ -553,8 +556,8 @@ angemeldet ist.
   damit die Regel für fremde Karten keine Ausnahme hat.
 - **Grenze je Person.** `limit` zählt die Karten der Spalte, nicht die einer
   Person.
-- **Felder in der Oberfläche ändern.** Sie verschiebt und weist zu. Größe,
-  Schlagworte und Text ändert man im Editor oder mit `kb set`.
+- **Text in der Oberfläche ändern.** Sie verschiebt, weist zu und ändert die
+  Felder im Kopf. Den Text ändert man im Editor.
 - **Verlauf im CLI.** Den Verlauf gibt es nur in der Oberfläche, einen
   Befehl wie `kb log` noch nicht.
 - **Text ändern mit `sync`.** `kb edit` fehlt noch. Wer den Text einer Karte
