@@ -218,6 +218,8 @@ kbd {
 .pip { position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; box-shadow: 0 0 0 2px var(--surface); }
 .pip.bad { background: var(--danger); }
 .pip.warn { background: var(--warn); }
+/* Not a fault: a board has commits to pull or to push. */
+.pip.news { background: var(--text); }
 .top .spacer { flex: 1; }
 /* Shown in the top bar only while the page has lost its server. */
 .offline { font: 12px var(--mono); color: var(--warn); white-space: nowrap; }
@@ -263,6 +265,9 @@ kbd {
 .menu-item .count { margin-left: auto; font: 12px var(--mono); color: var(--dim); }
 .menu-item .count.bad { color: var(--danger); }
 .menu-item .count.warn { color: var(--warn); }
+.menu-item .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menu-item .count { white-space: nowrap; }
+.menu-item:disabled { opacity: 0.6; }
 .menu hr { border: 0; border-top: 1px solid var(--border); margin: 6px 2px; }
 .menu .hint.status { display: flex; align-items: baseline; gap: 8px; }
 

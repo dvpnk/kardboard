@@ -7,8 +7,9 @@ einzeln oder zusammen.
 **Stand:** früher Entwurf. Das Format steht als Entwurf. Der Befehl `kb` kann
 Boards lesen und prüfen, Karten anlegen, verschieben und zuweisen und alle
 Boards des Rechners im Browser zeigen. Dort lassen sich Karten auch ziehen,
-nehmen und zuweisen. Ändern kann `kb` nur Boards mit `sync: none`; die
-Git-Anbindung fehlt noch.
+nehmen und zuweisen. Mit `sync: commit` oder `sync: push` in der `board.yaml`
+macht `kb` aus jeder Änderung einen Commit und gleicht das Board mit seinem
+Remote ab.
 
 - [Format und CLI](docs/spec.md)
 - [Beispiel-Board](examples/board)
@@ -107,6 +108,35 @@ muss `git` installiert sein.
 
 Der Server ist nur vom eigenen Rechner aus erreichbar und nimmt Änderungen nur
 von der eigenen Seite an.
+
+## Board im Team
+
+Liegt das Board in einem eigenen Git-Repository, das mehrere Leute klonen,
+steht in seiner `board.yaml`:
+
+```yaml
+sync: push
+```
+
+Dann holt jeder ändernde Befehl zuerst den Stand der anderen, macht genau
+einen Commit mit der einen Karte und pusht ihn. Bewegen zwei dieselbe Karte
+gleichzeitig, gewinnt, wer zuerst pusht; der andere bekommt gesagt, wo die
+Karte jetzt liegt. `git log` ist das Protokoll des Boards:
+
+```
+move export-als-pdf: backlog -> working_on
+assign export-als-pdf: alex
+```
+
+Was liegen geblieben ist, etwa ohne Netz, holt und sendet:
+
+```bash
+kb sync
+```
+
+Mit `sync: commit` committet `kb` nur und pusht nicht. Git darf dabei nicht
+nach einem Passwort fragen; der Schlüssel gehört in den Agenten oder den
+Schlüsselbund.
 
 ## Fremde Bestandteile
 

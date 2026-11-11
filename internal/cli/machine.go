@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"kardboard/internal/board"
+	"kardboard/internal/gitsync"
 	"kardboard/internal/registry"
 	"kardboard/internal/server"
 	"kardboard/internal/userconfig"
@@ -244,6 +245,35 @@ func (a *app) scanCmd() *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&remove, "remove", false, "stop scanning the directory")
 	return cmd
+}
+
+// ── kb sync ─────────────────────────────────────────────────────────────────
+
+func (a *app) syncCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "sync",
+		Short: "Pull and push a board with sync: push",
+		Args:  cobra.NoArgs,
+		RunE: func(*cobra.Command, []string) error {
+			b, err := a.loadValid()
+			if err != nil {
+				return err
+			}
+			res, err := gitsync.Sync(context.Background(), b)
+			if err != nil {
+				return err
+			}
+			if a.asJSON {
+				return a.printJSON(res)
+			}
+			if res.Pulled == 0 && res.Pushed == 0 {
+				fmt.Fprintf(a.out, "%s: up to date\n", b.Config.ID)
+				return nil
+			}
+			fmt.Fprintf(a.out, "%s: %s pulled, %s pushed\n", b.Config.ID, plural(res.Pulled, "commit"), plural(res.Pushed, "commit"))
+			return nil
+		},
+	}
 }
 
 // ── kb ui ───────────────────────────────────────────────────────────────────

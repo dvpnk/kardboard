@@ -24,16 +24,13 @@ func (e *RefusedError) Error() string { return e.Reason }
 // given.
 var ErrNeedUser = errors.New("the user's name is needed")
 
-// writable reports whether this code may change the board. Boards that ask
-// for Git commits are refused until that is built: changing only the files
-// would break what the board promises its users.
+// writable reports whether the board can be changed at all. Change and New
+// only touch files. What a board with sync: commit or push promises on top
+// of that is the business of package gitsync, which every caller outside
+// this package goes through.
 func (b *Board) writable() error {
 	if b.Config == nil {
 		return errors.New("board.yaml is missing or invalid")
-	}
-	if b.Config.Sync != "none" {
-		return fmt.Errorf("board %s uses sync: %s, which kb cannot do yet; it changes only boards with sync: none",
-			b.Config.ID, b.Config.Sync)
 	}
 	return nil
 }

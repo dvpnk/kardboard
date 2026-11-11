@@ -23,6 +23,7 @@ import (
 
 	"kardboard/internal/board"
 	"kardboard/internal/gitlog"
+	"kardboard/internal/gitsync"
 	"kardboard/internal/registry"
 	"kardboard/internal/userconfig"
 )
@@ -37,6 +38,9 @@ const (
 	rescanEvery = 30 * time.Second
 	// DefaultPoll is how often the known boards are checked for changes.
 	DefaultPoll = time.Second
+	// fetchEvery is how often boards with sync: push ask their remote what
+	// is new.
+	fetchEvery = time.Minute
 )
 
 // Server serves the boards known on this machine.
@@ -52,14 +56,19 @@ type Server struct {
 	subMu sync.Mutex
 	subs  map[chan struct{}]struct{}
 
-	// writeMu lets one change happen at a time.
+	// writeMu lets one change happen at a time. Fetching holds it too, so
+	// Git never runs twice in one repository.
 	writeMu sync.Mutex
+
+	// unreachable holds, per board directory, why the last fetch failed.
+	remoteMu    sync.Mutex
+	unreachable map[string]string
 }
 
 // New creates a server. here, if not empty, is a board directory that is
 // shown even if the user never added it.
 func New(here string) *Server {
-	return &Server{here: here, subs: map[chan struct{}]struct{}{}}
+	return &Server{here: here, subs: map[chan struct{}]struct{}{}, unreachable: map[string]string{}}
 }
 
 // known returns the board directories, searching the scan directories again
@@ -109,15 +118,27 @@ type boardJSON struct {
 	// empty then.
 	Error string `json:"error,omitempty"`
 	Sync  string `json:"sync,omitempty"`
-	// Writable says whether cards can be changed here. Boards that want Git
-	// commits cannot, until kb can make them.
-	Writable bool            `json:"writable"`
+	// Writable says whether cards can be changed here. A board that wants
+	// Git commits but is not in a repository cannot; Git.Error says why.
+	Writable bool `json:"writable"`
+	// Git is set for boards with sync: commit or push.
+	Git      *gitJSON        `json:"git,omitempty"`
 	Columns  []columnJSON    `json:"columns"`
 	Fields   []fieldJSON     `json:"fields"`
 	Cards    []*board.Card   `json:"cards"`
 	Problems []board.Problem `json:"problems"`
 	Errors   int             `json:"errors"`
 	Warnings int             `json:"warnings"`
+}
+
+// gitJSON says how a board's repository stands against its remote.
+type gitJSON struct {
+	gitsync.Status
+	// Unreachable is true if the last attempt to ask the remote failed.
+	// Ahead and Behind are then as old as the last attempt that worked.
+	Unreachable bool `json:"unreachable,omitempty"`
+	// Error says why the board's sync mode cannot work here.
+	Error string `json:"error,omitempty"`
 }
 
 type columnJSON struct {
@@ -141,7 +162,7 @@ type cardJSON struct {
 	Body string `json:"body"`
 }
 
-func describe(l *registry.Loaded) boardJSON {
+func (s *Server) describe(ctx context.Context, l *registry.Loaded) boardJSON {
 	out := boardJSON{
 		Key:      l.Root,
 		Name:     filepath.Base(l.Root),
@@ -166,7 +187,17 @@ func describe(l *registry.Loaded) boardJSON {
 		return out
 	}
 	out.ID, out.Sync = b.Config.ID, b.Config.Sync
-	out.Writable = b.Config.Sync == "none"
+	out.Writable = true
+	if b.Config.Sync != gitsync.ModeNone {
+		st, err := gitsync.ReadStatus(ctx, b)
+		out.Git = &gitJSON{Status: st}
+		if err != nil {
+			out.Git.Error, out.Writable = err.Error(), false
+		}
+		s.remoteMu.Lock()
+		out.Git.Unreachable = s.unreachable[b.Root] != ""
+		s.remoteMu.Unlock()
+	}
 	if b.Config.Name != "" {
 		out.Name = b.Config.Name
 	} else {
@@ -209,6 +240,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/history", s.handleHistory)
 	mux.HandleFunc("GET /api/events", s.handleEvents)
 	mux.HandleFunc("POST /api/action", s.handleAction)
+	mux.HandleFunc("POST /api/sync", s.handleSync)
 	mux.Handle("GET /", http.FileServerFS(web))
 	return guard(mux)
 }
@@ -278,7 +310,7 @@ func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
 		state.Hidden = cfg.Hidden
 	}
 	for _, l := range registry.Load(s.known(r.URL.Query().Has("rescan"))) {
-		state.Boards = append(state.Boards, describe(l))
+		state.Boards = append(state.Boards, s.describe(r.Context(), l))
 	}
 	writeJSON(w, state)
 }
@@ -380,11 +412,17 @@ func (s *Server) handleAction(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusNotFound, fmt.Errorf("no board %q", req.Board), false)
 		return
 	}
-	b := l.Board
+	// With sync: push this pulls, so the action is built from what the
+	// others have done meanwhile.
+	b, err := gitsync.Prepare(r.Context(), l.Board)
+	if err != nil {
+		s.broadcast() // pulling may have changed files even though it failed later
+		fail(w, http.StatusBadRequest, err, false)
+		return
+	}
 	user, userErr := userconfig.User()
 
 	var ch board.Change
-	var err error
 	switch req.Action {
 	case "move":
 		if req.Column == "" {
@@ -417,12 +455,21 @@ func (s *Server) handleAction(w http.ResponseWriter, r *http.Request) {
 	}
 	ch.User, ch.Force = user, req.Force
 
-	res, err := b.Change(req.Card, ch)
+	res, err := gitsync.Change(r.Context(), b, req.Card, ch)
 	var refused *board.RefusedError
+	var conflict *gitsync.ConflictError
 	switch {
-	case err == nil:
+	case res != nil:
+		// The change happened. If it could not be pushed, the answer says so.
+		out := actionResult{Result: res}
+		if err != nil {
+			out.Warning = err.Error()
+		}
 		s.broadcast()
-		writeJSON(w, res)
+		writeJSON(w, out)
+	case errors.As(err, &conflict):
+		s.broadcast() // the card is now where the others put it
+		fail(w, http.StatusConflict, err, false)
 	case errors.As(err, &refused):
 		fail(w, http.StatusConflict, err, true)
 	case errors.Is(err, board.ErrNeedUser):
@@ -432,6 +479,83 @@ func (s *Server) handleAction(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, fmt.Errorf("the card is assigned to someone, so kb must know who you are: %w", userErr), false)
 	default:
 		fail(w, http.StatusBadRequest, err, false)
+	}
+}
+
+// actionResult is the answer to an action that happened.
+type actionResult struct {
+	*gitsync.Result
+	// Warning is set if the change is committed but could not be pushed.
+	Warning string `json:"warning,omitempty"`
+}
+
+// handleSync pulls and pushes one board with sync: push, like `kb sync`.
+func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Board string `json:"board"`
+	}
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&req); err != nil {
+		fail(w, http.StatusBadRequest, fmt.Errorf("cannot read the request: %w", err), false)
+		return
+	}
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+	l, ok := registry.Find(registry.Load(s.known(false)), req.Board)
+	if !ok {
+		fail(w, http.StatusNotFound, fmt.Errorf("no board %q", req.Board), false)
+		return
+	}
+	res, err := gitsync.Sync(r.Context(), l.Board)
+	s.setReachable(l.Board.Root, nil)
+	s.broadcast()
+	if err != nil {
+		fail(w, http.StatusBadRequest, err, false)
+		return
+	}
+	writeJSON(w, res)
+}
+
+func (s *Server) setReachable(root string, err error) {
+	s.remoteMu.Lock()
+	defer s.remoteMu.Unlock()
+	if err != nil {
+		s.unreachable[root] = err.Error()
+	} else {
+		delete(s.unreachable, root)
+	}
+}
+
+// fetchAll asks the remote of every board with sync: push what is new and
+// tells the open pages if the answer changed anything they show.
+func (s *Server) fetchAll(ctx context.Context) {
+	changed := false
+	for _, l := range registry.Load(s.known(false)) {
+		if ctx.Err() != nil {
+			return
+		}
+		b := l.Board
+		if b == nil || b.Config == nil || b.Config.Sync != gitsync.ModePush || gitsync.Usable(ctx, b) != nil {
+			continue
+		}
+		s.remoteMu.Lock()
+		was := s.unreachable[b.Root] != ""
+		s.remoteMu.Unlock()
+		before, _ := gitsync.ReadStatus(ctx, b)
+
+		s.writeMu.Lock()
+		err := gitsync.Fetch(ctx, b)
+		s.writeMu.Unlock()
+		s.setReachable(b.Root, err)
+
+		after, _ := gitsync.ReadStatus(ctx, b)
+		if before.Ahead != after.Ahead || before.Behind != after.Behind || was != (err != nil) {
+			changed = true
+		}
+	}
+	if changed {
+		s.broadcast()
 	}
 }
 
@@ -491,6 +615,19 @@ func (s *Server) Watch(ctx context.Context, every time.Duration) {
 	last := s.fingerprint()
 	ticker := time.NewTicker(every)
 	defer ticker.Stop()
+	// Asking the remotes can take a while, so it runs beside the watching.
+	go func() {
+		fetch := time.NewTicker(fetchEvery)
+		defer fetch.Stop()
+		for {
+			s.fetchAll(ctx)
+			select {
+			case <-ctx.Done():
+				return
+			case <-fetch.C:
+			}
+		}
+	}()
 	for {
 		select {
 		case <-ctx.Done():

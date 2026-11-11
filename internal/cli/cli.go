@@ -2,6 +2,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"kardboard/internal/board"
+	"kardboard/internal/gitsync"
 	"kardboard/internal/registry"
 	"kardboard/internal/userconfig"
 )
@@ -60,10 +62,12 @@ func Run(args []string, out, errOut io.Writer) int {
 	root.MarkFlagsMutuallyExclusive("dir", "board")
 	root.AddCommand(a.lintCmd(), a.listCmd(), a.showCmd())
 	root.AddCommand(a.newCmd(), a.moveCmd(), a.takeCmd(), a.doneCmd(), a.assignCmd(), a.unassignCmd(), a.setCmd())
-	root.AddCommand(a.boardsCmd(), a.addCmd(), a.removeCmd(), a.scanCmd(), a.uiCmd())
+	root.AddCommand(a.boardsCmd(), a.addCmd(), a.removeCmd(), a.scanCmd(), a.syncCmd(), a.uiCmd())
 
 	err := root.Execute()
 	var refused *board.RefusedError
+	var conflict *gitsync.ConflictError
+	var notPushed *gitsync.PushError
 	switch {
 	case err == nil:
 		return ExitOK
@@ -71,6 +75,9 @@ func Run(args []string, out, errOut io.Writer) int {
 		return ExitViolation
 	case errors.As(err, &refused):
 		fmt.Fprintf(errOut, "kb: %s (--force does it anyway)\n", refused.Reason)
+		return ExitViolation
+	case errors.As(err, &conflict), errors.As(err, &notPushed):
+		fmt.Fprintf(errOut, "kb: %s\n", err)
 		return ExitViolation
 	default:
 		fmt.Fprintf(errOut, "kb: %s\n", err)
@@ -359,16 +366,25 @@ func (a *app) newCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			opt.Today = time.Now().Format("2006-01-02")
-			c, err := b.New(args[0], opt)
-			if err != nil {
+			ctx := context.Background()
+			if b, err = gitsync.Prepare(ctx, b); err != nil {
 				return err
 			}
-			if a.asJSON {
-				return a.printJSON(showResult{Board: info(b), Card: c, Body: c.Body})
+			opt.Today = time.Now().Format("2006-01-02")
+			c, done, err := gitsync.New(ctx, b, args[0], opt)
+			if c == nil {
+				return err
 			}
-			fmt.Fprintln(a.out, c.Path)
-			return nil
+			// A card that was created but not pushed is still printed; the
+			// error then says what is left to do.
+			if a.asJSON {
+				if jsonErr := a.printJSON(showResult{Board: info(b), Card: c, Body: c.Body}); jsonErr != nil {
+					return jsonErr
+				}
+				return err
+			}
+			fmt.Fprintln(a.out, c.Path+gitNote(done))
+			return err
 		},
 	}
 	cmd.Flags().StringVarP(&opt.Column, "column", "c", "", "column to put the card in (default: the first one)")
@@ -391,15 +407,20 @@ func (a *app) change(b *board.Board, id string, ch board.Change) error {
 	if ch.User == "" {
 		ch.User, userErr = userconfig.User()
 	}
-	res, err := b.Change(id, ch)
-	if err != nil {
+	res, err := gitsync.Change(context.Background(), b, id, ch)
+	if res == nil {
 		if errors.Is(err, board.ErrNeedUser) && userErr != nil {
 			return fmt.Errorf("card %s is assigned to someone, so kb must know who you are: %w", id, userErr)
 		}
 		return err
 	}
+	// A change that is committed but not pushed is still printed; the error
+	// then says what is left to do.
 	if a.asJSON {
-		return a.printJSON(res)
+		if jsonErr := a.printJSON(res); jsonErr != nil {
+			return jsonErr
+		}
+		return err
 	}
 
 	var parts []string
@@ -415,8 +436,20 @@ func (a *app) change(b *board.Board, id string, ch board.Change) error {
 	if len(parts) == 0 {
 		parts = []string{"nothing to change"}
 	}
-	fmt.Fprintf(a.out, "%s: %s\n", res.ID, strings.Join(parts, ", "))
-	return nil
+	fmt.Fprintf(a.out, "%s: %s%s\n", res.ID, strings.Join(parts, ", "), gitNote(res.Outcome))
+	return err
+}
+
+// gitNote says what Git did for an action, for boards that sync.
+func gitNote(o gitsync.Outcome) string {
+	switch {
+	case o.Commit == "":
+		return ""
+	case o.Pushed:
+		return fmt.Sprintf("  (commit %s, pushed)", o.Commit)
+	default:
+		return fmt.Sprintf("  (commit %s)", o.Commit)
+	}
 }
 
 // changeCmd builds a command that loads the board and applies one change.
@@ -429,6 +462,11 @@ func (a *app) changeCmd(use, short string, nargs cobra.PositionalArgs, build fun
 		RunE: func(_ *cobra.Command, args []string) error {
 			b, err := a.loadValid()
 			if err != nil {
+				return err
+			}
+			// With sync: push this pulls, so the change is built from what
+			// the others have done meanwhile.
+			if b, err = gitsync.Prepare(context.Background(), b); err != nil {
 				return err
 			}
 			ch, err := build(b, args)

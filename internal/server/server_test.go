@@ -91,6 +91,13 @@ type state struct {
 		Problems         []struct{ Code, Path string }
 		Errors, Warnings int
 		Writable         bool
+		Git              *struct {
+			Branch        string
+			Ahead, Behind int
+			Dirty         []string
+			Unreachable   bool
+			Error         string
+		}
 	}
 }
 
@@ -327,7 +334,12 @@ func TestOnlyLocalhost(t *testing.T) {
 // post sends an action the way kardboard's own page does.
 func post(t *testing.T, s *Server, body string, change func(*http.Request)) *httptest.ResponseRecorder {
 	t.Helper()
-	req := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:4712/api/action", strings.NewReader(body))
+	return postTo(t, s, "/api/action", body, change)
+}
+
+func postTo(t *testing.T, s *Server, target, body string, change func(*http.Request)) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:4712"+target, strings.NewReader(body))
 	req.Header.Set("Origin", "http://127.0.0.1:4712")
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set(ActionHeader, "1")
@@ -428,18 +440,144 @@ func TestActionsNeedTheUserOnlyWhenItMatters(t *testing.T) {
 	}
 }
 
-func TestBoardsThatWantCommitsAreReadOnly(t *testing.T) {
-	settings(t, "")
+// git runs Git in dir with settings of its own, not those of whoever runs
+// the tests.
+func git(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is not installed")
+	}
+	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
+	t.Setenv("GIT_CONFIG_SYSTEM", "/dev/null")
+	cmd := exec.Command("git", append([]string{"-C", dir, "-c", "user.name=alex", "-c", "user.email=alex@example.com"}, args...)...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %s: %v\n%s", strings.Join(args, " "), err, out)
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// syncBoard is a copy of the example with the given sync mode.
+func syncBoard(t *testing.T, mode string) string {
+	t.Helper()
 	root := copyOfExample(t)
-	yaml := strings.Replace(readFile(t, root, "board.yaml"), "sync: none", "sync: push", 1)
+	yaml := strings.Replace(readFile(t, root, "board.yaml"), "sync: none", "sync: "+mode, 1)
 	writeFile(t, filepath.Join(root, "board.yaml"), yaml)
+	return root
+}
+
+func commitAll(t *testing.T, root string) {
+	t.Helper()
+	git(t, root, "init", "-q", "-b", "main")
+	git(t, root, "config", "user.name", "alex")
+	git(t, root, "config", "user.email", "alex@example.com")
+	git(t, root, "add", "-A")
+	git(t, root, "commit", "-q", "-m", "start")
+}
+
+func TestSyncBoardOutsideARepositoryIsReadOnly(t *testing.T) {
+	settings(t, "")
+	root := syncBoard(t, "commit")
 	s := New(root)
 
-	if st := getState(t, s, ""); st.Boards[0].Writable || st.Boards[0].Sync != "push" {
-		t.Errorf("board = writable %v, sync %q", st.Boards[0].Writable, st.Boards[0].Sync)
+	b := getState(t, s, "").Boards[0]
+	if b.Writable || b.Sync != "commit" || b.Git == nil || !strings.Contains(b.Git.Error, "not in a Git repository") {
+		t.Errorf("board = writable %v, sync %q, git %+v", b.Writable, b.Sync, b.Git)
 	}
 	rec := post(t, s, `{"board":"demo","card":"druckvorlagen","action":"move","column":"done"}`, nil)
-	if rec.Code != 400 || !strings.Contains(rec.Body.String(), "sync: push") || !isFile(root, "backlog/druckvorlagen.md") {
+	if rec.Code != 400 || !strings.Contains(rec.Body.String(), "not in a Git repository") || !isFile(root, "backlog/druckvorlagen.md") {
+		t.Errorf("status %d, body %s", rec.Code, rec.Body)
+	}
+}
+
+func TestActionOnACommitBoardMakesACommit(t *testing.T) {
+	settings(t, "")
+	root := syncBoard(t, "commit")
+	commitAll(t, root)
+	s := New(root)
+
+	if b := getState(t, s, "").Boards[0]; !b.Writable || b.Git == nil || b.Git.Branch != "main" || b.Git.Error != "" {
+		t.Fatalf("board = writable %v, git %+v", b.Writable, b.Git)
+	}
+	rec := post(t, s, `{"board":"demo","card":"druckvorlagen","action":"move","column":"done","force":true}`, nil)
+	var res struct {
+		Moved           bool
+		Commit, Warning string
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil || rec.Code != 200 || !res.Moved || res.Commit == "" || res.Warning != "" {
+		t.Fatalf("status %d, body %s", rec.Code, rec.Body)
+	}
+	if got := git(t, root, "log", "-1", "--format=%s"); got != "move druckvorlagen: backlog -> done" {
+		t.Errorf("subject = %q", got)
+	}
+
+	// A card with changes that are not committed is listed and left alone.
+	writeFile(t, filepath.Join(root, "planning", "offline-modus.md"), readFile(t, root, "planning/offline-modus.md")+"\nmehr\n")
+	if b := getState(t, s, "").Boards[0]; len(b.Git.Dirty) != 1 || b.Git.Dirty[0] != "offline-modus" {
+		t.Errorf("dirty = %v", b.Git.Dirty)
+	}
+	rec = post(t, s, `{"board":"demo","card":"offline-modus","action":"move","column":"done","force":true}`, nil)
+	if rec.Code != 400 || !strings.Contains(rec.Body.String(), "not committed") {
+		t.Errorf("status %d, body %s", rec.Code, rec.Body)
+	}
+}
+
+func TestPushBoardFollowsItsRemote(t *testing.T) {
+	settings(t, "")
+	seed := syncBoard(t, "push")
+	commitAll(t, seed)
+	remote := filepath.Join(t.TempDir(), "remote.git")
+	git(t, seed, "clone", "-q", "--bare", seed, remote)
+	clone := func(name string) string {
+		dir := filepath.Join(t.TempDir(), name)
+		git(t, seed, "clone", "-q", remote, dir)
+		git(t, dir, "config", "user.name", name)
+		git(t, dir, "config", "user.email", name+"@example.com")
+		real, err := filepath.EvalSymlinks(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return real
+	}
+	mine, theirs := clone("alex"), clone("sam")
+	s := New(mine)
+
+	// An action is pushed.
+	rec := post(t, s, `{"board":"demo","card":"druckvorlagen","action":"move","column":"done","force":true}`, nil)
+	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `"pushed":true`) {
+		t.Fatalf("status %d, body %s", rec.Code, rec.Body)
+	}
+	if got := git(t, remote, "log", "-1", "--format=%s"); got != "move druckvorlagen: backlog -> done" {
+		t.Errorf("remote subject = %q", got)
+	}
+
+	// Someone else pushes. The page learns of it with the next fetch and
+	// gets it with a sync.
+	git(t, theirs, "pull", "-q", "--rebase")
+	git(t, theirs, "mv", "planning/offline-modus.md", "backlog/offline-modus.md")
+	git(t, theirs, "commit", "-q", "-m", "theirs")
+	git(t, theirs, "push", "-q")
+
+	if b := getState(t, s, "").Boards[0]; b.Git.Behind != 0 {
+		t.Errorf("behind = %d before any fetch", b.Git.Behind)
+	}
+	s.fetchAll(context.Background())
+	if b := getState(t, s, "").Boards[0]; b.Git.Behind != 1 || b.Git.Ahead != 0 || b.Git.Unreachable {
+		t.Errorf("git = %+v", b.Git)
+	}
+	rec = postTo(t, s, "/api/sync", `{"board":"demo"}`, nil)
+	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `"pulled":1`) || !isFile(mine, "backlog/offline-modus.md") {
+		t.Errorf("status %d, body %s", rec.Code, rec.Body)
+	}
+
+	// A remote that is gone is reported, and the action is refused whole.
+	git(t, mine, "remote", "set-url", "origin", filepath.Join(t.TempDir(), "gone.git"))
+	s.fetchAll(context.Background())
+	if b := getState(t, s, "").Boards[0]; !b.Git.Unreachable {
+		t.Errorf("git = %+v, want unreachable", b.Git)
+	}
+	rec = post(t, s, `{"board":"demo","card":"offline-modus","action":"move","column":"done","force":true}`, nil)
+	if rec.Code != 400 || !strings.Contains(rec.Body.String(), "nothing was changed") || !isFile(mine, "backlog/offline-modus.md") {
 		t.Errorf("status %d, body %s", rec.Code, rec.Body)
 	}
 }

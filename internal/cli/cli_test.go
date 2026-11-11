@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -649,5 +650,110 @@ func TestAddRefusesABrokenBoard(t *testing.T) {
 	}
 	if isFile(filepath.Dir(configFile), "config.yaml") {
 		t.Error("the settings were written")
+	}
+}
+
+// ── sync: commit and push ───────────────────────────────────────────────────
+
+func gitIn(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is not installed")
+	}
+	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
+	t.Setenv("GIT_CONFIG_SYSTEM", "/dev/null")
+	out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %s: %v\n%s", strings.Join(args, " "), err, out)
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// syncRepo is a repository with the example board in the given sync mode.
+func syncRepo(t *testing.T, mode string) string {
+	t.Helper()
+	root := copyOfExample(t)
+	yaml := strings.Replace(readFile(t, root, "board.yaml"), "sync: none", "sync: "+mode, 1)
+	if err := os.WriteFile(filepath.Join(root, "board.yaml"), []byte(yaml), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gitIn(t, root, "init", "-q", "-b", "main")
+	gitIn(t, root, "config", "user.name", "alex")
+	gitIn(t, root, "config", "user.email", "alex@example.com")
+	gitIn(t, root, "add", "-A")
+	gitIn(t, root, "commit", "-q", "-m", "start")
+	return root
+}
+
+func TestCommitBoard(t *testing.T) {
+	asUser(t, "alex")
+	root := syncRepo(t, "commit")
+
+	code, out, errOut := kb(t, "new", "Dunkles Design", "-c", "planning", "-C", root)
+	if code != ExitOK || !strings.HasPrefix(out, "planning/dunkles-design.md  (commit ") {
+		t.Fatalf("new: code %d, out %q, err %q", code, out, errOut)
+	}
+	code, out, errOut = kb(t, "assign", "dunkles-design", "sam", "-C", root)
+	if code != ExitOK || !strings.HasPrefix(out, "dunkles-design: assignee = sam  (commit ") {
+		t.Fatalf("assign: code %d, out %q, err %q", code, out, errOut)
+	}
+	code, out, _ = kb(t, "assign", "dunkles-design", "sam", "-C", root, "--force")
+	if code != ExitOK || out != "dunkles-design: nothing to change\n" {
+		t.Errorf("assign again: code %d, out %q", code, out)
+	}
+	if got := gitIn(t, root, "log", "--format=%s"); got != "assign dunkles-design: sam\nnew dunkles-design\nstart" {
+		t.Errorf("log = %q", got)
+	}
+
+	code, _, errOut = kb(t, "sync", "-C", root)
+	if code != ExitUsage || !strings.Contains(errOut, "sync: commit") {
+		t.Errorf("sync: code %d, err %q", code, errOut)
+	}
+}
+
+func TestPushBoard(t *testing.T) {
+	asUser(t, "alex")
+	seed := syncRepo(t, "push")
+	remote := filepath.Join(t.TempDir(), "remote.git")
+	gitIn(t, seed, "clone", "-q", "--bare", seed, remote)
+	clone := func(name string) string {
+		dir := filepath.Join(t.TempDir(), name)
+		gitIn(t, seed, "clone", "-q", remote, dir)
+		gitIn(t, dir, "config", "user.name", name)
+		gitIn(t, dir, "config", "user.email", name+"@example.com")
+		return dir
+	}
+	alex, sam := clone("alex"), clone("sam")
+
+	code, out, errOut := kb(t, "take", "druckvorlagen", "-C", alex, "--force")
+	if code != ExitOK || !strings.Contains(out, "backlog -> working_on") || !strings.HasSuffix(out, ", pushed)\n") {
+		t.Fatalf("take: code %d, out %q, err %q", code, out, errOut)
+	}
+
+	// Sam's command pulls first, so it sees that the card is Alex's.
+	t.Setenv("KARDBOARD_USER", "sam")
+	code, _, errOut = kb(t, "done", "druckvorlagen", "-C", sam)
+	if code != ExitViolation || !strings.Contains(errOut, "assigned to alex") {
+		t.Errorf("done: code %d, err %q", code, errOut)
+	}
+	if !isFile(sam, "working_on/druckvorlagen.md") {
+		t.Error("sam did not get alex's change")
+	}
+
+	// A commit made by hand goes out with kb sync.
+	gitIn(t, sam, "commit", "-q", "--allow-empty", "-m", "by hand")
+	code, out, errOut = kb(t, "sync", "-C", sam)
+	if code != ExitOK || out != "demo: 0 commits pulled, 1 commit pushed\n" {
+		t.Errorf("sync: code %d, out %q, err %q", code, out, errOut)
+	}
+	if code, out, _ = kb(t, "sync", "-C", sam); code != ExitOK || out != "demo: up to date\n" {
+		t.Errorf("sync again: code %d, out %q", code, out)
+	}
+
+	// Without the remote the change stays here, and kb says so.
+	gitIn(t, sam, "remote", "set-url", "origin", filepath.Join(t.TempDir(), "gone.git"))
+	code, _, errOut = kb(t, "move", "offline-modus", "backlog", "-C", sam, "--force")
+	if code != ExitUsage || !strings.Contains(errOut, "nothing was changed") || !isFile(sam, "planning/offline-modus.md") {
+		t.Errorf("move: code %d, err %q", code, errOut)
 	}
 }

@@ -35,7 +35,10 @@ const TEXTS = {
     noMatch: "No card matches.", column: "column", board: "board", limit: (n, max) => `${n} of ${max}`,
     take: "Take", finish: "Finish", moveTo: "Move to", addPerson: "add person", removePerson: (n) => `take ${n} off the card`,
     anyway: "Do it anyway", cancel: "Cancel", dismiss: "Dismiss",
-    readOnly: (sync) => `This board uses sync: ${sync}. kb cannot change such boards yet, so the page only shows it.`,
+    readOnly: (why) => `This board cannot be changed here: ${why}.`,
+    remote: "Remote", upToDate: "up to date", toPull: (n) => `${n} to pull`, toPush: (n) => `${n} to push`, unreachable: "not reachable",
+    syncNow: "Pull what is new and push what is waiting",
+    notCommitted: "This card has changes that are not committed. Commit them first, then it can be changed here.",
   },
   de: {
     filter: "Karten filtern", projects: "Projekte", only: "nur dieses Projekt zeigen", all: "alle Projekte zeigen",
@@ -64,7 +67,10 @@ const TEXTS = {
     noMatch: "Keine Karte passt.", column: "Spalte", board: "Board", limit: (n, max) => `${n} von ${max}`,
     take: "Nehmen", finish: "Abschließen", moveTo: "Verschieben nach", addPerson: "Person hinzufügen", removePerson: (n) => `${n} von der Karte nehmen`,
     anyway: "Trotzdem ausführen", cancel: "Abbrechen", dismiss: "Schließen",
-    readOnly: (sync) => `Dieses Board nutzt sync: ${sync}. Solche Boards kann kb noch nicht ändern, deshalb zeigt die Seite es nur an.`,
+    readOnly: (why) => `Dieses Board lässt sich hier nicht ändern: ${why}.`,
+    remote: "Remote", upToDate: "aktuell", toPull: (n) => `${n} zu holen`, toPush: (n) => `${n} zu senden`, unreachable: "nicht erreichbar",
+    syncNow: "Neues holen und Wartendes senden",
+    notCommitted: "Diese Karte hat Änderungen ohne Commit. Erst committen, dann lässt sie sich hier ändern.",
   },
 };
 const lang = (navigator.language || "en").toLowerCase().startsWith("de") ? "de" : "en";
@@ -98,6 +104,7 @@ const state = {
   cardMenu: null,       // { board, card, top, right } of the card whose menu is open
   focusPerson: false,   // put the cursor into the person field once the card panel is drawn
   theme: stored("theme", "system"), // "system", "light" or "dark"
+  syncing: null,        // key of the board that is being synced with its remote right now
 };
 
 // The theme is applied to the document; theme.js already did so before the
@@ -254,11 +261,45 @@ async function act(board, cardId, action, extra = {}, force = false) {
         text: problem.error,
         retry: problem.refused && !force ? () => act(board, cardId, action, extra, true) : null,
       };
+    } else {
+      // The change happened, but may not have reached the remote.
+      const done = await res.json().catch(() => ({}));
+      if (done.warning) state.notice = { text: done.warning, retry: null };
     }
   } catch (err) {
     state.notice = { text: String(err.message || err), retry: null };
   }
   await load();
+}
+
+// syncBoard pulls and pushes one board with sync: push, like `kb sync`.
+async function syncBoard(board) {
+  if (state.syncing) return;
+  state.notice = null;
+  state.syncing = board.key;
+  draw();
+  try {
+    const res = await fetch("/api/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Kardboard": "1" },
+      body: JSON.stringify({ board: board.id }),
+    });
+    const answer = await res.json().catch(() => ({ error: res.statusText }));
+    // Success needs no words: the entry in the menu then says "up to date".
+    if (!res.ok) state.notice = { text: answer.error, retry: null };
+  } catch (err) {
+    state.notice = { text: String(err.message || err), retry: null };
+  }
+  state.syncing = null;
+  await load();
+}
+
+// remoteState says in a few words how a board stands against its remote.
+function remoteState(board) {
+  const git = board.git;
+  const parts = [git.behind > 0 && t.toPull(git.behind), git.ahead > 0 && t.toPush(git.ahead)].filter(Boolean);
+  if (git.unreachable) parts.push(t.unreachable);
+  return parts.length ? parts.join(" · ") : t.upToDate;
 }
 
 // dropAction says what dropping the dragged card on a column does, or null
@@ -317,6 +358,8 @@ const ICONS = {
   added: ['<path d="M12 5v14M5 12h14"/>'],
   removed: ['<path d="M5 12h14"/>'],
   commit: ['<circle cx="12" cy="12" r="3.5"/>', '<path d="M12 3v5.5M12 15.5V21"/>'],
+  // the menu: bring a board level with its remote
+  remote: ['<path d="M4 11a8 8 0 0 1 14-4.6l2 2.1"/>', '<path d="M20 4v4.5h-4.5"/>', '<path d="M20 13a8 8 0 0 1-14 4.6l-2-2.1"/>', '<path d="M4 20v-4.5h4.5"/>'],
   // a bug: the card breaks a rule of the format
   bug: [
     '<ellipse cx="12" cy="14" rx="5" ry="6"/>',
@@ -591,9 +634,14 @@ function drawSettingsMenu() {
   const { errors, warnings } = countProblems();
   const setTheme = (theme) => { state.theme = theme; store("theme", theme); applyTheme(); draw(); };
   const go = (fn) => () => { state.menu = null; fn(); };
+  // Boards that push to a remote. Each gets an entry that says how it
+  // stands and brings it level on a click.
+  const remotes = visibleBoards().filter((b) => b.sync === "push" && b.git && !b.git.error);
+  const waiting = remotes.some((b) => b.git.behind > 0 || b.git.ahead > 0 || b.git.unreachable);
   const label = [
     h("span", { "aria-hidden": "true" }, "⋯"),
-    errors + warnings > 0 && h("span", { class: "pip " + (errors > 0 ? "bad" : "warn") }),
+    errors + warnings > 0 ? h("span", { class: "pip " + (errors > 0 ? "bad" : "warn") })
+      : waiting && h("span", { class: "pip news" }),
   ];
   const count = [errors > 0 && t.errors(errors), warnings > 0 && t.warnings(warnings)].filter(Boolean).join(" · ");
 
@@ -603,6 +651,14 @@ function drawSettingsMenu() {
       type: "button", class: "menu-item",
       onclick: go(() => { state.open = null; state.history = null; state.problems = true; draw(); }),
     }, icon("bug"), h("span", {}, t.problems), count && h("span", { class: "count" + (errors > 0 ? " bad" : " warn") }, count)),
+    remotes.length > 0 && [
+      h("h2", {}, t.remote),
+      remotes.map((b) => h("button", {
+        type: "button", class: "menu-item", title: t.syncNow, disabled: state.syncing !== null,
+        onclick: () => syncBoard(b),
+      }, icon("remote"), h("span", { class: "name" }, b.name),
+      h("span", { class: "count" + (b.git.unreachable ? " warn" : "") }, state.syncing === b.key ? "…" : remoteState(b)))),
+    ],
     h("h2", {}, t.theme),
     h("div", { class: "segments", role: "group", "aria-label": t.theme },
       ["system", "light", "dark"].map((theme) => h("button", {
@@ -915,7 +971,10 @@ function drawDetail() {
 // drawActions draws what can be done with the open card. Each control is
 // one action of the command line: take, done, move, assign, unassign.
 function drawActions(board, card, column) {
-  if (!board.writable) return h("p", { class: "readonly" }, t.readOnly(board.sync));
+  if (!board.writable) return h("p", { class: "readonly" }, t.readOnly(board.git?.error ?? board.sync));
+  // A card with changes that are not committed cannot be changed through
+  // kb on a board that commits: say so before the action is refused.
+  const unsaved = board.git?.dirty?.includes(card.id);
   const who = people(card);
   const me = state.data.user;
   const doing = board.columns.find((c) => c.doing);
@@ -931,6 +990,7 @@ function drawActions(board, card, column) {
   };
 
   return h("div", { class: "actions" },
+    unsaved && h("p", { class: "readonly" }, t.notCommitted),
     h("div", { class: "row" },
       canTake && h("button", { type: "button", class: "primary", onclick: () => act(board, card.id, "take") }, t.take),
       done && !column?.done && h("button", { type: "button", onclick: () => act(board, card.id, "done") }, t.finish),

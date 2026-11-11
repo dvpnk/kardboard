@@ -302,27 +302,6 @@ func TestChangeRepairsAWrongValue(t *testing.T) {
 	reload(t, b)
 }
 
-func TestChangesNeedSyncNone(t *testing.T) {
-	for _, sync := range []string{"commit", "push"} {
-		b := load(t, map[string]string{
-			ConfigFile:     "kardboard: 1\nid: x\nsync: " + sync + "\ncolumns:\n  - id: backlog\n  - id: done\n",
-			"backlog/a.md": "# A\n",
-		})
-		if _, err := b.Change("a", Change{Column: "done"}); err == nil || !strings.Contains(err.Error(), "sync: "+sync) {
-			t.Errorf("move with sync %s: err = %v", sync, err)
-		}
-		if _, err := b.Change("a", Change{Set: []string{"assignee=sam"}}); err == nil || !strings.Contains(err.Error(), "sync: "+sync) {
-			t.Errorf("assign with sync %s: err = %v", sync, err)
-		}
-		if _, err := b.New("B", NewOptions{}); err == nil || !strings.Contains(err.Error(), "sync: "+sync) {
-			t.Errorf("new with sync %s: err = %v", sync, err)
-		}
-		if read(t, b, "backlog/a.md") != "# A\n" || has(t, b, "backlog/b.md") {
-			t.Error("board was changed")
-		}
-	}
-}
-
 func TestEditHead(t *testing.T) {
 	str := func(s string) *yaml.Node { return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: s} }
 	list := func(items ...string) *yaml.Node {

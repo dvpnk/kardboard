@@ -265,19 +265,54 @@ Damit prüfen auch Editoren und fremde Werkzeuge.
 | `commit` | ein Commit je Aktion, nur mit dieser Karte | eigenes Board-Repo, allein |
 | `push` | holen, ein Commit, pushen; bei Ablehnung einmal neu versuchen | eigenes Board-Repo, im Team |
 
+Für `commit` und `push` muss das Board in einem Git-Repository liegen, für
+`push` braucht der Branch außerdem einen Upstream. Fehlt etwas davon, lehnt
+`kb` jede Änderung ab und sagt, was fehlt.
+
+**Ein Commit je Aktion.** Er enthält genau die eine Karte, auch wenn im
+Repository anderes geändert oder vorgemerkt ist; das bleibt unberührt. Wo
+nichts zu ändern ist, entsteht kein Commit. Scheitert der Commit, etwa an
+einem Hook, liegt die Karte danach wieder, wie sie war.
+
+**Karten mit Änderungen ohne Commit ändert `kb` nicht.** Sie landeten sonst
+im Commit der Aktion und gingen bei einem Konflikt mit ihm verloren. Erst
+committen, dann verschieben. Das gilt auch für Karten, die Git noch nicht
+kennt.
+
 Commit-Nachrichten haben eine feste Form, damit `git log` das Protokoll des
 Boards ist:
 
 ```
 move export-als-pdf: backlog -> working_on
-assign export-als-pdf: alex
+assign export-als-pdf: alex, sam
+unassign export-als-pdf
 edit export-als-pdf
 new export-als-pdf
 ```
 
-Bei `push` gilt: Hat inzwischen jemand dieselbe Karte bewegt oder dieselbe
-Zeile geändert, nimmt kardboard die eigene Änderung zurück, übernimmt den
-fremden Stand und meldet, wie die Karte jetzt aussieht.
+`edit` steht für jede Änderung an anderen Feldern als `assignee`. Tut eine
+Aktion mehreres, etwa `kb take` (verschieben und zuweisen), steht das Erste
+in der Betreffzeile und das Weitere darunter.
+
+Bei `push` läuft jede Aktion so ab:
+
+1. `git pull --rebase --autostash`. Die Aktion sieht also, was die anderen
+   inzwischen getan haben. Ist der Remote nicht erreichbar, geschieht nichts.
+2. Regeln prüfen, Karte ändern, ein Commit.
+3. `git push`. Lehnt der Remote ab, weil jemand schneller war, holt `kb` den
+   neuen Stand und versucht es genau einmal neu.
+4. Hat inzwischen jemand dieselbe Karte bewegt oder dieselbe Zeile geändert,
+   nimmt `kb` den eigenen Commit zurück, übernimmt den fremden Stand und
+   meldet, wo die Karte jetzt liegt. Änderungen an verschiedenen Stellen
+   derselben Karte, etwa Verschieben hier und Zuweisen dort, führt Git
+   zusammen.
+
+Gelingt der Commit, aber der Push nicht, bleibt die Änderung als Commit auf
+dem Rechner. `kb` meldet das und endet mit Code 1; `kb sync` holt den Push
+nach.
+
+Git fragt dabei nie nach einem Passwort. Zugangsdaten müssen im Agenten oder
+im Schlüsselbund liegen.
 
 Liegt das Board im Code-Repo, hängt sein Stand am ausgecheckten Branch.
 kardboard zeigt immer den Arbeitsstand des angemeldeten Ordners.
@@ -361,7 +396,7 @@ Rechner:
 | `kb add [ordner]` | meldet ein Board an. Der Ordner ist das Board oder liegt in seinem Projekt; ohne Angabe gilt der aktuelle |
 | `kb remove <id\|ordner>` | meldet ein Board ab, löscht nichts |
 | `kb scan <ordner>` | nimmt einen Ordner in die Suche auf, `--remove` nimmt ihn wieder heraus |
-| `kb sync` | holt und pusht bei Boards mit `sync: push` |
+| `kb sync` | holt, was auf dem Remote neu ist, und pusht, was hier wartet. Nur für Boards mit `sync: push` |
 
 Zum Anlegen:
 
@@ -406,9 +441,11 @@ Für alle Befehle gilt:
 
 - Lesende Befehle kennen `--json`, für Skripte und Agenten. Ein Feld vom Typ
   `person` ist dort immer eine Liste, auch bei einem einzelnen Namen.
-- Rückgabecode `0` bei Erfolg, `1` bei einem Regelverstoß, `2` bei falschem
-  Aufruf oder wenn es nichts gibt, worauf der Befehl wirken kann (kein Board
-  gefunden, Karte oder Spalte unbekannt).
+- Rückgabecode `0` bei Erfolg, `1` bei einem Regelverstoß, bei einer
+  Änderung, die wegen eines Konflikts zurückgenommen wurde, und bei einem
+  Commit, der nicht gepusht werden konnte. `2` bei falschem Aufruf oder wenn
+  der Befehl nicht wirken kann (kein Board gefunden, Karte oder Spalte
+  unbekannt, Remote nicht erreichbar).
 - Die Oberfläche tut nichts, was das CLI nicht kann. Jede Aktion dort ist genau
   einer dieser Befehle.
 
@@ -436,8 +473,17 @@ angemeldet ist.
   der eigenen Seite stammen: gleiche Herkunft, ein eigener Kopf in der
   Anfrage und JSON als Inhalt. Ein Formular oder Skript einer anderen Seite
   im selben Browser kann das nicht erfüllen.
-- **Boards mit `sync: commit` oder `push` zeigt die Seite nur an**, solange
-  kb die Git-Schritte noch nicht kann.
+- **Git wie im CLI.** Auf Boards mit `sync: commit` oder `push` macht jede
+  Handlung denselben Commit wie der Befehl. Nimmt ein Konflikt die Änderung
+  zurück oder gelingt der Push nicht, sagt die Seite das. Eine Karte mit
+  Änderungen ohne Commit sagt in ihrer Ansicht, dass sie sich so nicht
+  ändern lässt. Ein Board, dem das Repository oder der Upstream fehlt, zeigt
+  die Seite nur an und nennt den Grund.
+- **Abgleich mit dem Remote.** Für Boards mit `sync: push` fragt der Server
+  jede Minute den Remote (`git fetch`). Das Menü nennt je Board den Stand:
+  aktuell, wie viele Commits zu holen oder zu senden sind, oder dass der
+  Remote nicht erreichbar ist. Ein Klick darauf ist `kb sync`. Solange etwas
+  wartet, trägt der Menüknopf einen Punkt.
 - **Sie folgt den Dateien.** Der Server prüft die Boards jede Sekunde auf
   Änderungen und meldet sie der offenen Seite. Nach neuen Boards unter `scan`
   sucht er alle 30 Sekunden und auf Wunsch sofort.
@@ -484,8 +530,8 @@ angemeldet ist.
   Schlagworte und Text ändert man im Editor oder mit `kb set`.
 - **Verlauf im CLI.** Den Verlauf gibt es nur in der Oberfläche, einen
   Befehl wie `kb log` noch nicht.
-- **Abgleich mit dem Remote.** Ob Commits zu holen oder zu pushen sind, zeigt
-  die Seite noch nicht. Das kommt mit `sync: push`.
+- **Text ändern mit `sync`.** `kb edit` fehlt noch. Wer den Text einer Karte
+  im Editor ändert, committet das auf Boards mit `commit` oder `push` selbst.
 - **`--all` für lesende Befehle.** `kb list --all` und `kb lint --all` über
   alle bekannten Boards gibt es noch nicht.
 - **Sprache dieses Dokuments** vor einer Veröffentlichung.
