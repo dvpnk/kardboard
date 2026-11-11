@@ -66,14 +66,14 @@ func TestTakeAssignsAndMovesInOneStep(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !res.Moved || res.To != "working_on" || !reflect.DeepEqual(res.Set, map[string]any{"assignee": "alex"}) {
+	if !res.Moved || res.To != "working_on" || !reflect.DeepEqual(res.Set, map[string]any{"assignee": []string{"alex"}}) {
 		t.Errorf("result = %+v", res)
 	}
 	if got, want := read(t, b, "working_on/a.md"), "---\nsize: S\nassignee: alex\n---\n\n# Sized\n"; got != want {
 		t.Errorf("file = %q, want %q", got, want)
 	}
-	if c, _ := reload(t, b).Card("a"); c.Assignee() != "alex" {
-		t.Errorf("assignee = %q", c.Assignee())
+	if c, _ := reload(t, b).Card("a"); who(c) != "alex" {
+		t.Errorf("assignee = %q", who(c))
 	}
 }
 
@@ -88,7 +88,7 @@ func TestAssignWithoutMoving(t *testing.T) {
 		t.Errorf("result = %+v", res)
 	}
 	c, _ := reload(t, b).Card("a")
-	if c.Assignee() != "laura" || c.Column != "backlog" {
+	if who(c) != "laura" || c.Column != "backlog" {
 		t.Errorf("card = %+v", c)
 	}
 
@@ -104,6 +104,46 @@ func TestAssignWithoutMoving(t *testing.T) {
 	}
 	if got := read(t, b, "backlog/a.md"); got != sized {
 		t.Errorf("file = %q, want the original %q", got, sized)
+	}
+}
+
+func TestSeveralPeopleOnOneCard(t *testing.T) {
+	b := load(t, map[string]string{"backlog/a.md": sized})
+
+	// Two people are written as a list, one as a plain name.
+	res, err := b.Change("a", Change{Set: []string{"assignee=alex, sam"}})
+	if err != nil || !reflect.DeepEqual(res.Set, map[string]any{"assignee": []string{"alex", "sam"}}) {
+		t.Fatalf("res %+v, err %v", res, err)
+	}
+	if got, want := read(t, b, "backlog/a.md"), "---\nsize: S\nassignee: [alex, sam]\n---\n\n# Sized\n"; got != want {
+		t.Errorf("file = %q, want %q", got, want)
+	}
+	b = reload(t, b)
+	if c, _ := b.Card("a"); who(c) != "alex,sam" {
+		t.Errorf("assignees = %q", who(c))
+	}
+
+	// The card belongs to both of them, and to nobody else.
+	if _, err = b.Change("a", Change{Column: "working_on", User: "laura"}); err == nil || !strings.Contains(err.Error(), "is assigned to alex, sam") {
+		t.Errorf("laura: err = %v", err)
+	}
+	if _, err = b.Change("a", Change{Column: "working_on", User: "sam"}); err != nil {
+		t.Errorf("sam: %v", err)
+	}
+
+	// Down to one person, the list becomes a plain name again.
+	b = reload(t, b)
+	if _, err = b.Change("a", Change{Set: []string{"assignee=sam"}, User: "alex"}); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := read(t, b, "working_on/a.md"), "---\nsize: S\nassignee: sam\n---\n\n# Sized\n"; got != want {
+		t.Errorf("file = %q, want %q", got, want)
+	}
+
+	// The same people in the same order are no change.
+	b = load(t, map[string]string{"backlog/a.md": "---\nassignee: [alex, sam]\nsize: S\n---\n# A\n"})
+	if res, err = b.Change("a", Change{Set: []string{"assignee=alex,sam"}}); err != nil || res.Changed() {
+		t.Errorf("res %+v, err %v", res, err)
 	}
 }
 
@@ -152,7 +192,7 @@ func TestChangeRules(t *testing.T) {
 		{"unknown field", "sized", Change{Set: []string{"prio=1"}}, false, `unknown field "prio"`},
 		{"reserved field", "sized", Change{Set: []string{"status=done"}}, false, "cannot be set"},
 		{"wrong value", "sized", Change{Set: []string{"size=XXL"}}, false, "size: must be one of"},
-		{"invalid person", "sized", Change{Set: []string{"assignee=Sam Smith"}}, false, "assignee: must be a person's short name"},
+		{"invalid person", "sized", Change{Set: []string{"assignee=Sam Smith"}}, false, `assignee: "Sam Smith" is not a person's short name`},
 		{"field twice", "sized", Change{Set: []string{"size=S", "size=M"}}, false, "given twice"},
 
 		{"required field missing in target", "unsized", Change{Column: "backlog"}, true, "would lack size, required in backlog"},
@@ -420,7 +460,7 @@ func TestNew(t *testing.T) {
 	if got := read(t, b, "working_on/with-everything.md"); got != want {
 		t.Errorf("file:\n%s\nwant:\n%s", got, want)
 	}
-	if c.Assignee() != "alex" || c.Fields["estimate"] != 2.5 || c.Fields["blocked"] != true {
+	if who(c) != "alex" || c.Fields["estimate"] != 2.5 || c.Fields["blocked"] != true {
 		t.Errorf("card = %+v", c)
 	}
 
@@ -473,7 +513,9 @@ func TestNewRules(t *testing.T) {
 		{"set wrong date", "A", NewOptions{Set: []string{"due=morgen"}}, false, "due: must be a date"},
 		{"set wrong number", "A", NewOptions{Set: []string{"estimate=viel"}}, false, "estimate: must be a number"},
 		{"set wrong list value", "A", NewOptions{Set: []string{"tags=bug,nope"}}, false, `"nope" is not one of`},
-		{"set person outside the values", "A", NewOptions{Set: []string{"reviewer=laura"}}, false, "reviewer: must be one of alex, sam"},
+		{"set person outside the values", "A", NewOptions{Set: []string{"reviewer=laura"}}, false, `reviewer: "laura" is not one of alex, sam`},
+		{"set no person", "A", NewOptions{Set: []string{"assignee="}}, false, "assignee: must name one person"},
+		{"set a person twice", "A", NewOptions{Set: []string{"assignee=alex,sam,alex"}}, false, `"alex" is named twice`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

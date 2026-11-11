@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -163,7 +164,7 @@ func TestListMine(t *testing.T) {
 		t.Fatalf("%v\n%s", err, out)
 	}
 	if code != ExitOK || res.Board.ID != "demo" || len(res.Cards) != 1 ||
-		res.Cards[0].ID != "export-als-pdf" || res.Cards[0].Column != "backlog" || res.Cards[0].Fields["assignee"] != "sam" {
+		res.Cards[0].ID != "export-als-pdf" || res.Cards[0].Column != "backlog" || fmt.Sprint(res.Cards[0].Fields["assignee"]) != "[sam]" {
 		t.Errorf("code %d, result %+v", code, res)
 	}
 
@@ -250,7 +251,7 @@ func TestNewCommand(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &res); err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}
-	if code != ExitOK || res.Path != "backlog/export-als-csv.md" || res.Fields["size"] != "S" || res.Fields["assignee"] != "sam" {
+	if code != ExitOK || res.Path != "backlog/export-als-csv.md" || res.Fields["size"] != "S" || fmt.Sprint(res.Fields["assignee"]) != "[sam]" {
 		t.Errorf("code %d, result %+v", code, res)
 	}
 
@@ -335,6 +336,76 @@ func TestChangeCommands(t *testing.T) {
 	}
 	if res.From != "working_on" || res.To != "done" || res.Path != "done/druckvorlagen.md" || !res.Moved {
 		t.Errorf("result = %+v", res)
+	}
+}
+
+func TestSeveralPeople(t *testing.T) {
+	asUser(t, "sam")
+	root := copyOfExample(t)
+	const card = "druckvorlagen"
+
+	steps := []struct {
+		args []string
+		code int
+		out  string // expected stdout, or part of stderr on failure
+		file string // expected header line, "" for no assignee
+	}{
+		{[]string{"assign", card, "alex", "laura"}, ExitOK, "druckvorlagen: assignee = alex, laura\n", "assignee: [alex, laura]"},
+		// sam is not on the card: joining it is a change to someone else's card
+		{[]string{"take", card, "--add"}, ExitViolation, "is assigned to alex, laura", "assignee: [alex, laura]"},
+		{[]string{"take", card, "--add", "--force"}, ExitOK, "druckvorlagen: backlog -> working_on, assignee = alex, laura, sam\n", "assignee: [alex, laura, sam]"},
+		// now it is sam's card too
+		{[]string{"take", card, "--add"}, ExitOK, "druckvorlagen: nothing to change\n", "assignee: [alex, laura, sam]"},
+		{[]string{"unassign", card, "laura"}, ExitOK, "druckvorlagen: assignee = alex, sam\n", "assignee: [alex, sam]"},
+		{[]string{"unassign", card, "laura"}, ExitOK, "druckvorlagen: nothing to change\n", "assignee: [alex, sam]"},
+		{[]string{"assign", card, "--add", "laura", "sam"}, ExitOK, "druckvorlagen: assignee = alex, sam, laura\n", "assignee: [alex, sam, laura]"},
+		{[]string{"unassign", card, "alex", "laura"}, ExitOK, "druckvorlagen: assignee = sam\n", "assignee: sam"},
+		// in progress, the last person cannot leave
+		{[]string{"unassign", card, "sam"}, ExitViolation, "would lack assignee", "assignee: sam"},
+		// without --add, take and assign replace everyone
+		{[]string{"assign", card, "alex,laura"}, ExitOK, "druckvorlagen: assignee = alex, laura\n", "assignee: [alex, laura]"},
+		{[]string{"take", card, "--force"}, ExitOK, "druckvorlagen: assignee = sam\n", "assignee: sam"},
+		{[]string{"set", card, "assignee=sam,alex"}, ExitOK, "druckvorlagen: assignee = sam, alex\n", "assignee: [sam, alex]"},
+		{[]string{"assign", card, "Sam Smith"}, ExitUsage, "is not a person's short name", "assignee: [sam, alex]"},
+		{[]string{"assign", card, ""}, ExitUsage, "no person named", "assignee: [sam, alex]"},
+	}
+	for _, s := range steps {
+		code, out, errOut := kb(t, append(s.args, "-C", root)...)
+		if code != s.code {
+			t.Fatalf("kb %v: code %d, want %d\nstdout: %s\nstderr: %s", s.args, code, s.code, out, errOut)
+		}
+		if code == ExitOK && out != s.out {
+			t.Errorf("kb %v: out %q, want %q", s.args, out, s.out)
+		}
+		if code != ExitOK && !strings.Contains(errOut, s.out) {
+			t.Errorf("kb %v: stderr %q lacks %q", s.args, errOut, s.out)
+		}
+		path := "backlog/druckvorlagen.md"
+		if !isFile(root, path) {
+			path = "working_on/druckvorlagen.md"
+		}
+		if text := readFile(t, root, path); !strings.Contains(text, "\n"+s.file+"\n") {
+			t.Errorf("kb %v: file lacks %q:\n%s", s.args, s.file, text)
+		}
+	}
+
+	// Both people see the card as theirs.
+	_, out, _ := kb(t, "list", "working_on", "-C", root)
+	if !strings.Contains(out, "Druckvorlagen  @sam @alex\n") {
+		t.Errorf("list:\n%s", out)
+	}
+	for _, name := range []string{"sam", "alex"} {
+		asUser(t, name)
+		if _, out, _ := kb(t, "list", "working_on", "--mine", "-C", root); !strings.Contains(out, "druckvorlagen") {
+			t.Errorf("--mine for %s:\n%s", name, out)
+		}
+	}
+	asUser(t, "laura")
+	if _, out, _ := kb(t, "list", "working_on", "--mine", "-C", root); strings.Contains(out, "druckvorlagen") {
+		t.Errorf("--mine for laura:\n%s", out)
+	}
+	if code, out, _ := kb(t, "lint", "-C", root); code != ExitOK {
+		t.Errorf("board is invalid after the changes:\n%s", out)
 	}
 }
 

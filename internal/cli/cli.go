@@ -226,7 +226,7 @@ func (a *app) listCmd() *cobra.Command {
 			cards := []*board.Card{}
 			for _, col := range columns {
 				for _, c := range b.Cards {
-					if c.Column == col.ID && (!mine || c.Assignee() == me) {
+					if c.Column == col.ID && (!mine || slices.Contains(c.Assignees(), me)) {
 						cards = append(cards, c)
 					}
 				}
@@ -251,7 +251,7 @@ func columnIDs(cfg *board.Config) string {
 }
 
 // printList prints the cards grouped by column. A card that breaks a rule is
-// marked with "!", an assigned card ends with "@name".
+// marked with "!", an assigned card ends with "@name" for each person.
 func (a *app) printList(columns []board.Column, cards []*board.Card) {
 	width := 0
 	for _, c := range cards {
@@ -273,8 +273,8 @@ func (a *app) printList(columns []board.Column, cards []*board.Card) {
 				mark = "!"
 			}
 			line := fmt.Sprintf("  %s %-*s  %s", mark, width, c.ID, c.Title)
-			if who := c.Assignee(); who != "" {
-				line += "  @" + who
+			if who := c.Assignees(); len(who) > 0 {
+				line += "  @" + strings.Join(who, " @")
 			}
 			fmt.Fprintln(a.out, line)
 		}
@@ -434,20 +434,53 @@ func (a *app) moveCmd() *cobra.Command {
 		})
 }
 
+// assignment builds the value for `assignee=...` from a list of people.
+// An empty list removes the field.
+func assignment(people []string) string {
+	return board.FieldAssignee + "=" + strings.Join(people, ",")
+}
+
+// current returns who the card is assigned to now. An unknown card has
+// nobody; the change itself reports that the card does not exist.
+func current(b *board.Board, id string) []string {
+	if c, ok := b.Card(id); ok {
+		return c.Assignees()
+	}
+	return nil
+}
+
+// with returns people followed by those of more that are not in it yet.
+func with(people []string, more ...string) []string {
+	out := slices.Clone(people)
+	for _, p := range more {
+		if !slices.Contains(out, p) {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
 func (a *app) takeCmd() *cobra.Command {
-	return a.changeCmd("take <card>", "Start working on a card: assign it to you and move it to the doing column", cobra.ExactArgs(1),
-		func(b *board.Board, _ []string) (board.Change, error) {
+	var add bool
+	cmd := a.changeCmd("take <card>", "Start working on a card: assign it to you and move it to the doing column", cobra.ExactArgs(1),
+		func(b *board.Board, args []string) (board.Change, error) {
 			me, err := userconfig.User()
 			if err != nil {
 				return board.Change{}, err
 			}
-			ch := board.Change{User: me, Set: []string{board.FieldAssignee + "=" + me}}
+			people := []string{me}
+			if add {
+				people = with(current(b, args[0]), me)
+			}
+			ch := board.Change{User: me, Set: []string{assignment(people)}}
 			// Without a doing column, taking a card only assigns it.
 			if col, ok := b.Config.FirstDoing(); ok {
 				ch.Column = col.ID
 			}
 			return ch, nil
 		})
+	cmd.Flags().BoolVar(&add, "add", false, "join the people already on the card instead of replacing them")
+	return cmd
 }
 
 func (a *app) doneCmd() *cobra.Command {
@@ -462,21 +495,40 @@ func (a *app) doneCmd() *cobra.Command {
 }
 
 func (a *app) assignCmd() *cobra.Command {
-	cmd := a.changeCmd("assign <card> <person>", "Say whose card it is, without moving it", cobra.ExactArgs(2),
-		func(_ *board.Board, args []string) (board.Change, error) {
-			if strings.TrimSpace(args[1]) == "" {
-				return board.Change{}, errors.New("the person's name is empty, use `kb unassign` to remove it")
+	var add bool
+	cmd := a.changeCmd("assign <card> <person>...", "Say whose card it is, without moving it", cobra.MinimumNArgs(2),
+		func(b *board.Board, args []string) (board.Change, error) {
+			var people []string
+			for _, arg := range args[1:] {
+				for _, name := range strings.Split(arg, ",") {
+					if name = strings.TrimSpace(name); name != "" {
+						people = with(people, name)
+					}
+				}
 			}
-			return board.Change{Set: []string{board.FieldAssignee + "=" + args[1]}}, nil
+			if len(people) == 0 {
+				return board.Change{}, errors.New("no person named, use `kb unassign` to make the card nobody's")
+			}
+			if add {
+				people = with(current(b, args[0]), people...)
+			}
+			return board.Change{Set: []string{assignment(people)}}, nil
 		})
 	cmd.Aliases = []string{"give"}
+	cmd.Flags().BoolVar(&add, "add", false, "add to the people already on the card instead of replacing them")
 	return cmd
 }
 
 func (a *app) unassignCmd() *cobra.Command {
-	return a.changeCmd("unassign <card>", "Make a card nobody's", cobra.ExactArgs(1),
-		func(*board.Board, []string) (board.Change, error) {
-			return board.Change{Set: []string{board.FieldAssignee + "="}}, nil
+	return a.changeCmd("unassign <card> [person]...", "Make a card nobody's, or take single people off it", cobra.MinimumNArgs(1),
+		func(b *board.Board, args []string) (board.Change, error) {
+			if len(args) == 1 {
+				return board.Change{Set: []string{assignment(nil)}}, nil
+			}
+			people := slices.DeleteFunc(slices.Clone(current(b, args[0])), func(p string) bool {
+				return slices.Contains(args[1:], p)
+			})
+			return board.Change{Set: []string{assignment(people)}}, nil
 		})
 }
 

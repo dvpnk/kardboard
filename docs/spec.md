@@ -144,7 +144,7 @@ Eingebaut, ohne Erklärung nutzbar:
 
 | Feld | Typ | Bedeutung |
 |---|---|---|
-| `assignee` | `person` | wem die Karte gehört |
+| `assignee` | `person` | wem die Karte gehört, eine Person oder mehrere |
 | `tags` | `list` | Schlagworte |
 | `due` | `date` | Termin |
 | `depends_on` | `cards` | Karten, die vorher fertig sein müssen |
@@ -160,10 +160,23 @@ dieselbe Angabe laufen auseinander.
 
 ### Wem eine Karte gehört
 
-`assignee` nennt eine Person mit ihrem Kürzel. Das Feld gilt in jeder Spalte:
-Eine Karte kann im Backlog schon für jemanden vorgemerkt sein, und eine
-erledigte Karte behält, wer sie gemacht hat. Fehlt das Feld, gehört die Karte
-niemandem.
+`assignee` nennt eine Person mit ihrem Kürzel, oder mehrere als Liste:
+
+```yaml
+assignee: sam
+```
+
+```yaml
+assignee: [alex, sam]
+```
+
+Das Feld gilt in jeder Spalte: Eine Karte kann im Backlog schon für jemanden
+vorgemerkt sein, und eine erledigte Karte behält, wer sie gemacht hat. Fehlt
+das Feld, gehört die Karte niemandem. Stehen mehrere Namen dort, gehört sie
+jedem von ihnen gleichermaßen.
+
+Eine leere Liste und ein doppelter Name sind Fehler. kardboard schreibt einen
+einzelnen Namen ohne Klammern und mehrere als Liste in einer Zeile.
 
 Ob eine Spalte eine Person verlangt, legt das Board selbst fest, mit der
 üblichen Regel für Pflichtfelder:
@@ -188,7 +201,7 @@ Namen ist dann ein Fehler.
 | `date` | `JJJJ-MM-TT` | `due: 2026-12-01` |
 | `number` | Zahl | `estimate: 3` |
 | `bool` | `true` oder `false` | `blocked: true` |
-| `person` | Kürzel einer Person, `[a-z0-9][a-z0-9-]*`, mit `values` nur diese | `reviewer: sam` |
+| `person` | Kürzel einer Person, `[a-z0-9][a-z0-9-]*`, oder eine Liste davon; mit `values` nur diese | `reviewer: sam` |
 | `cards` | Liste von Kartenverweisen | `depends_on: [druckvorlagen]` |
 
 Schlüssel einer Felderklärung:
@@ -324,10 +337,10 @@ Karten ändern:
 |---|---|---|---|
 | `kb new "<titel>" [-c spalte] [--set feld=wert] [--id kürzel]` | | | legt eine Karte an |
 | `kb move <karte> <spalte>` | wechselt | bleibt | verschiebt die Karte |
-| `kb take <karte>` | geht in die erste Spalte mit `doing` | wird man selbst | nimmt die Karte in Arbeit |
+| `kb take <karte> [--add]` | geht in die erste Spalte mit `doing` | wird man selbst, mit `--add` kommt man dazu | nimmt die Karte in Arbeit |
 | `kb done <karte>` | geht in die erste Spalte mit `done` | bleibt | schließt die Karte ab |
-| `kb assign <karte> <person>` | bleibt | wird gesetzt | weist die Karte zu. `kb give` ist dasselbe |
-| `kb unassign <karte>` | bleibt | entfällt | gibt die Karte frei |
+| `kb assign <karte> <person>… [--add]` | bleibt | wird ersetzt, mit `--add` ergänzt | weist die Karte zu. `kb give` ist dasselbe |
+| `kb unassign <karte> [person…]` | bleibt | entfällt, mit Namen nur diese | gibt die Karte frei |
 | `kb set <karte> feld=wert …` | bleibt | bleibt | ändert Felder im Kopf, `feld=` entfernt eines |
 | `kb edit <karte>` | | | öffnet die Karte im Editor |
 | `kb rename <karte> <neu>` | | | benennt um und zieht Verweise nach |
@@ -363,9 +376,15 @@ Zum Ändern:
 - **Ein Schritt geschieht ganz oder gar nicht.** `kb take` weist zu und
   verschiebt; lehnt eine Regel eines von beidem ab, bleibt die Karte, wie sie
   war.
-- **Eine Karte, die jemand anderem gehört, ändert kein Befehl ohne `--force`**,
-  in keiner Spalte. Eine Karte, die niemandem gehört, darf jeder nehmen,
-  verschieben und zuweisen.
+- **Eine Karte, die anderen gehört, ändert kein Befehl ohne `--force`**, in
+  keiner Spalte. Wer selbst unter `assignee` steht, darf sie ändern, auch wenn
+  dort weitere Namen stehen. Eine Karte, die niemandem gehört, darf jeder
+  nehmen, verschieben und zuweisen.
+- **Dazukommen ist auch eine Änderung.** `kb take --add` auf der Karte anderer
+  braucht `--force`. Ohne das holt einen jemand dazu, der schon auf der Karte
+  steht: `kb assign <karte> <person> --add`.
+- **Ohne `--add` ersetzen `kb take` und `kb assign` alle Namen.** Verlässt die
+  letzte Person die Karte, entfällt das Feld.
 - **Pflichtfelder gelten beim Ändern.** Eine Karte kommt nicht in eine Spalte,
   deren Pflichtfeld ihr fehlt, und verliert kein Pflichtfeld ihrer Spalte.
   `kb new` legt keine Karte an, der eines fehlt. Mit `--force` geht es
@@ -377,7 +396,8 @@ Zum Ändern:
 
 Für alle Befehle gilt:
 
-- Lesende Befehle kennen `--json`, für Skripte und Agenten.
+- Lesende Befehle kennen `--json`, für Skripte und Agenten. Ein Feld vom Typ
+  `person` ist dort immer eine Liste, auch bei einem einzelnen Namen.
 - Rückgabecode `0` bei Erfolg, `1` bei einem Regelverstoß, `2` bei falschem
   Aufruf oder wenn es nichts gibt, worauf der Befehl wirken kann (kein Board
   gefunden, Karte oder Spalte unbekannt).
@@ -393,10 +413,9 @@ Für alle Befehle gilt:
 - **Titel in der Überschrift statt im Kopf.** Gewählt, weil die Datei so in
   jedem Markdown-Betrachter richtig aussieht. Andere Werkzeuge führen den Titel
   im Kopf.
-- **Mehrere Personen je Karte.** Heute genau eine oder keine. `assignee`
-  könnte neben einem Namen auch eine Liste annehmen, ohne dass bestehende
-  Karten sich ändern. Offen ist dann, wem die Karte „gehört“ und was `kb take`
-  mit den anderen Namen tut.
+- **Dazukommen ohne `--force`.** Wer sich mit `kb take --add` einer Karte
+  anschließt, nimmt niemandem etwas weg. Heute verlangt es trotzdem `--force`,
+  damit die Regel für fremde Karten keine Ausnahme hat.
 - **Grenze je Person.** `limit` zählt die Karten der Spalte, nicht die einer
   Person.
 - **Sprache dieses Dokuments** vor einer Veröffentlichung.

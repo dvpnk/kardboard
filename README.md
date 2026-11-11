@@ -62,6 +62,10 @@ kb take dunkles-design
 ```
 
 ```bash
+kb assign dunkles-design sam --add
+```
+
+```bash
 kb done dunkles-design
 ```
 

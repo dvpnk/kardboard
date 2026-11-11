@@ -74,6 +74,11 @@ func load(t *testing.T, files map[string]string) *Board {
 	return b
 }
 
+// who returns the people on a card as "alex,sam", or "" for nobody.
+func who(c *Card) string {
+	return strings.Join(c.Assignees(), ",")
+}
+
 func codes(b *Board) []string {
 	var out []string
 	for _, p := range b.Problems() {
@@ -99,7 +104,7 @@ func TestExampleBoardIsValid(t *testing.T) {
 		t.Fatal("card export-als-pdf not found")
 	}
 	want := map[string]any{
-		"assignee":   "sam",
+		"assignee":   []string{"sam"},
 		"size":       "M",
 		"milestone":  "release",
 		"tags":       []string{"feature"},
@@ -110,16 +115,16 @@ func TestExampleBoardIsValid(t *testing.T) {
 	if !reflect.DeepEqual(c.Fields, want) {
 		t.Errorf("fields = %#v, want %#v", c.Fields, want)
 	}
-	if c.Title != "Export als PDF" || c.Column != "backlog" || c.Assignee() != "sam" {
+	if c.Title != "Export als PDF" || c.Column != "backlog" || who(c) != "sam" {
 		t.Errorf("card = %+v", c)
 	}
 
 	c, _ = b.Card("login-fehler-bei-umlauten")
-	if c.Assignee() != "alex" || c.Path != "working_on/login-fehler-bei-umlauten.md" {
+	if who(c) != "alex" || c.Path != "working_on/login-fehler-bei-umlauten.md" {
 		t.Errorf("assigned card = %+v", c)
 	}
-	if c, _ = b.Card("offline-modus"); c.Assignee() != "" {
-		t.Errorf("unassigned card has assignee %q", c.Assignee())
+	if c, _ = b.Card("offline-modus"); who(c) != "" {
+		t.Errorf("unassigned card has assignee %q", who(c))
 	}
 }
 
@@ -150,6 +155,11 @@ func TestCardRules(t *testing.T) {
 		{"E04 reserved field", map[string]string{"planning/a.md": "---\nstatus: done\ncolumn: backlog\n---\n# A\n"}, []string{"E04", "E04"}},
 		{"assigned in any column", map[string]string{"planning/a.md": "---\nassignee: alex\n---\n# A\n", "done/b.md": "---\nassignee: sam-2\n---\n# B\n"}, nil},
 		{"in progress and assigned", map[string]string{"working_on/a.md": taken}, nil},
+		{"several people on one card", map[string]string{
+			"working_on/a.md": "---\nassignee: [alex, sam]\nsize: S\n---\n# A\n",
+			"backlog/b.md":    "---\nassignee:\n  - alex\n  - sam\nreviewer: [sam, alex]\nsize: S\n---\n# B\n",
+			"done/c.md":       "---\nassignee: [alex]\n---\n# C\n",
+		}, nil},
 
 		{"E05 enum", map[string]string{"planning/a.md": "---\nsize: XXL\n---\n# A\n"}, []string{"E05"}},
 		{"E05 enum given a list", map[string]string{"planning/a.md": "---\nsize: [S]\n---\n# A\n"}, []string{"E05"}},
@@ -162,8 +172,13 @@ func TestCardRules(t *testing.T) {
 		{"E05 text over several lines", map[string]string{"planning/a.md": "---\nowner: |\n  a\n  b\n---\n# A\n"}, []string{"E05"}},
 		{"E05 empty value", map[string]string{"planning/a.md": "---\nowner:\n---\n# A\n"}, []string{"E05"}},
 		{"E05 person is not a short name", map[string]string{"planning/a.md": "---\nassignee: Alex Smith\n---\n# A\n"}, []string{"E05"}},
-		{"E05 person given a list", map[string]string{"planning/a.md": "---\nassignee: [alex, sam]\n---\n# A\n"}, []string{"E05"}},
+		{"E05 person in a list is not a short name", map[string]string{"planning/a.md": "---\nassignee: [alex, Sam Smith]\n---\n# A\n"}, []string{"E05"}},
+		{"E05 person named twice", map[string]string{"planning/a.md": "---\nassignee: [alex, sam, alex]\n---\n# A\n"}, []string{"E05"}},
+		{"E05 empty list of people", map[string]string{"planning/a.md": "---\nassignee: []\n---\n# A\n"}, []string{"E05"}},
+		{"E05 people as a mapping", map[string]string{"planning/a.md": "---\nassignee: {alex: true}\n---\n# A\n"}, []string{"E05"}},
 		{"E05 person not among the values", map[string]string{"planning/a.md": "---\nreviewer: laura\n---\n# A\n"}, []string{"E05"}},
+		{"E05 one of several people not among the values", map[string]string{"planning/a.md": "---\nreviewer: [alex, laura]\n---\n# A\n"}, []string{"E05"}},
+		{"E05 empty list where an assignee is required", map[string]string{"working_on/a.md": "---\nassignee: []\nsize: S\n---\n# A\n"}, []string{"E05"}},
 		{"E05 card reference", map[string]string{"planning/a.md": "---\nrelated: [Not_A_Card]\n---\n# A\n"}, []string{"E05"}},
 
 		{"E06 required here", map[string]string{"backlog/a.md": "# A\n"}, []string{"E06"}},

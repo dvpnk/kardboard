@@ -176,12 +176,14 @@ func (b *Board) Change(id string, ch Change) (*ChangeResult, error) {
 	}
 
 	if !ch.Force {
-		if owner := c.Assignee(); owner != "" {
+		// A card belongs to everyone it is assigned to. Whoever is not
+		// among them leaves it alone.
+		if owners := c.Assignees(); len(owners) > 0 {
 			if ch.User == "" {
 				return nil, ErrNeedUser
 			}
-			if owner != ch.User {
-				return nil, &RefusedError{fmt.Sprintf("card %s is assigned to %s", c.ID, owner)}
+			if !slices.Contains(owners, ch.User) {
+				return nil, &RefusedError{fmt.Sprintf("card %s is assigned to %s", c.ID, strings.Join(owners, ", "))}
 			}
 		}
 		// A moved card must bring everything its new column requires. A
@@ -394,21 +396,25 @@ func parseSet(cfg *Config, assignments []string, allowRemove bool) ([]string, ma
 	return names, nodes, values, nil
 }
 
-// valueNode builds the YAML value for text given on the command line. Text,
-// enum and person values are taken literally. Lists accept "a, b" as well as
-// "[a, b]". Everything else is read as YAML.
+// valueNode builds the YAML value for text given on the command line. Text
+// and enum values are taken literally. Lists accept "a, b" as well as
+// "[a, b]"; a single person is written as a plain name, several as a list.
+// Everything else is read as YAML.
 func valueNode(f Field, raw string) *yaml.Node {
 	str := func(s string) *yaml.Node { return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: s} }
 	switch f.Type {
-	case TypeText, TypeEnum, TypePerson:
+	case TypeText, TypeEnum:
 		return str(raw)
-	case TypeList, TypeCards:
+	case TypeList, TypeCards, TypePerson:
 		if !strings.HasPrefix(raw, "[") {
 			seq := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq", Style: yaml.FlowStyle}
 			for _, part := range strings.Split(raw, ",") {
 				if p := strings.TrimSpace(part); p != "" {
 					seq.Content = append(seq.Content, str(p))
 				}
+			}
+			if f.Type == TypePerson && len(seq.Content) == 1 {
+				return seq.Content[0]
 			}
 			return seq
 		}

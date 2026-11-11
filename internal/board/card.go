@@ -38,10 +38,10 @@ type Card struct {
 	rejected []string
 }
 
-// Assignee returns whose card it is, or "" if it is nobody's.
-func (c *Card) Assignee() string {
-	name, _ := c.Fields[FieldAssignee].(string)
-	return name
+// Assignees returns whose card it is. An empty list means it is nobody's.
+func (c *Card) Assignees() []string {
+	names, _ := c.Fields[FieldAssignee].([]string)
+	return names
 }
 
 // Valid reports whether the card has no errors. Warnings do not count.
@@ -237,13 +237,27 @@ func checkValue(f Field, n *yaml.Node) (any, string) {
 		return nil, "must be true or false"
 
 	case TypePerson:
-		if !isScalar || !slugRe.MatchString(n.Value) {
-			return nil, "must be a person's short name (a-z, 0-9, -)"
+		// One name or a list of names. The value is always a list, so
+		// readers need not tell the two spellings apart.
+		var names []string
+		if isScalar {
+			names = []string{n.Value}
+		} else if list, ok := scalarList(n); ok && len(list) > 0 {
+			names = list
+		} else {
+			return nil, "must name one person or a list of people"
 		}
-		if len(f.Values) > 0 && !slices.Contains(f.Values, n.Value) {
-			return nil, fmt.Sprintf("must be one of %s", strings.Join(f.Values, ", "))
+		for i, name := range names {
+			switch {
+			case !slugRe.MatchString(name):
+				return nil, fmt.Sprintf("%q is not a person's short name (a-z, 0-9, -)", name)
+			case len(f.Values) > 0 && !slices.Contains(f.Values, name):
+				return nil, fmt.Sprintf("%q is not one of %s", name, strings.Join(f.Values, ", "))
+			case slices.Contains(names[:i], name):
+				return nil, fmt.Sprintf("%q is named twice", name)
+			}
 		}
-		return n.Value, ""
+		return names, ""
 
 	case TypeCards:
 		items, ok := scalarList(n)
