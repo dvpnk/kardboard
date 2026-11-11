@@ -29,7 +29,7 @@
   --hover: #f0f0f2;
   --badge: #f1f1f4;
   --knob: #ffffff;
-  --doing: #e3e3e8;
+  --doing: #d7d7de;
   --focus: #1a1a1d;
   --danger: #c92a2a;
   --danger-bg: #fdecec;
@@ -60,7 +60,7 @@
   --hover: #2a2a2e;
   --badge: #2c2c31;
   --knob: #c8c8cf;
-  --doing: #27272c;
+  --doing: #303037;
   --focus: #e6e6e9;
   --danger: #ff8787;
   --danger-bg: #3a1f1f;
@@ -80,7 +80,7 @@
     --hover: #2a2a2e;
     --badge: #2c2c31;
     --knob: #c8c8cf;
-    --doing: #27272c;
+    --doing: #303037;
     --focus: #e6e6e9;
     --danger: #ff8787;
     --danger-bg: #3a1f1f;
