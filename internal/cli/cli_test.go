@@ -461,3 +461,193 @@ func TestBoardWithoutSpecialColumns(t *testing.T) {
 		t.Errorf("done: code %d, stderr %q", code, errOut)
 	}
 }
+
+// machine gives the test its own home directory and settings, and returns
+// the path of the settings file.
+func machine(t *testing.T) (home, configFile string) {
+	t.Helper()
+	home, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	t.Setenv("KARDBOARD_USER", "")
+	return home, filepath.Join(home, ".config", "kardboard", "config.yaml")
+}
+
+// makeBoard creates a small valid board and returns its directory.
+func makeBoard(t *testing.T, dir, id string) string {
+	t.Helper()
+	files := map[string]string{
+		"board.yaml":   "kardboard: 1\nid: " + id + "\ncolumns:\n  - id: todo\n  - id: done\n    done: true\n",
+		"todo/eins.md": "# Eins\n",
+	}
+	for rel, content := range files {
+		path := filepath.Join(dir, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return dir
+}
+
+func TestAddRemoveAndBoards(t *testing.T) {
+	home, configFile := machine(t)
+	alpha := makeBoard(t, filepath.Join(home, "repos", "alpha", "board"), "alpha")
+	beta := makeBoard(t, filepath.Join(home, "repos", "beta"), "beta")
+	twin := makeBoard(t, filepath.Join(home, "elsewhere", "twin"), "alpha")
+
+	code, out, _ := kb(t, "boards")
+	if code != ExitOK || !strings.Contains(out, "No boards yet") {
+		t.Errorf("empty machine: code %d, out %q", code, out)
+	}
+
+	// A directory inside the board works as well as the board itself.
+	code, out, _ = kb(t, "add", filepath.Join(alpha, "todo"))
+	if code != ExitOK || out != "alpha: added (~/repos/alpha/board)\n" {
+		t.Errorf("add: code %d, out %q", code, out)
+	}
+	if got, want := readFile(t, filepath.Dir(configFile), "config.yaml"), "boards:\n  - ~/repos/alpha/board\n"; got != want {
+		t.Errorf("settings = %q, want %q", got, want)
+	}
+	code, out, _ = kb(t, "add", alpha)
+	if code != ExitOK || !strings.Contains(out, "already added") {
+		t.Errorf("add twice: code %d, out %q", code, out)
+	}
+	if code, out, _ = kb(t, "add", beta); code != ExitOK {
+		t.Errorf("add beta: code %d, out %q", code, out)
+	}
+
+	// Two boards with the same id cannot both be known.
+	code, _, errOut := kb(t, "add", twin)
+	if code != ExitUsage || !strings.Contains(errOut, `id "alpha" is already used by the board in ~/repos/alpha/board`) {
+		t.Errorf("add twin: code %d, stderr %q", code, errOut)
+	}
+	if code, _, errOut = kb(t, "add", filepath.Join(home, "repos")); code != ExitUsage || !strings.Contains(errOut, "no board found") {
+		t.Errorf("add without board: code %d, stderr %q", code, errOut)
+	}
+
+	code, out, _ = kb(t, "boards")
+	want := "ID     CARDS  SOURCE  PATH\n" +
+		"alpha      1  added   ~/repos/alpha/board\n" +
+		"beta       1  added   ~/repos/beta\n"
+	if code != ExitOK || out != want {
+		t.Errorf("boards: code %d, out:\n%s", code, out)
+	}
+
+	// -b reaches a known board from anywhere.
+	code, out, _ = kb(t, "list", "-b", "beta")
+	if code != ExitOK || !strings.Contains(out, "eins") {
+		t.Errorf("list -b: code %d, out %q", code, out)
+	}
+	if code, _, errOut = kb(t, "list", "-b", "nope"); code != ExitUsage || !strings.Contains(errOut, `no board "nope"`) {
+		t.Errorf("list -b nope: code %d, stderr %q", code, errOut)
+	}
+	if code, _, _ = kb(t, "list", "-b", "beta", "-C", alpha); code != ExitUsage {
+		t.Errorf("-b together with -C: code %d", code)
+	}
+
+	// Removing forgets the board and leaves its files alone.
+	code, out, _ = kb(t, "remove", "alpha")
+	if code != ExitOK || !strings.Contains(out, "removed ~/repos/alpha/board") || !isFile(alpha, "todo/eins.md") {
+		t.Errorf("remove by id: code %d, out %q", code, out)
+	}
+	if code, _, _ = kb(t, "remove", beta); code != ExitOK {
+		t.Errorf("remove by directory: code %d", code)
+	}
+	if code, _, errOut = kb(t, "remove", "alpha"); code != ExitUsage || !strings.Contains(errOut, "no added board") {
+		t.Errorf("remove again: code %d, stderr %q", code, errOut)
+	}
+	if got := readFile(t, filepath.Dir(configFile), "config.yaml"); got != "boards: []\n" {
+		t.Errorf("settings = %q", got)
+	}
+}
+
+func TestScan(t *testing.T) {
+	home, _ := machine(t)
+	makeBoard(t, filepath.Join(home, "repos", "alpha", "board"), "alpha")
+	makeBoard(t, filepath.Join(home, "repos", "beta"), "beta")
+	broken := filepath.Join(home, "repos", "broken")
+	if err := os.MkdirAll(broken, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(broken, "board.yaml"), []byte("kardboard: 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	code, out, _ := kb(t, "scan", filepath.Join(home, "repos"))
+	want := "scanning ~/repos: 3 boards found\n  ~/repos/alpha/board\n  ~/repos/beta\n  ~/repos/broken\n"
+	if code != ExitOK || out != want {
+		t.Errorf("scan: code %d, out:\n%s", code, out)
+	}
+	if code, out, _ = kb(t, "scan", filepath.Join(home, "repos")); code != ExitOK || !strings.HasPrefix(out, "already scanning") {
+		t.Errorf("scan twice: code %d, out %q", code, out)
+	}
+	if code, _, errOut := kb(t, "scan", filepath.Join(home, "nope")); code != ExitUsage || !strings.Contains(errOut, "not a directory") {
+		t.Errorf("scan nothing: code %d, stderr %q", code, errOut)
+	}
+
+	code, out, _ = kb(t, "boards")
+	for _, line := range []string{
+		"alpha      1  scan    ~/repos/alpha/board\n",
+		"beta       1  scan    ~/repos/beta\n",
+		"-          0  scan    ~/repos/broken  ! board.yaml is missing or invalid",
+	} {
+		if !strings.Contains(out, line) {
+			t.Errorf("boards lacks %q:\n%s", line, out)
+		}
+	}
+	if code != ExitOK {
+		t.Errorf("boards: code %d", code)
+	}
+
+	_, out, _ = kb(t, "boards", "--json")
+	var rows []struct {
+		ID, Path, Source, Error string
+		Cards, Errors           int
+	}
+	if err := json.Unmarshal([]byte(out), &rows); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if len(rows) != 3 || rows[0].ID != "alpha" || rows[0].Source != "scan" || rows[2].Error == "" || rows[2].Errors == 0 {
+		t.Errorf("rows = %+v", rows)
+	}
+
+	// A board found by a scan cannot be removed by itself.
+	code, _, errOut := kb(t, "remove", "alpha")
+	if code != ExitUsage || !strings.Contains(errOut, "found through a directory under `scan`") {
+		t.Errorf("remove a scanned board: code %d, stderr %q", code, errOut)
+	}
+	if code, out, _ = kb(t, "scan", "--remove", filepath.Join(home, "repos")); code != ExitOK || out != "no longer scanning ~/repos\n" {
+		t.Errorf("scan --remove: code %d, out %q", code, out)
+	}
+	if code, _, _ = kb(t, "scan", "--remove", filepath.Join(home, "repos")); code != ExitUsage {
+		t.Errorf("scan --remove twice: code %d", code)
+	}
+	if _, out, _ = kb(t, "boards"); !strings.Contains(out, "No boards yet") {
+		t.Errorf("boards after --remove:\n%s", out)
+	}
+}
+
+func TestAddRefusesABrokenBoard(t *testing.T) {
+	home, configFile := machine(t)
+	dir := filepath.Join(home, "broken")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "board.yaml"), []byte("kardboard: 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	code, _, errOut := kb(t, "add", dir)
+	if code != ExitViolation || !strings.Contains(errOut, "board.yaml: E01 ") {
+		t.Errorf("code %d, stderr %q", code, errOut)
+	}
+	if isFile(filepath.Dir(configFile), "config.yaml") {
+		t.Error("the settings were written")
+	}
+}

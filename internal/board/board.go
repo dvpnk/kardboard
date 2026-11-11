@@ -187,6 +187,12 @@ func (b *Board) checkBoardRules() {
 	}
 }
 
+// BoardProblems returns the violations that belong to the board as a whole
+// rather than to one card: a broken board.yaml, an exceeded limit.
+func (b *Board) BoardProblems() []Problem {
+	return slices.Clone(b.problems)
+}
+
 // Problems returns all violations of the board and its cards, sorted by path
 // and code.
 func (b *Board) Problems() []Problem {

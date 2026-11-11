@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"kardboard/internal/board"
+	"kardboard/internal/registry"
 	"kardboard/internal/userconfig"
 )
 
@@ -31,7 +32,8 @@ var errViolation = errors.New("board violates the format")
 
 type app struct {
 	out, errOut io.Writer
-	dir         string
+	dir         string // -C: the board directory
+	boardID     string // -b: the id of a board known on this machine
 	asJSON      bool
 }
 
@@ -53,9 +55,12 @@ func Run(args []string, out, errOut io.Writer) int {
 	root.SetErr(errOut)
 	root.SetArgs(args)
 	root.PersistentFlags().StringVarP(&a.dir, "dir", "C", "", "board directory, instead of looking it up from the current directory")
+	root.PersistentFlags().StringVarP(&a.boardID, "board", "b", "", "id of a board known on this machine, see `kb boards`")
 	root.PersistentFlags().BoolVar(&a.asJSON, "json", false, "print JSON")
+	root.MarkFlagsMutuallyExclusive("dir", "board")
 	root.AddCommand(a.lintCmd(), a.listCmd(), a.showCmd())
 	root.AddCommand(a.newCmd(), a.moveCmd(), a.takeCmd(), a.doneCmd(), a.assignCmd(), a.unassignCmd(), a.setCmd())
+	root.AddCommand(a.boardsCmd(), a.addCmd(), a.removeCmd(), a.scanCmd(), a.uiCmd())
 
 	err := root.Execute()
 	var refused *board.RefusedError
@@ -75,6 +80,17 @@ func Run(args []string, out, errOut io.Writer) int {
 
 // load finds and reads the board the command works on.
 func (a *app) load() (*board.Board, error) {
+	if a.boardID != "" {
+		loaded, err := a.known("")
+		if err != nil {
+			return nil, err
+		}
+		l, ok := registry.Find(loaded, a.boardID)
+		if !ok {
+			return nil, fmt.Errorf("no board %q on this machine, see `kb boards`", a.boardID)
+		}
+		return l.Board, nil
+	}
 	root := a.dir
 	if root == "" {
 		found, err := board.FindRoot(".")

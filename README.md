@@ -5,9 +5,9 @@ läuft einmal auf dem Rechner, erkennt die Boards in den Projekten und zeigt sie
 einzeln oder zusammen.
 
 **Stand:** früher Entwurf. Das Format steht als Entwurf. Der Befehl `kb` kann
-ein Board lesen und prüfen, Karten anlegen, verschieben und zuweisen. Ändern kann er nur
-Boards mit `sync: none`; Git-Anbindung, die Anmeldung mehrerer Boards und die
-Oberfläche fehlen noch.
+Boards lesen und prüfen, Karten anlegen, verschieben und zuweisen und alle
+Boards des Rechners im Browser zeigen. Die Oberfläche zeigt nur an. Ändern kann
+`kb` nur Boards mit `sync: none`; die Git-Anbindung fehlt noch.
 
 - [Format und CLI](docs/spec.md)
 - [Beispiel-Board](examples/board)
@@ -72,6 +72,32 @@ kb done dunkles-design
 ```bash
 kb list --mine
 ```
+
+## Alle Boards im Browser
+
+Ein Board anmelden, oder gleich einen Ordner mit Projekten durchsuchen lassen:
+
+```bash
+kb add examples/board
+```
+
+```bash
+kb scan ~/Repos
+```
+
+```bash
+kb boards
+```
+
+Dann die Oberfläche starten. Sie öffnet sich im Browser, folgt Änderungen an
+den Dateien und läuft, bis man sie mit Strg+C beendet:
+
+```bash
+kb ui
+```
+
+Der Server ist nur vom eigenen Rechner aus erreichbar, und die Oberfläche
+ändert nichts an den Boards.
 
 ## Tests
 

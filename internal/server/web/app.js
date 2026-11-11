@@ -1,0 +1,360 @@
+// kardboard web UI. It shows what `kb ui` reads from disk and follows
+// changes; it changes nothing itself. No framework and no build step: the
+// page is rebuilt from the state whenever the state changes.
+
+import { render as markdown } from "./md.js";
+
+// ── Texts ───────────────────────────────────────────────────────────────────
+
+const TEXTS = {
+  en: {
+    filter: "Filter cards", projects: "Projects", only: "show only this project", all: "show all projects",
+    mine: "Only mine", mineHint: "kb does not know who you are. Set `user` in ~/.config/kardboard/config.yaml.",
+    open: "Open", doing: "In progress", done: "Done", none: "nothing here", more: (n) => `${n} more`, less: "show fewer",
+    boards: (n) => `${n} ${n === 1 ? "board" : "boards"}`, cards: (n) => `${n} ${n === 1 ? "card" : "cards"}`,
+    errors: (n) => `${n} ${n === 1 ? "error" : "errors"}`, warnings: (n) => `${n} ${n === 1 ? "warning" : "warnings"}`,
+    live: "live", offline: "offline", rescan: "look for new boards", close: "Close",
+    noBoardsTitle: "No boards yet",
+    noBoards: "Add the board of a project with `kb add <dir>`, or let kardboard find all boards below a directory with `kb scan <dir>`.",
+    allHidden: "All projects are hidden. Tick one on the left.",
+    noMatch: "No card matches.", column: "column", board: "board", limit: (n, max) => `${n} of ${max}`,
+  },
+  de: {
+    filter: "Karten filtern", projects: "Projekte", only: "nur dieses Projekt zeigen", all: "alle Projekte zeigen",
+    mine: "Nur meine", mineHint: "kb weiß nicht, wer du bist. Trag `user` in ~/.config/kardboard/config.yaml ein.",
+    open: "Offen", doing: "In Arbeit", done: "Erledigt", none: "nichts hier", more: (n) => `${n} weitere`, less: "weniger zeigen",
+    boards: (n) => `${n} ${n === 1 ? "Board" : "Boards"}`, cards: (n) => `${n} ${n === 1 ? "Karte" : "Karten"}`,
+    errors: (n) => `${n} Fehler`, warnings: (n) => `${n} ${n === 1 ? "Warnung" : "Warnungen"}`,
+    live: "live", offline: "getrennt", rescan: "nach neuen Boards suchen", close: "Schließen",
+    noBoardsTitle: "Noch keine Boards",
+    noBoards: "Melde das Board eines Projekts mit `kb add <ordner>` an, oder lass kardboard mit `kb scan <ordner>` alle Boards unter einem Ordner finden.",
+    allHidden: "Alle Projekte sind ausgeblendet. Hake links eines an.",
+    noMatch: "Keine Karte passt.", column: "Spalte", board: "Board", limit: (n, max) => `${n} von ${max}`,
+  },
+};
+const lang = (navigator.language || "en").toLowerCase().startsWith("de") ? "de" : "en";
+const t = TEXTS[lang];
+document.documentElement.lang = lang;
+
+// ── State ───────────────────────────────────────────────────────────────────
+
+const stored = (key, fallback) => {
+  try { return JSON.parse(localStorage.getItem("kb." + key)) ?? fallback; } catch { return fallback; }
+};
+const store = (key, value) => {
+  try { localStorage.setItem("kb." + key, JSON.stringify(value)); } catch { /* private mode: keep it in memory */ }
+};
+
+const state = {
+  data: null,           // answer of /api/state
+  error: "",            // why the state could not be loaded
+  live: false,          // whether the event stream is connected
+  hidden: stored("hidden", null), // keys of hidden boards; null = use the settings' default
+  mine: stored("mine", false),
+  filter: "",
+  expanded: new Set(),  // columns shown in full, as "boardKey/columnId"
+  open: null,           // { board, id, detail } of the card in the side panel
+};
+
+const COLLAPSE_AFTER = 8;
+const PALETTE = ["#2f9e44", "#7950f2", "#e8590c", "#1c7ed6", "#c2255c", "#0c8599", "#e67700", "#5c7cfa"];
+
+// A board keeps its colour as long as the set of boards does not change.
+const colourOf = (board) => PALETTE[Math.max(0, state.data.boards.indexOf(board)) % PALETTE.length];
+
+const isHidden = (board) => {
+  if (state.hidden === null) return state.data.hidden.includes(board.id);
+  return state.hidden.includes(board.key);
+};
+const visibleBoards = () => state.data.boards.filter((b) => !isHidden(b));
+const people = (card) => card.fields.assignee ?? [];
+
+function matches(card, board) {
+  if (state.mine && !people(card).includes(state.data.user)) return false;
+  const q = state.filter.trim().toLowerCase();
+  if (!q) return true;
+  const hay = [card.id, card.title, board.name, ...people(card), ...(card.fields.tags ?? [])].join(" ").toLowerCase();
+  return q.split(/\s+/).every((word) => hay.includes(word));
+}
+
+// ── Loading ─────────────────────────────────────────────────────────────────
+
+async function load(rescan = false) {
+  try {
+    const res = await fetch("/api/state" + (rescan ? "?rescan" : ""));
+    if (!res.ok) throw new Error(await res.text());
+    state.data = await res.json();
+    state.error = "";
+  } catch (err) {
+    state.error = String(err.message || err);
+  }
+  if (state.open) await loadDetail();
+  draw();
+}
+
+async function loadDetail() {
+  const { board, id } = state.open;
+  try {
+    const res = await fetch(`/api/card?board=${encodeURIComponent(board)}&id=${encodeURIComponent(id)}`);
+    state.open = res.ok ? { board, id, detail: await res.json() } : null; // the card is gone
+  } catch {
+    state.open = null;
+  }
+}
+
+async function openCard(board, card) {
+  state.open = { board: board.id, id: card.id, detail: null };
+  await loadDetail();
+  draw();
+}
+
+function follow() {
+  const events = new EventSource("/api/events");
+  events.onopen = () => { state.live = true; draw(); };
+  events.onerror = () => { state.live = false; draw(); };
+  events.addEventListener("change", () => load());
+}
+
+// ── DOM helper ──────────────────────────────────────────────────────────────
+
+// h builds an element. Text always goes in as text nodes, never as markup.
+function h(tag, props = {}, ...children) {
+  const el = document.createElement(tag);
+  for (const [key, value] of Object.entries(props)) {
+    if (value === false || value == null) continue;
+    if (key === "class") el.className = value;
+    else if (key.startsWith("on")) el.addEventListener(key.slice(2), value);
+    else if (key in el && typeof value !== "string") el[key] = value;
+    else el.setAttribute(key, value);
+  }
+  el.append(...children.flat(Infinity).filter((c) => c !== false && c != null));
+  return el;
+}
+
+const dot = (colour) => {
+  const el = h("span", { class: "dot", "aria-hidden": "true" });
+  el.style.background = colour;
+  return el;
+};
+
+// code turns `like this` in a UI text into <code> elements.
+const code = (text) => text.split("`").map((part, i) => (i % 2 ? h("code", {}, part) : part));
+
+// ── Drawing ─────────────────────────────────────────────────────────────────
+//
+// There is one view and no switch. What it shows follows from the ticked
+// projects: a single one appears as its board, several as an overview.
+
+function draw() {
+  const app = document.getElementById("app");
+  const focused = document.activeElement?.id;
+  const scroll = { main: app.querySelector("main")?.scrollTop ?? 0, detail: app.querySelector(".detail")?.scrollTop ?? 0 };
+
+  if (!state.data) {
+    app.replaceChildren(h("header", { class: "top" }, h("h1", { class: "brand" }, "kardboard")),
+      h("main", {}, state.error ? h("div", { class: "lane-error" }, state.error) : ""));
+    return;
+  }
+
+  app.replaceChildren(
+    drawTop(),
+    h("div", { class: "shell" + (state.open?.detail ? " with-detail" : "") },
+      drawSide(), drawMain(), state.open?.detail ? drawDetail() : null));
+
+  if (focused) {
+    const el = document.getElementById(focused);
+    el?.focus();
+    if (el?.id === "filter") el.setSelectionRange(el.value.length, el.value.length);
+  }
+  const main = app.querySelector("main");
+  if (main) main.scrollTop = scroll.main;
+  const detail = app.querySelector(".detail");
+  if (detail) detail.scrollTop = scroll.detail;
+}
+
+function drawTop() {
+  const boards = visibleBoards();
+  const cards = boards.reduce((n, b) => n + b.cards.length, 0);
+  const errors = boards.reduce((n, b) => n + b.errors, 0);
+  return h("header", { class: "top" },
+    h("h1", { class: "brand" }, "kardboard"),
+    h("input", {
+      id: "filter", class: "filter", type: "search", placeholder: t.filter, value: state.filter, "aria-label": t.filter,
+      oninput: (e) => { state.filter = e.target.value; draw(); },
+    }),
+    h("label", { class: "toggle" + (state.data.user ? "" : " off"), title: state.data.user ? "" : t.mineHint.replaceAll("`", "") },
+      h("input", {
+        type: "checkbox", checked: state.mine && !!state.data.user, disabled: !state.data.user,
+        onchange: (e) => { state.mine = e.target.checked; store("mine", state.mine); draw(); },
+      }),
+      t.mine),
+    h("span", { class: "spacer" }),
+    h("div", { class: "status" },
+      h("span", {}, t.boards(boards.length)),
+      h("span", {}, t.cards(cards)),
+      errors > 0 && h("span", { class: "badge bad" }, t.errors(errors)),
+      state.data.user && h("span", {}, "@" + state.data.user),
+      h("span", { class: "live" + (state.live ? " on" : "") }, state.live ? t.live : t.offline)));
+}
+
+// The side bar only chooses projects. The box shows or hides one; a click on
+// the name shows that project alone, and a second click brings all back.
+function drawSide() {
+  const setHidden = (keys) => { state.hidden = keys; store("hidden", keys); draw(); };
+  const toggle = (board) => {
+    const hidden = new Set(state.data.boards.filter(isHidden).map((b) => b.key));
+    hidden.has(board.key) ? hidden.delete(board.key) : hidden.add(board.key);
+    setHidden([...hidden]);
+  };
+  const alone = (board) => {
+    const visible = visibleBoards();
+    const isAlone = visible.length === 1 && visible[0] === board;
+    setHidden(isAlone ? [] : state.data.boards.filter((b) => b !== board).map((b) => b.key));
+  };
+  const visible = visibleBoards();
+
+  return h("aside", { class: "side" },
+    h("section", {},
+      h("h2", {}, t.projects),
+      state.data.boards.map((b) => {
+        const isAlone = visible.length === 1 && visible[0] === b;
+        return h("div", { class: "project" + (isHidden(b) ? " off" : "") },
+          h("input", { type: "checkbox", checked: !isHidden(b), "aria-label": b.name, onchange: () => toggle(b) }),
+          h("button", { type: "button", class: "pick", title: (isAlone ? t.all : t.only) + "\n" + b.root, onclick: () => alone(b) },
+            dot(colourOf(b)),
+            h("span", { class: "name" }, b.name),
+            h("span", { class: "count" }, b.error ? "!" : String(b.cards.length))));
+      }),
+      h("button", { class: "linkish", type: "button", onclick: () => load(true) }, t.rescan)));
+}
+
+function drawMain() {
+  if (state.error) return h("main", {}, h("div", { class: "lane-error" }, state.error));
+  if (state.data.boards.length === 0) {
+    return h("main", {}, h("div", { class: "empty" }, h("h2", {}, t.noBoardsTitle), h("p", {}, code(t.noBoards))));
+  }
+  const boards = visibleBoards();
+  if (boards.length === 0) return h("main", {}, h("div", { class: "empty" }, h("p", {}, t.allHidden)));
+  // One project shows its own columns. Several projects have different
+  // columns, so their cards meet in three shared ones.
+  return h("main", {}, boards.length === 1 ? drawLane(boards[0]) : drawOverview(boards));
+}
+
+function drawLane(board) {
+  const head = h("div", { class: "lane-head" },
+    h("h2", {}, dot(colourOf(board)), board.name),
+    !board.error && h("span", { class: "num" }, t.cards(board.cards.length)),
+    board.errors > 0 && h("span", { class: "badge bad" }, t.errors(board.errors)),
+    board.warnings > 0 && h("span", { class: "badge warn" }, t.warnings(board.warnings)),
+    h("span", { class: "path" }, board.root));
+  if (board.error) return h("section", { class: "lane" }, head, h("div", { class: "lane-error" }, board.error));
+
+  return h("section", { class: "lane" }, head,
+    h("div", { class: "columns" }, board.columns.map((col) => {
+      const all = board.cards.filter((c) => c.column === col.id);
+      const shown = all.filter((c) => matches(c, board));
+      const over = col.limit > 0 && all.length > col.limit;
+      return drawColumn(`${board.key}/${col.id}`, col.title,
+        col.limit > 0 ? h("span", { class: over ? "over" : "" }, t.limit(all.length, col.limit)) : String(shown.length),
+        shown.map((c) => drawCard(c, board, { done: col.done })));
+    })));
+}
+
+function drawOverview(boards) {
+  const groups = { open: [], doing: [], done: [] };
+  for (const board of boards) {
+    if (board.error) continue;
+    const kind = new Map(board.columns.map((c) => [c.id, c.done ? "done" : c.doing ? "doing" : "open"]));
+    for (const card of board.cards) {
+      if (matches(card, board)) groups[kind.get(card.column)].push({ card, board });
+    }
+  }
+  const broken = boards.filter((b) => b.error);
+  return [
+    broken.map((b) => h("div", { class: "lane-error" }, `${b.name}: ${b.error}`)),
+    h("div", { class: "columns" }, Object.entries(groups).map(([kind, entries]) =>
+      drawColumn("overview/" + kind, t[kind], String(entries.length),
+        entries.map(({ card, board }) => drawCard(card, board, { done: kind === "done", project: true }))))),
+  ];
+}
+
+function drawColumn(key, title, count, cards) {
+  const full = state.expanded.has(key);
+  const shown = full ? cards : cards.slice(0, COLLAPSE_AFTER);
+  const rest = cards.length - shown.length;
+  const toggle = () => { full ? state.expanded.delete(key) : state.expanded.add(key); draw(); };
+  return h("div", { class: "column" },
+    h("div", { class: "column-head" }, h("span", {}, title), h("span", {}, count)),
+    cards.length === 0 && h("p", { class: "none" }, state.filter || state.mine ? t.noMatch : t.none),
+    shown,
+    rest > 0 && h("button", { class: "more", type: "button", onclick: toggle }, "+ " + t.more(rest)),
+    full && cards.length > COLLAPSE_AFTER && h("button", { class: "more", type: "button", onclick: toggle }, t.less));
+}
+
+function drawCard(card, board, { done = false, project = false } = {}) {
+  const bad = (card.problems ?? []).some((p) => p.severity === "error");
+  const isOpen = state.open?.board === board.id && state.open?.id === card.id;
+  const meta = [];
+  if (project) meta.push(h("span", { class: "proj" }, dot(colourOf(board)), board.name));
+  for (const field of board.fields) {
+    const value = card.fields[field.name];
+    if (value == null) continue;
+    if (field.type === "enum") meta.push(h("span", { class: "chip" }, String(value)));
+    else if (field.name === "tags") meta.push(...value.map((tag) => h("span", {}, tag)));
+    else if (field.name === "due") {
+      const late = !done && value < new Date().toISOString().slice(0, 10);
+      meta.push(h("span", { class: late ? "overdue" : "" }, "→ " + value));
+    }
+  }
+  for (const name of people(card)) {
+    meta.push(h("span", { class: "who" + (name === state.data.user ? " me" : "") }, "@" + name));
+  }
+  // Only the first name is pushed to the right; the others follow it.
+  meta.filter((el) => el.classList.contains("who")).slice(1).forEach((el) => { el.style.marginLeft = "0"; });
+
+  return h("button", {
+    class: "card" + (bad ? " bad" : "") + (done ? " done" : "") + (isOpen ? " open" : ""),
+    type: "button", title: card.path, onclick: () => openCard(board, card),
+  }, h("span", { class: "title" }, code(card.title)), h("span", { class: "meta" }, meta));
+}
+
+function drawDetail() {
+  const card = state.open.detail;
+  const board = state.data.boards.find((b) => b.id === card.board);
+  const column = board?.columns.find((c) => c.id === card.column);
+  const close = () => { state.open = null; draw(); };
+
+  const rows = [];
+  for (const field of board?.fields ?? []) {
+    const value = card.fields[field.name];
+    if (value == null) continue;
+    rows.push(h("dt", {}, field.title), h("dd", {}, Array.isArray(value) ? value.join(", ") : String(value)));
+  }
+
+  // The title is shown as the panel's heading, so leave it out of the text.
+  const body = card.body.replace(/^\s*# .*\n?/, "");
+  const text = h("div", { class: "md" });
+  text.innerHTML = markdown(body); // md.js escapes everything it is given
+
+  return h("aside", { class: "detail", "aria-label": card.title },
+    h("div", { class: "detail-head" },
+      h("div", { class: "where" },
+        board && h("span", { class: "proj" }, dot(colourOf(board)), board.name), " · ", column?.title ?? card.column,
+        h("br"), card.path),
+      h("button", { class: "close", type: "button", "aria-label": t.close, title: t.close, onclick: close }, "×")),
+    h("h1", {}, code(card.title)),
+    rows.length > 0 && h("dl", { class: "fields" }, rows),
+    (card.problems ?? []).length > 0 && h("ul", { class: "problems" },
+      card.problems.map((p) => h("li", {}, `${p.code} ${p.message}`))),
+    text);
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && state.open) { state.open = null; draw(); }
+  if (e.key === "/" && document.activeElement?.tagName !== "INPUT") {
+    e.preventDefault();
+    document.getElementById("filter")?.focus();
+  }
+});
+
+load().then(follow);

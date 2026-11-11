@@ -304,8 +304,16 @@ hidden:
 | `scan` | Ordner, in denen kardboard nach `board.yaml` sucht |
 | `hidden` | Boards, die in der Gesamtansicht ausgeblendet sind |
 
-Die Variable `KARDBOARD_USER` geht dem Eintrag `user` vor. Zwei angemeldete
-Boards mit derselben `id` sind ein Fehler.
+Die Variable `KARDBOARD_USER` geht dem Eintrag `user` vor.
+
+Ein Board ist auf dem Rechner bekannt, wenn es unter `boards` steht oder unter
+einem Ordner aus `scan` liegt. Die Suche geht höchstens sechs Ebenen tief und
+lässt versteckte Ordner, `node_modules`, `vendor` und das Innere von Boards
+aus. Zwei bekannte Boards mit derselben `id` sind ein Fehler: Das erste behält
+die `id`, die anderen werden als unbrauchbar gemeldet.
+
+`kb add`, `kb remove` und `kb scan` ändern diese Datei. Kommentare und die
+Reihenfolge der Einträge bleiben erhalten, Leerzeilen nicht.
 
 ## CLI
 
@@ -322,7 +330,7 @@ Board:
 | `kb init [ordner]` | legt `board.yaml` und Spaltenordner an |
 | `kb lint` | prüft das Board |
 | `kb schema` | gibt das JSON Schema für den Kartenkopf aus |
-| `kb ui [--port n] [--no-open]` | startet den lokalen Server und öffnet das Board im Browser |
+| `kb ui [--port n] [--no-open]` | startet den lokalen Server und zeigt alle bekannten Boards im Browser, siehe [Oberfläche](#oberfläche) |
 
 Karten lesen:
 
@@ -350,9 +358,9 @@ Rechner:
 | Befehl | Wirkung |
 |---|---|
 | `kb boards` | listet angemeldete und gefundene Boards |
-| `kb add <pfad>` | meldet ein Board an |
-| `kb remove <id>` | meldet ein Board ab, löscht nichts |
-| `kb scan <ordner>` | nimmt einen Ordner in die Suche auf |
+| `kb add [ordner]` | meldet ein Board an. Der Ordner ist das Board oder liegt in seinem Projekt; ohne Angabe gilt der aktuelle |
+| `kb remove <id\|ordner>` | meldet ein Board ab, löscht nichts |
+| `kb scan <ordner>` | nimmt einen Ordner in die Suche auf, `--remove` nimmt ihn wieder heraus |
 | `kb sync` | holt und pusht bei Boards mit `sync: push` |
 
 Zum Anlegen:
@@ -404,6 +412,36 @@ Für alle Befehle gilt:
 - Die Oberfläche tut nichts, was das CLI nicht kann. Jede Aktion dort ist genau
   einer dieser Befehle.
 
+## Oberfläche
+
+`kb ui` startet einen Webserver auf dem eigenen Rechner und zeigt alle
+bekannten Boards. Steht man in einem Board, gehört es dazu, auch wenn es nicht
+angemeldet ist.
+
+- **Nur der eigene Rechner.** Der Server lauscht auf `127.0.0.1`, in der
+  Vorgabe auf Port 4712, und beantwortet nur Anfragen, die `localhost` als
+  Ziel nennen. Eine fremde Webseite im selben Browser kommt so nicht an die
+  Boards.
+- **Die Oberfläche liest nur.** Sie zeigt den Stand der Dateien und ändert
+  nichts. Ändernde Anfragen lehnt der Server ab.
+- **Sie folgt den Dateien.** Der Server prüft die Boards jede Sekunde auf
+  Änderungen und meldet sie der offenen Seite. Nach neuen Boards unter `scan`
+  sucht er alle 30 Sekunden und auf Wunsch sofort.
+- **Eine Ansicht, kein Umschalter.** Was sie zeigt, folgt aus den angehakten
+  Boards. Ist eines angehakt, erscheint es mit seinen eigenen Spalten. Sind es
+  mehrere, liegen ihre Karten in drei gemeinsamen Spalten: offen, in Arbeit
+  (`doing`), erledigt (`done`). Jede Karte zeigt dann, zu welchem Board sie
+  gehört.
+- **Ein- und Ausblenden.** Das Kästchen blendet ein Board ein oder aus, ein
+  Klick auf den Namen zeigt es allein. Welche Boards zu sehen sind, merkt sich
+  der Browser. `hidden` in den Einstellungen ist die Vorgabe, solange dort
+  noch nichts gewählt wurde.
+- **Filter.** Ein Suchfeld und „Nur meine“ wirken auf alles, was zu sehen ist.
+- **Fehler bleiben sichtbar.** Eine fehlerhafte Karte ist markiert und zeigt
+  ihre Verstöße, ein unbrauchbares Board zeigt den Grund.
+- **Keine Anfrage nach außen.** Alles, was die Seite braucht, steckt im
+  Programm.
+
 ## Offene Punkte
 
 - **Reihenfolge in einer Spalte.** Der Ordner kennt keine. Entweder sortiert das
@@ -418,4 +456,9 @@ Für alle Befehle gilt:
   damit die Regel für fremde Karten keine Ausnahme hat.
 - **Grenze je Person.** `limit` zählt die Karten der Spalte, nicht die einer
   Person.
+- **Ändern in der Oberfläche.** Heute zeigt sie nur an. Verschieben und
+  Zuweisen per Maus kommen dazu und laufen dann über dieselben Regeln wie das
+  CLI.
+- **`--all` für lesende Befehle.** `kb list --all` und `kb lint --all` über
+  alle bekannten Boards gibt es noch nicht.
 - **Sprache dieses Dokuments** vor einer Veröffentlichung.
