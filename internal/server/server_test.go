@@ -258,6 +258,20 @@ func TestWebUIIsServed(t *testing.T) {
 			t.Errorf("%s: status %d, body lacks %q", target, rec.Code, want)
 		}
 	}
+	// The fonts are part of the program, with their licence next to them.
+	for _, name := range []string{"JetBrainsMono-Regular.woff2", "JetBrainsMono-Medium.woff2"} {
+		rec := get(t, s, "/fonts/"+name)
+		if rec.Code != http.StatusOK || !strings.HasPrefix(rec.Body.String(), "wOF2") || rec.Header().Get("Content-Type") != "font/woff2" {
+			t.Errorf("%s: status %d, type %q", name, rec.Code, rec.Header().Get("Content-Type"))
+		}
+		if css := get(t, s, "/app.css").Body.String(); !strings.Contains(css, `url("fonts/`+name+`")`) {
+			t.Errorf("app.css does not use %s", name)
+		}
+	}
+	if rec := get(t, s, "/fonts/OFL.txt"); !strings.Contains(rec.Body.String(), "SIL Open Font License, Version 1.1") {
+		t.Error("the font licence is not shipped with the fonts")
+	}
+
 	rec := get(t, s, "/")
 	if csp := rec.Header().Get("Content-Security-Policy"); !strings.Contains(csp, "default-src 'self'") {
 		t.Errorf("Content-Security-Policy = %q", csp)

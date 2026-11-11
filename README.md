@@ -99,6 +99,14 @@ kb ui
 Der Server ist nur vom eigenen Rechner aus erreichbar, und die Oberfläche
 ändert nichts an den Boards.
 
+## Fremde Bestandteile
+
+Die Oberfläche nutzt die Schrift [JetBrains Mono](https://github.com/JetBrains/JetBrainsMono),
+Copyright 2020 The JetBrains Mono Project Authors, unter der SIL Open Font
+License 1.1. Die Schriftdateien und der Lizenztext liegen unter
+[internal/server/web/fonts](internal/server/web/fonts) und sind ins Programm
+eingebettet. Die Lizenz gilt nur für die Schrift.
+
 ## Tests
 
 ```bash
