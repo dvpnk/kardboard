@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <title>Kardboard</title>
+  <g fill="#111111">
+    <path d="M2 2h6v28H2z"/>
+    <path fill-rule="evenodd" d="M24 2h6v28h-6C22 25 6 23 6 16S22 7 24 2ZM24 8C20 12 12 12 12 16s8 4 12 8Z"/>
+  </g>
+</svg>
