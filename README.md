@@ -5,7 +5,7 @@ läuft einmal auf dem Rechner, erkennt die Boards in den Projekten und zeigt sie
 einzeln oder zusammen.
 
 **Stand:** früher Entwurf. Das Format steht als Entwurf. Der Befehl `kb` kann
-Boards lesen und prüfen, Karten anlegen, verschieben und zuweisen und alle
+Boards anlegen, lesen und prüfen, Karten anlegen, verschieben und zuweisen und alle
 Boards des Rechners im Browser zeigen. Dort lassen sich Karten auch ziehen,
 nehmen und zuweisen. Mit `sync: commit` oder `sync: push` in der `board.yaml`
 macht `kb` aus jeder Änderung einen Commit und gleicht das Board mit seinem
@@ -74,6 +74,25 @@ kb done dunkles-design
 ```bash
 kb list --mine
 ```
+
+## Eigenes Board anlegen
+
+Im Projekt, in einem neuen Ordner:
+
+```bash
+kb init board
+```
+
+Das schreibt eine `board.yaml` mit den Spalten `backlog`, `working_on` und
+`done` und meldet das Board auf dem Rechner an. Gibt es schon Ordner mit
+Markdown-Dateien, werden sie die Spalten; keine Datei wird dabei geändert:
+
+```bash
+kb init ~/Repos/notizen
+```
+
+Was an den vorhandenen Karten noch nicht zum Format passt, zeigt danach
+`kb lint`.
 
 ## Alle Boards im Browser
 

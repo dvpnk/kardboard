@@ -757,3 +757,122 @@ func TestPushBoard(t *testing.T) {
 		t.Errorf("move: code %d, err %q", code, errOut)
 	}
 }
+
+// ── kb init ─────────────────────────────────────────────────────────────────
+
+func put(t *testing.T, root string, files ...string) {
+	t.Helper()
+	for _, rel := range files {
+		path := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("# "+rel+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestInitInAnEmptyDirectory(t *testing.T) {
+	home, configFile := machine(t)
+	root := filepath.Join(home, "Mein Projekt", "board") // does not exist yet
+
+	code, out, errOut := kb(t, "init", root)
+	if code != ExitOK || errOut != "" {
+		t.Fatalf("code %d, out %q, err %q", code, out, errOut)
+	}
+	want := "kardboard: 1\nid: mein-projekt\nsync: none\n\ncolumns:\n  - id: backlog\n  - id: working_on\n    doing: true\n  - id: done\n    done: true\n"
+	if got := readFile(t, root, "board.yaml"); got != want {
+		t.Errorf("board.yaml = %q", got)
+	}
+	for _, line := range []string{"mein-projekt: board in ~/Mein Projekt/board", "columns created: backlog, working_on, done", "added to this machine"} {
+		if !strings.Contains(out, line) {
+			t.Errorf("out %q lacks %q", out, line)
+		}
+	}
+	if cfg := readFile(t, filepath.Dir(configFile), "config.yaml"); !strings.Contains(cfg, "~/Mein Projekt/board") {
+		t.Errorf("settings = %q, want the board in them", cfg)
+	}
+
+	// The new board works right away.
+	if code, out, _ := kb(t, "lint", "-C", root); code != ExitOK || out != "0 cards, 0 errors, 0 warnings\n" {
+		t.Errorf("lint: code %d, out %q", code, out)
+	}
+	if code, out, errOut := kb(t, "new", "Erste Karte", "-b", "mein-projekt"); code != ExitOK || out != "backlog/erste-karte.md\n" {
+		t.Errorf("new: code %d, out %q, err %q", code, out, errOut)
+	}
+
+	// A board is never written over.
+	code, _, errOut = kb(t, "init", root, "--id", "anders")
+	if code != ExitUsage || !strings.Contains(errOut, "is a board already") || readFile(t, root, "board.yaml") != want {
+		t.Errorf("second init: code %d, err %q", code, errOut)
+	}
+}
+
+func TestInitAdoptsDirectoriesWithCards(t *testing.T) {
+	home, _ := machine(t)
+	root := filepath.Join(home, "zettel")
+	put(t, root,
+		"done/a.md", "backlog/b.md", "backlog/c.md", "planning/d.md",
+		"working_on/sam/e.md",      // a directory per person still makes a column
+		"reference/notes.md",       // unknown name: goes in the middle
+		"bin/tool.sh", "README.md", // no cards: not columns
+		".github/x.md", "Mit Leerzeichen/y.md", // not usable as column ids
+	)
+	code, out, errOut := kb(t, "init", "-C", root, "--name", "Zettel: alle", "--no-add")
+	if code != ExitOK || errOut != "" {
+		t.Fatalf("code %d, out %q, err %q", code, out, errOut)
+	}
+	want := "kardboard: 1\nid: zettel\nname: 'Zettel: alle'\nsync: none\n\ncolumns:\n  - id: planning\n  - id: backlog\n  - id: reference\n  - id: working_on\n    doing: true\n  - id: done\n    done: true\n"
+	if got := readFile(t, root, "board.yaml"); got != want {
+		t.Errorf("board.yaml = %q", got)
+	}
+	if !strings.Contains(out, "columns found: planning, backlog, reference, working_on, done") || !strings.Contains(out, "5 cards") || strings.Contains(out, "added") {
+		t.Errorf("out = %q", out)
+	}
+	// Nothing was moved or changed.
+	if readFile(t, root, "working_on/sam/e.md") != "# working_on/sam/e.md\n" || isFile(root, "bin/board.yaml") {
+		t.Error("init touched the files")
+	}
+	if code, out, _ := kb(t, "boards"); code != ExitOK || strings.Contains(out, "zettel") {
+		t.Errorf("boards: code %d, out %q, want the board not added", code, out)
+	}
+}
+
+func TestInitOptions(t *testing.T) {
+	home, _ := machine(t)
+	root := filepath.Join(home, "x")
+
+	// A wrong value leaves nothing behind.
+	for _, args := range [][]string{{"--sync", "always"}, {"--id", "Nicht Gut"}, {"--columns", "a,a"}, {"--columns", "Spalte Eins"}} {
+		code, _, errOut := kb(t, append([]string{"init", root}, args...)...)
+		if _, err := os.Stat(root); code != ExitUsage || errOut == "" || err == nil {
+			t.Errorf("%v: code %d, err %q", args, code, errOut)
+		}
+	}
+
+	code, out, errOut := kb(t, "init", root, "--id", "team", "--sync", "push", "--columns", "todo, doing ,closed", "--json")
+	if code != ExitOK {
+		t.Fatalf("code %d, out %q, err %q", code, out, errOut)
+	}
+	var res struct {
+		ID      string
+		Columns []string
+		Adopted bool
+		Added   bool
+	}
+	if err := json.Unmarshal([]byte(out), &res); err != nil || res.ID != "team" || len(res.Columns) != 3 || res.Adopted || !res.Added {
+		t.Errorf("json %s, err %v", out, err)
+	}
+	want := "kardboard: 1\nid: team\nsync: push\n\ncolumns:\n  - id: todo\n  - id: doing\n    doing: true\n  - id: closed\n    done: true\n"
+	if got := readFile(t, root, "board.yaml"); got != want {
+		t.Errorf("board.yaml = %q", got)
+	}
+
+	// A second board with the same id is created, but not added.
+	other := filepath.Join(home, "y")
+	code, out, errOut = kb(t, "init", other, "--id", "team")
+	if code != ExitOK || !isFile(other, "board.yaml") || !strings.Contains(errOut, "already used") || strings.Contains(out, "added") {
+		t.Errorf("same id: code %d, out %q, err %q", code, out, errOut)
+	}
+}

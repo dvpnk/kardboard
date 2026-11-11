@@ -120,6 +120,110 @@ func (a *app) boardsCmd() *cobra.Command {
 	}
 }
 
+// ── kb init ─────────────────────────────────────────────────────────────────
+
+type initResult struct {
+	*board.InitResult
+	Cards  int `json:"cards"`
+	Errors int `json:"errors"`
+	// Added says whether the board is now known on this machine.
+	Added bool `json:"added"`
+}
+
+func (a *app) initCmd() *cobra.Command {
+	var opt board.InitOptions
+	var columns string
+	var noAdd bool
+	cmd := &cobra.Command{
+		Use:   "init [dir]",
+		Short: "Turn a directory into a board",
+		Long:  "Write a board.yaml into a directory. Directories in it that already hold Markdown files become the columns, and no file is changed or moved. An empty directory gets the columns backlog, working_on and done. The board is then made known on this machine, like `kb add`.",
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			dir := "."
+			switch {
+			case len(args) == 1:
+				dir = userconfig.Expand(args[0])
+			case a.dir != "":
+				dir = userconfig.Expand(a.dir)
+			}
+			for _, c := range strings.Split(columns, ",") {
+				if c = strings.TrimSpace(c); c != "" {
+					opt.Columns = append(opt.Columns, c)
+				}
+			}
+			made, err := board.Init(dir, opt)
+			if err != nil {
+				return err
+			}
+			res := initResult{InitResult: made}
+			b, err := board.Load(made.Root)
+			if err != nil {
+				return err
+			}
+			res.Cards = len(b.Cards)
+			for _, p := range b.Problems() {
+				if p.Severity == board.SeverityError {
+					res.Errors++
+				}
+			}
+
+			// Not being able to add the board is no reason to fail: the
+			// board exists, and `kb add` can be repeated.
+			var addErr error
+			if !noAdd {
+				addErr = a.addKnown(made.Root, made.ID)
+				res.Added = addErr == nil
+			}
+			if a.asJSON {
+				return a.printJSON(res)
+			}
+			how := "created"
+			if made.Adopted {
+				how = "found"
+			}
+			fmt.Fprintf(a.out, "%s: board in %s\n", made.ID, userconfig.Abbrev(made.Root))
+			fmt.Fprintf(a.out, "  columns %s: %s\n", how, strings.Join(made.Columns, ", "))
+			if res.Cards > 0 {
+				fmt.Fprintf(a.out, "  %s", plural(res.Cards, "card"))
+				if res.Errors > 0 {
+					fmt.Fprintf(a.out, ", %s; see `kb lint -C %s`", plural(res.Errors, "error"), userconfig.Abbrev(made.Root))
+				}
+				fmt.Fprintln(a.out)
+			}
+			switch {
+			case addErr != nil:
+				fmt.Fprintf(a.errOut, "kb: the board is not added to this machine: %s\n", addErr)
+			case res.Added:
+				fmt.Fprintln(a.out, "  added to this machine, `kb ui` shows it")
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&opt.ID, "id", "", "id of the board (default: derived from the directory name)")
+	cmd.Flags().StringVar(&opt.Name, "name", "", "display name of the board")
+	cmd.Flags().StringVar(&opt.Sync, "sync", "", "none, commit or push (default: none)")
+	cmd.Flags().StringVar(&columns, "columns", "", "columns in order, separated by commas (default: the directories that hold cards)")
+	cmd.Flags().BoolVar(&noAdd, "no-add", false, "do not make the board known on this machine")
+	return cmd
+}
+
+// addKnown makes the board in root known on this machine, unless another
+// known board already uses its id.
+func (a *app) addKnown(root, id string) error {
+	loaded, err := a.known("")
+	if err != nil {
+		return err
+	}
+	for _, l := range loaded {
+		if l.ID() == id && l.Root != root {
+			return fmt.Errorf("id %q is already used by the board in %s; ids must differ", id, userconfig.Abbrev(l.Root))
+		}
+	}
+	_, err = userconfig.AddToList(userconfig.KeyBoards, root)
+	return err
+}
+
 // ── kb add, remove, scan ────────────────────────────────────────────────────
 
 func (a *app) addCmd() *cobra.Command {

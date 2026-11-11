@@ -362,7 +362,7 @@ Board:
 
 | Befehl | Wirkung |
 |---|---|
-| `kb init [ordner]` | legt `board.yaml` und Spaltenordner an |
+| `kb init [ordner] [--id kürzel] [--name name] [--sync modus] [--columns a,b,c] [--no-add]` | macht einen Ordner zum Board, siehe unten |
 | `kb lint` | prüft das Board |
 | `kb schema` | gibt das JSON Schema für den Kartenkopf aus |
 | `kb ui [--port n] [--no-open]` | startet den lokalen Server und zeigt alle bekannten Boards im Browser, siehe [Oberfläche](#oberfläche) |
@@ -397,6 +397,33 @@ Rechner:
 | `kb remove <id\|ordner>` | meldet ein Board ab, löscht nichts |
 | `kb scan <ordner>` | nimmt einen Ordner in die Suche auf, `--remove` nimmt ihn wieder heraus |
 | `kb sync` | holt, was auf dem Remote neu ist, und pusht, was hier wartet. Nur für Boards mit `sync: push` |
+
+Zu `kb init`:
+
+- **Es schreibt die `board.yaml` und sonst nichts um.** Keine vorhandene
+  Datei wird geändert oder verschoben. Eine vorhandene `board.yaml` wird nie
+  überschrieben. Ohne Angabe gilt der aktuelle Ordner; fehlt der genannte
+  Ordner, entsteht er.
+- **Vorhandene Ordner werden die Spalten.** Jeder Unterordner, der
+  Markdown-Dateien enthält, direkt oder eine Ebene tiefer, wird eine Spalte,
+  wenn sein Name als Spaltenkürzel taugt. Bekannte Namen kommen in die
+  übliche Reihenfolge (`planning`, `backlog`, …, `working_on`, …, `done`),
+  unbekannte dazwischen. `working_on`, `doing`, `in_progress` oder `wip`
+  bekommt `doing: true`; `done`, `finished` oder `closed` bekommt
+  `done: true`. Was nicht passt, ändert man danach in der `board.yaml`.
+- **Ein Ordner ohne solche Unterordner** bekommt `backlog`, `working_on` und
+  `done`.
+- **`--columns`** nennt die Spalten selbst, in ihrer Reihenfolge.
+- **Die `id`** kommt aus dem Ordnernamen, gebildet wie ein Kartenkürzel.
+  Heißt der Ordner `board`, `kanban` oder `cards`, gilt der Name des Ordners
+  darüber.
+- **`--sync`** setzt den Git-Modus, Vorgabe `none`. `kb init` selbst
+  committet nichts.
+- **Das Board wird auf dem Rechner angemeldet**, wie mit `kb add`.
+  `--no-add` lässt das weg. Trägt schon ein anderes Board dieselbe `id`,
+  entsteht das Board trotzdem, bleibt aber unangemeldet, und `kb` sagt das.
+- **Am Ende steht, was vorgefunden wurde:** die Spalten, die Zahl der Karten
+  und wie viele davon eine Regel verletzen.
 
 Zum Anlegen:
 
