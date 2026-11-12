@@ -80,6 +80,13 @@ Commit.
 kb edit dunkles-design
 ```
 
+`kb rename` gibt einer Karte einen neuen Dateinamen und zieht die Verweise
+im Board nach:
+
+```bash
+kb rename dunkles-design dark-mode
+```
+
 ```bash
 kb list --mine
 ```

@@ -270,7 +270,8 @@ Für `commit` und `push` muss das Board in einem Git-Repository liegen, für
 `kb` jede Änderung ab und sagt, was fehlt.
 
 **Ein Commit je Aktion.** Er enthält genau die eine Karte, auch wenn im
-Repository anderes geändert oder vorgemerkt ist; das bleibt unberührt. Wo
+Repository anderes geändert oder vorgemerkt ist; das bleibt unberührt. Nur
+`kb rename` nimmt dazu die Karten, deren Verweise es nachzieht. Wo
 nichts zu ändern ist, entsteht kein Commit. Scheitert der Commit, etwa an
 einem Hook, liegt die Karte danach wieder, wie sie war.
 
@@ -288,6 +289,7 @@ assign export-als-pdf: alex, sam
 unassign export-als-pdf
 edit export-als-pdf
 new export-als-pdf
+rename druckvorlagen -> print-templates
 ```
 
 `edit` steht für jede Änderung an anderen Feldern als `assignee` und am
@@ -387,7 +389,7 @@ Karten ändern:
 | `kb unassign <karte> [person…]` | bleibt | entfällt, mit Namen nur diese | gibt die Karte frei |
 | `kb set <karte> feld=wert …` | bleibt | bleibt | ändert Felder im Kopf, `feld=` entfernt eines |
 | `kb edit <karte>` | bleibt | wie im Editor geändert | öffnet die Karte im Editor und speichert sie als eine Änderung, siehe unten |
-| `kb rename <karte> <neu>` | | | benennt um und zieht Verweise nach |
+| `kb rename <karte> <neu>` | bleibt | bleibt | benennt um und zieht Verweise nach, siehe unten |
 
 Rechner:
 
@@ -415,6 +417,22 @@ Zu `kb edit`:
   `kb edit` gar nicht erst. Hätte die Kopie Fehler, die die Karte nicht
   hatte (E02 bis E05, E07), oder hat sich die Karte inzwischen geändert,
   bleibt die Karte, wie sie war, und `kb` nennt den Ort der Kopie.
+
+Zu `kb rename`:
+
+- **Nur der Dateiname ändert sich.** Die Karte bleibt in ihrer Spalte, ihr
+  Inhalt bleibt, wie er war. Der neue Name muss ein gültiges Kürzel sein,
+  das es im Board noch nicht gibt.
+- **Verweise ziehen nach.** Jedes Feld vom Typ `cards` im selben Board, das
+  die Karte nennt, ob als `druckvorlagen` oder als `<board>/druckvorlagen`,
+  nennt danach den neuen Namen. Geändert wird nur diese Zeile des Kopfes.
+  Das gilt auch für Karten anderer Personen, denn ihr Inhalt ändert sich
+  nicht. Verweise aus anderen Boards und Erwähnungen im Text bleiben, wie
+  sie sind; `kb lint` zeigt, was danach ins Leere zeigt.
+- **Eine fremde Karte braucht `--force`,** wie bei jeder anderen Änderung.
+- **Ein Commit.** Auf Boards mit `sync: commit` oder `push` enthält er die
+  Karte und jede Karte, deren Verweis nachgezogen wurde. Keine davon darf
+  Änderungen ohne Commit haben.
 
 Zu `kb init`:
 

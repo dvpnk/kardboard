@@ -61,7 +61,7 @@ func Run(args []string, out, errOut io.Writer) int {
 	root.PersistentFlags().BoolVar(&a.asJSON, "json", false, "print JSON")
 	root.MarkFlagsMutuallyExclusive("dir", "board")
 	root.AddCommand(a.initCmd(), a.lintCmd(), a.listCmd(), a.showCmd())
-	root.AddCommand(a.newCmd(), a.moveCmd(), a.takeCmd(), a.doneCmd(), a.assignCmd(), a.unassignCmd(), a.setCmd(), a.editCmd())
+	root.AddCommand(a.newCmd(), a.moveCmd(), a.takeCmd(), a.doneCmd(), a.assignCmd(), a.unassignCmd(), a.setCmd(), a.editCmd(), a.renameCmd())
 	root.AddCommand(a.boardsCmd(), a.addCmd(), a.removeCmd(), a.scanCmd(), a.syncCmd(), a.uiCmd())
 
 	err := root.Execute()

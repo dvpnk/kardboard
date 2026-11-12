@@ -418,6 +418,73 @@ func New(ctx context.Context, b *board.Board, title string, opt board.NewOptions
 	return c, out, nil
 }
 
+// Rename renames a card and does what the board's sync mode asks for. With
+// sync: commit or push it is one commit "rename <old> -> <new>" that holds
+// the card and every card whose references were updated. None of them may
+// have changes waiting to be committed. If the commit cannot be made,
+// everything is put back. As with Change, a *PushError comes together with
+// the result.
+func Rename(ctx context.Context, b *board.Board, id, newID string, opt board.RenameOptions) (*board.RenameResult, Outcome, error) {
+	var out Outcome
+	if b.Config == nil || b.Config.Sync == ModeNone {
+		res, err := b.Rename(id, newID, opt)
+		return res, out, err
+	}
+	if err := ready(ctx, b); err != nil {
+		return nil, out, err
+	}
+	// Every card the rename may touch must be committed: the card and
+	// those that refer to anything at all, which is cheap to ask for.
+	var paths []string
+	for _, c := range b.Cards {
+		if c.ID == strings.TrimSuffix(id, ".md") || len(c.Refs()) > 0 {
+			paths = append(paths, c.Path)
+		}
+	}
+	lctx, cancel := local(ctx)
+	defer cancel()
+	if len(paths) > 0 {
+		changed, err := dirty(lctx, b.Root, paths...)
+		if err != nil {
+			return nil, out, err
+		}
+		if len(changed) > 0 {
+			return nil, out, fmt.Errorf("%s has changes that are not committed yet; commit them first", strings.Join(changed, ", "))
+		}
+	}
+
+	res, err := b.Rename(id, newID, opt)
+	if err != nil {
+		if res != nil {
+			// Renamed, but a reference could not be written: put it all back.
+			_ = os.Remove(filepath.Join(b.Root, filepath.FromSlash(res.NewPath)))
+			_, _ = git(lctx, b.Root, append([]string{"checkout", "--quiet", "HEAD", "--", res.Path}, res.Updated...)...)
+		}
+		return nil, out, err
+	}
+	touched := append([]string{res.Path, res.NewPath}, res.Updated...)
+	if err := commit(lctx, b.Root, []string{fmt.Sprintf("rename %s -> %s", res.ID, res.NewID)}, touched...); err != nil {
+		_, _ = git(lctx, b.Root, "reset", "--quiet", "--", res.NewPath)
+		_ = os.Remove(filepath.Join(b.Root, filepath.FromSlash(res.NewPath)))
+		if _, undoErr := git(lctx, b.Root, append([]string{"checkout", "--quiet", "HEAD", "--", res.Path}, res.Updated...)...); undoErr != nil {
+			return nil, out, fmt.Errorf("git commit failed (%w), and the cards could not be put back: %v", err, undoErr)
+		}
+		return nil, out, fmt.Errorf("nothing was renamed, because git commit failed: %w", err)
+	}
+	out.Commit = head(lctx, b.Root)
+	if b.Config.Sync == ModePush {
+		if err := push(ctx, b.Root, res.NewID); err != nil {
+			var pe *PushError
+			if errors.As(err, &pe) {
+				return res, out, err
+			}
+			return nil, out, err
+		}
+		out.Commit, out.Pushed = head(lctx, b.Root), true
+	}
+	return res, out, nil
+}
+
 // push sends the commit just made. If the remote refuses because someone
 // was faster, it pulls and tries once more. If the others changed the very
 // same card, the own commit is taken back, their state is pulled in, and a

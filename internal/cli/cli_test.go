@@ -936,3 +936,44 @@ func TestEditCommand(t *testing.T) {
 		t.Errorf("dirty: code %d, err %q", code, errOut)
 	}
 }
+
+func TestRenameCommand(t *testing.T) {
+	asUser(t, "alex")
+	root := syncRepo(t, "commit")
+
+	code, out, errOut := kb(t, "rename", "druckvorlagen", "print-templates", "-C", root)
+	if code != ExitOK || !strings.HasPrefix(out, "backlog/druckvorlagen.md -> backlog/print-templates.md  (commit ") ||
+		!strings.Contains(out, "references updated in backlog/export-als-pdf.md") {
+		t.Fatalf("rename: code %d, out %q, err %q", code, out, errOut)
+	}
+	if isFile(root, "backlog/druckvorlagen.md") || !isFile(root, "backlog/print-templates.md") {
+		t.Error("file was not renamed")
+	}
+	if got := readFile(t, root, "backlog/export-als-pdf.md"); !strings.Contains(got, "depends_on: [print-templates]") {
+		t.Errorf("reference not updated:\n%s", got)
+	}
+	// One commit with the card and the reference, nothing left over.
+	if got := gitIn(t, root, "log", "-1", "--format=%s"); got != "rename druckvorlagen -> print-templates" {
+		t.Errorf("commit = %q", got)
+	}
+	if got := gitIn(t, root, "show", "--name-only", "--no-renames", "--format=", "HEAD"); got != "backlog/druckvorlagen.md\nbacklog/export-als-pdf.md\nbacklog/print-templates.md" {
+		t.Errorf("files in the commit = %q", got)
+	}
+	if got := gitIn(t, root, "status", "--porcelain"); got != "" {
+		t.Errorf("left over: %q", got)
+	}
+	code, _, _ = kb(t, "lint", "-C", root)
+	if code != ExitOK {
+		t.Error("board is not valid after the rename")
+	}
+
+	// A referring card with changes that are not committed stops it.
+	path := filepath.Join(root, "backlog", "export-als-pdf.md")
+	if err := os.WriteFile(path, []byte(readFile(t, root, "backlog/export-als-pdf.md")+"x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	code, _, errOut = kb(t, "rename", "print-templates", "druck", "-C", root)
+	if code == ExitOK || !strings.Contains(errOut, "not committed") || !isFile(root, "backlog/print-templates.md") {
+		t.Errorf("dirty reference: code %d, err %q", code, errOut)
+	}
+}

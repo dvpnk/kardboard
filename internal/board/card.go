@@ -40,6 +40,9 @@ type Card struct {
 	rejected []string
 }
 
+// Refs returns the targets of the card's fields of type cards.
+func (c *Card) Refs() []string { return c.refs }
+
 // Assignees returns whose card it is. An empty list means it is nobody's.
 func (c *Card) Assignees() []string {
 	names, _ := c.Fields[FieldAssignee].([]string)
