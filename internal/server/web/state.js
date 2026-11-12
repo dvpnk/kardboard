@@ -33,6 +33,7 @@ export const state = {
   syncing: null,        // key of the board that is being synced with its remote right now
   drag: null,           // { board, card } while a card is being dragged
   edit: null,           // { key, draft } while the fields of the open card are being edited, see fields.js
+  room: false,          // whether the columns have room to move out from under the panel, see Detail
 };
 
 let rerender = () => {};

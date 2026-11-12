@@ -21,6 +21,19 @@ const ICONS = {
   commit: () => html`<circle cx="12" cy="12" r="3.5"/><path d="M12 3v5.5M12 15.5V21"/>`,
   // the menu: bring a board level with its remote
   remote: () => html`<path d="M4 11a8 8 0 0 1 14-4.6l2 2.1"/><path d="M20 4v4.5h-4.5"/><path d="M20 13a8 8 0 0 1-14 4.6l-2-2.1"/><path d="M4 20v-4.5h4.5"/>`,
+  // the fields of a card, in the panel: by name for the usual ones, else
+  // by type (see fields.js)
+  calendar: () => html`<rect x="4" y="5.5" width="16" height="14.5" rx="1.5"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/>`,
+  tag: () => html`<path d="M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7l8.3 8.3-8.7 8.7z"/><circle cx="8.3" cy="8.3" r="1.2"/>`,
+  link: () => html`<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>`,
+  flag: () => html`<path d="M5 21V4"/><path d="M5 4h12l-2.5 4 2.5 4H5"/>`,
+  size: () => html`<rect x="3" y="8" width="18" height="8" rx="1"/><path d="M7 8v3M11 8v4M15 8v3"/>`,
+  number: () => html`<path d="M9.5 4 7.5 20M16.5 4l-2 16M4.5 9h15.5M4 15h15.5"/>`,
+  check: () => html`<rect x="4" y="4" width="16" height="16" rx="2"/><path d="m8.5 12 2.5 2.5 5-5"/>`,
+  text: () => html`<path d="M5 6h14M5 12h14M5 18h9"/>`,
+  choice: () => html`<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5"/>`,
+  // the panel: change the fields of the card
+  pencil: () => html`<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>`,
   // a bug: the card breaks a rule of the format
   bug: () => html`<ellipse cx="12" cy="14" rx="5" ry="6"/><path d="M9 8.6a3 3 0 0 1 6 0"/><path d="M9.5 5.5 8 3.5M14.5 5.5 16 3.5"/><path d="M7 12H3.5M7.2 16.5 4 18M17 12h3.5M16.8 16.5 20 18M12 9v11"/>`,
 };

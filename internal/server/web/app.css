@@ -39,6 +39,7 @@
   /* Every button, field and menu trigger has this height and the same type
      size, wherever it sits. */
   --control: 30px;
+  --panel: clamp(380px, 34vw, 760px); /* width of the panel on the right */
   --mono: "JetBrains Mono", ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   color-scheme: light;
@@ -124,6 +125,16 @@ button { cursor: pointer; }
 }
 .menu-button:hover, .menu-button.is-open, .panel-close:hover,
 .act-button:hover, .act-select:hover, .notice-button:hover, .act-remove:hover, .field-select:hover, .field-button:hover { background: var(--hover); }
+/* Pickers: the browser's own arrow is drawn differently in each browser and
+   sits at the very edge. This one is drawn here, as far in from the right
+   as the text is from the left. */
+.act-select, .field-select { appearance: none; -webkit-appearance: none; padding-right: 28px; cursor: pointer; }
+.act-pick, .field-pick { position: relative; display: inline-flex; }
+.act-pick::after, .field-pick::after {
+  content: ""; position: absolute; right: 11px; top: 50%; width: 5px; height: 5px; pointer-events: none;
+  border-right: 1.5px solid var(--dim); border-bottom: 1.5px solid var(--dim);
+  transform: translateY(-70%) rotate(45deg);
+}
 .filter-search:hover, .act-input:hover, .field-input:hover, .field-date:hover { border-color: var(--dim); }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 
@@ -326,8 +337,7 @@ button { cursor: pointer; }
 
 /* ── Shell ───────────────────────────────────────────────────────────────── */
 
-.shell { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 0; }
-.shell.is-split { grid-template-columns: minmax(0, 1fr) minmax(360px, 520px); }
+.shell { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); min-height: 0; }
 
 .shell-main { overflow: auto; padding: 14px 16px 40px; min-width: 0; }
 
@@ -343,12 +353,21 @@ button { cursor: pointer; }
 /* ── Columns ─────────────────────────────────────────────────────────────── */
 
 /* Columns share the width while it is scarce and stop growing at 320px:
-   wider than that, a card's title and its facts drift too far apart. */
+   wider than that, a card's title and its facts drift too far apart. When
+   they do not fit, the board area scrolls sideways, not this row: the row
+   is only as high as its longest column, the board area reaches the bottom
+   of the window, and that is where the scrollbar belongs. */
 .cols {
   display: grid; grid-auto-flow: column; grid-auto-columns: minmax(220px, 320px);
-  justify-content: start; gap: 10px; overflow-x: auto; padding-bottom: 4px;
+  justify-content: start; gap: 10px;
 }
 .col { background: var(--sunken); border-radius: var(--radius); padding: 8px 6px 6px; min-width: 0; align-self: start; }
+/* When the panel covers the open card, the row of columns can be scrolled
+   on past its last column by the panel's width, so the card can be moved
+   out from under it. The space is no column: the columns keep their
+   width. */
+.shell.is-room .col:last-child { position: relative; }
+.shell.is-room .col:last-child::after { content: ""; position: absolute; top: 0; left: 100%; width: calc(var(--panel) + 16px); height: 1px; }
 /* The column for work in progress stands out a little: it is where the
    eye should land first. */
 .col.is-doing { background: var(--doing); }
@@ -412,7 +431,7 @@ button { cursor: pointer; }
 .card-due, .card-people { flex: none; }
 /* Size and milestone are small filled marks. A frame is reserved for
    things one can click, so a mark must not have one. */
-.card-chip {
+.card-chip, .field-chip {
   font: 10px/1.7 var(--mono); color: var(--dim);
   background: var(--badge); border-radius: var(--radius); padding: 0 5px;
 }
@@ -440,18 +459,28 @@ button { cursor: pointer; }
 
 /* ── Panel on the right ──────────────────────────────────────────────────── */
 
+/* The panel lies over the board instead of taking width from it, so the
+   board does not move when a card opens. It grows with the window. The
+   board behind it stays as it is: a click on a card opens that one. */
 .panel {
+  position: absolute; top: 0; right: 0; bottom: 0;
+  width: var(--panel);
   border-left: 1px solid var(--border);
   background: var(--surface);
+  box-shadow: -8px 0 28px rgba(0, 0, 0, 0.10);
   overflow-y: auto;
   padding: 14px 18px 40px;
 }
+/* The heading sits beside the button that closes the panel; the first line
+   of the heading is level with the button. */
 .panel-head { display: flex; align-items: flex-start; gap: 10px; }
-.panel-where { flex: 1; min-width: 0; font: 12px var(--mono); color: var(--dim); overflow-wrap: anywhere; }
-.panel-project { display: flex; align-items: center; gap: 5px; min-width: 0; }
-.panel-project .dot { width: 7px; height: 7px; }
 .panel-close { width: var(--control); padding: 0; font-size: 16px; flex: none; }
-.panel-title { font: 500 19px/1.3 var(--mono); margin: 10px 0 12px; overflow-wrap: anywhere; }
+.panel-title { flex: 1; min-width: 0; font: 500 19px/1.3 var(--mono); margin: 2px 0 0; overflow-wrap: anywhere; }
+/* One quiet line below the heading: project and column, or the branch. */
+.panel-where { display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; margin: 6px 0 16px; font: 12px var(--mono); color: var(--dim); overflow-wrap: anywhere; }
+.panel-project { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
+.panel-project .dot { width: 7px; height: 7px; }
+.panel-head + :not(.panel-where) { margin-top: 16px; }
 .panel-section {
   font: 500 11px var(--mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim);
   margin: 22px 0 4px; padding-top: 12px; border-top: 1px solid var(--border);
@@ -460,14 +489,71 @@ button { cursor: pointer; }
 
 /* ── Card in the panel ───────────────────────────────────────────────────── */
 
-.detail-fields { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 3px 14px; font: 12px var(--mono); margin: 0 0 14px; }
-.detail-fields dt { color: var(--dim); }
-.detail-fields dd { margin: 0; overflow-wrap: anywhere; }
+/* The fields stand apart from the actions above, between two hairlines;
+   the pencil that starts editing them sits at the right of their first
+   line. */
+.detail-section { position: relative; border-top: 1px solid var(--border); padding-top: 14px; margin-top: 14px; }
+.detail-section > .detail-facts { padding-right: 34px; }
+.detail-edit {
+  position: absolute; top: 14px; right: 0; width: 26px; height: 26px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface); color: var(--dim);
+  border: 1px solid var(--border-strong); border-radius: var(--radius);
+}
+.detail-edit:hover { background: var(--hover); color: var(--text); }
+.detail-edit .ic { margin-top: 0; }
+
+/* The fields of a card: each an icon and its value, in two columns where
+   the panel is wide enough. The icon is the field's name; the name itself
+   is there for screen readers and as a tooltip. */
+.detail-facts {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px 20px;
+  font: 12px var(--mono); margin: 0 0 16px;
+}
+.detail-fact { position: relative; display: flex; align-items: center; gap: 10px; min-height: 26px; min-width: 0; }
+.detail-fact.is-wide { grid-column: 1 / -1; }
+.detail-fact dt { flex: none; display: flex; align-items: center; justify-content: center; width: 16px; color: var(--faint); cursor: default; }
+.detail-fact dt .ic { display: flex; margin-top: 0; }
+.detail-fact dd { margin: 0; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; overflow-wrap: anywhere; }
+.detail-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* The fields in the form: an icon and a name on the left, the control on
+   the right. Rows that belong together stand close; a new group starts
+   with a little space. */
+.detail-fields {
+  display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 2px 18px;
+  font: 12px var(--mono); margin: 0 0 16px;
+}
+.field-row { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; min-height: 24px; align-items: center; }
+.field-row.is-group { margin-top: 10px; }
+.detail-fields dt { display: flex; align-items: center; gap: 8px; color: var(--dim); }
+.detail-fields dt .ic { display: inline-flex; color: var(--faint); margin-top: 0; }
+.detail-fields dd { margin: 0; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; overflow-wrap: anywhere; }
+.field-chip { font-size: 11px; }
 /* Fields that can be changed: each value is a control of its own, so the
-   rows are as high as a control and the names sit level with them. */
-.detail-fields.is-editable { gap: 6px 14px; align-items: start; }
-.detail-fields.is-editable dt { line-height: var(--control); }
-.detail-fields.is-editable dd { min-height: var(--control); display: flex; align-items: center; min-width: 0; }
+   rows are as high as a control. */
+.detail-fields.is-editable { gap: 6px 18px; }
+.detail-fields.is-editable .field-row { min-height: var(--control); }
+.field-list { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.field-dim { color: var(--dim); }
+.field-when { color: var(--faint); }
+.field-when.is-late { color: var(--danger); }
+.field-who.is-me { font-weight: 500; }
+.field-missing { color: var(--faint); text-decoration: line-through; }
+/* Another card this one waits for: it opens on a click, so it has a frame. */
+.field-card {
+  font: 12px/1 var(--sans); color: var(--text); background: var(--surface);
+  border: 1px solid var(--border-strong); border-radius: var(--radius);
+  height: 24px; padding: 0 8px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.field-card:hover { background: var(--hover); }
+/* Who the card belongs to: the name chips and "+" a little lower than other
+   controls, so the row does not stand out from the list. */
+.act-people { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.act-people .act-person, .act-people .act-add, .act-people .act-input { height: 24px; font-size: 12px; }
+.act-people .act-add { width: 24px; }
+/* The file the card lives in: a fact for the curious, at the very end. */
+.detail-path { margin: 24px 0 0; font: 11px var(--mono); color: var(--faint); overflow-wrap: anywhere; }
 .field-input { width: 100%; max-width: 280px; }
 .field-input::placeholder { color: var(--faint); }
 .field-date { padding: 0 8px; }
@@ -488,6 +574,8 @@ button { cursor: pointer; }
 
 /* The card's text, as md.js renders it. */
 .md { border-top: 1px solid var(--border); padding-top: 12px; overflow-wrap: anywhere; }
+/* Running text keeps a length one can read in a wide panel. */
+.md p, .md ul, .md ol, .md blockquote, .md h1, .md h2, .md h3, .md h4 { max-width: 72ch; }
 .md > :first-child { margin-top: 0; }
 .md h1, .md h2, .md h3, .md h4 { font-family: var(--mono); font-weight: 500; margin: 1.4em 0 0.5em; line-height: 1.3; }
 .md h1 { font-size: 17px; } .md h2 { font-size: 15px; } .md h3, .md h4 { font-size: 14px; }
@@ -505,11 +593,12 @@ button { cursor: pointer; }
 .md a { color: inherit; text-underline-offset: 2px; }
 
 /* What can be done with the open card. */
-.act { margin: 0 0 14px; display: grid; gap: 8px; }
+.act { display: grid; gap: 8px; }
 .act-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .act-button.is-primary, .notice-button.is-primary, .field-button.is-primary { background: var(--text); color: var(--surface); border-color: var(--text); }
 .act-button.is-primary:hover, .notice-button.is-primary:hover, .field-button.is-primary:hover { opacity: 0.85; }
-.act-move { display: inline-flex; align-items: center; gap: 6px; font: 12px var(--mono); color: var(--dim); margin-left: auto; }
+.act-add { width: var(--control); padding: 0; color: var(--dim); }
+.act-add:hover { color: var(--text); }
 .act-input { flex: 1 1 120px; min-width: 0; }
 .act-input::placeholder { color: var(--faint); }
 /* A name on the card, with the × that takes it off. */
@@ -564,7 +653,6 @@ button.hist:hover { background: var(--hover); }
 
 @media (max-width: 760px) {
   .top { flex-wrap: wrap; row-gap: 8px; }
-  .shell.is-split { grid-template-columns: minmax(0, 1fr); }
   .shell.is-split .shell-main { display: none; }
-  .panel { border-left: 0; }
+  .panel { width: auto; left: 0; border-left: 0; box-shadow: none; }
 }

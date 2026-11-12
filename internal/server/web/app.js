@@ -17,7 +17,7 @@
 // are is-open, is-on and so on, and are only styled together with such a
 // class.
 
-import { html, render, useReducer } from "./preact.js";
+import { html, cls, render, useReducer } from "./preact.js";
 import { state, refresh, onRefresh, applyTheme, openFilters } from "./state.js";
 import { load, follow } from "./api.js";
 import { Brand } from "./parts.js";
@@ -36,9 +36,11 @@ function App() {
   const panel = state.history ? html`<${History} />`
     : state.problems ? html`<${Problems} />`
     : state.open?.detail ? html`<${Detail} />` : null;
+  // The room to move a card out from under the panel goes with the panel.
+  if (!panel) state.room = false;
   return html`
     <${TopBar} />
-    <div class=${"shell" + (panel ? " is-split" : "")}>
+    <div class=${cls("shell", panel && "is-split", state.room && "is-room")}>
       <${Main} />
       ${panel}
     </div>
@@ -51,10 +53,21 @@ function App() {
 // may have removed the element it landed on before the event gets here.
 const within = (e, ...names) => e.composedPath().some((el) => names.some((n) => el.classList?.contains(n)));
 
-// A click outside an open menu closes it.
+// onControl says whether an event started on something that does a thing
+// of its own: a card, a button, a field, a link.
+const onControl = (e) => within(e, "card") ||
+  e.composedPath().some((el) => ["BUTTON", "INPUT", "SELECT", "TEXTAREA", "A", "LABEL"].includes(el.tagName));
+
+// A click outside an open menu closes it. A click on a free spot of the
+// board closes the panel, unless fields are being edited there: a stray
+// click should not throw away what was typed.
 document.addEventListener("click", (e) => {
   if (state.menu && !within(e, "menu-wrap")) { state.menu = null; refresh(); }
   if (state.cardMenu && !within(e, "cmenu", "card-dots")) { state.cardMenu = null; refresh(); }
+  if (within(e, "shell-main") && !onControl(e) && !state.edit && (state.open || state.history || state.problems)) {
+    state.open = null; state.history = null; state.problems = false;
+    refresh();
+  }
 });
 
 // The card menu is placed where its button was. When the page scrolls, that
