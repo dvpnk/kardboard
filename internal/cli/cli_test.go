@@ -977,3 +977,21 @@ func TestRenameCommand(t *testing.T) {
 		t.Errorf("dirty reference: code %d, err %q", code, errOut)
 	}
 }
+
+func TestSchemaCommand(t *testing.T) {
+	code, out, errOut := kb(t, "schema", "working_on", "-C", example)
+	var schema struct {
+		Title    string         `json:"title"`
+		Required []string       `json:"required"`
+		Props    map[string]any `json:"properties"`
+	}
+	if code != ExitOK || json.Unmarshal([]byte(out), &schema) != nil {
+		t.Fatalf("schema: code %d, err %q, out %q", code, errOut, out)
+	}
+	if schema.Title != "Card header, board demo, column working_on" || strings.Join(schema.Required, ",") != "assignee,size" || schema.Props["due"] == nil {
+		t.Errorf("schema = %+v", schema)
+	}
+	if code, _, errOut = kb(t, "schema", "nope", "-C", example); code != ExitUsage || !strings.Contains(errOut, "no column") {
+		t.Errorf("unknown column: code %d, err %q", code, errOut)
+	}
+}

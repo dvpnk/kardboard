@@ -110,6 +110,14 @@ kb init ~/Repos/notizen
 Was an den vorhandenen Karten noch nicht zum Format passt, zeigt danach
 `kb lint`.
 
+Damit auch ein Editor oder ein anderes Werkzeug den Kopf der Karten prüft,
+gibt `kb schema` ein JSON Schema aus der `board.yaml` aus. Mit einer Spalte,
+etwa `kb schema working_on`, verlangt es auch deren Pflichtfelder:
+
+```bash
+kb schema > card.schema.json
+```
+
 ## Alle Boards im Browser
 
 Ein Board anmelden, oder gleich einen Ordner mit Projekten durchsuchen lassen:

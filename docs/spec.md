@@ -252,8 +252,17 @@ Warnungen:
 Eine fehlerhafte Karte wird überall angezeigt und als fehlerhaft markiert, nie
 ausgeblendet.
 
-Aus der `board.yaml` erzeugt `kb schema` ein JSON Schema für den Kartenkopf.
-Damit prüfen auch Editoren und fremde Werkzeuge.
+Aus der `board.yaml` erzeugt `kb schema` ein JSON Schema (Draft 2020-12)
+für den Kartenkopf. Damit prüfen auch Editoren und fremde Werkzeuge, was
+`kb` prüft: welche Felder es gibt (E03, E04), ihre Typen und Werte (E05),
+mit denselben Mustern für Kürzel, Verweise und Datum. Ob eine Karte, auf
+die verwiesen wird, existiert (E10), steht nicht im Kopf und bleibt
+`kb lint`.
+
+Welche Felder Pflicht sind, hängt von der Spalte ab, und die steht nicht im
+Kopf. `kb schema` verlangt deshalb nur die Felder, die überall Pflicht
+sind. `kb schema <spalte>` verlangt dazu die dieser Spalte (E06); man gibt
+dann jedem Spaltenordner sein eigenes Schema.
 
 ## Git
 
@@ -367,7 +376,7 @@ Board:
 |---|---|
 | `kb init [ordner] [--id kürzel] [--name name] [--sync modus] [--columns a,b,c] [--no-add]` | macht einen Ordner zum Board, siehe unten |
 | `kb lint` | prüft das Board |
-| `kb schema` | gibt das JSON Schema für den Kartenkopf aus |
+| `kb schema [spalte]` | gibt das JSON Schema für den Kartenkopf aus, mit Spalte samt ihren Pflichtfeldern |
 | `kb ui [--port n] [--no-open]` | startet den lokalen Server und zeigt alle bekannten Boards im Browser, siehe [Oberfläche](#oberfläche) |
 
 Karten lesen:
