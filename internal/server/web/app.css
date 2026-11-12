@@ -566,7 +566,24 @@ button { cursor: pointer; }
 .field-segments button.is-on { background: var(--text); color: var(--surface); }
 .field-tags { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0; }
 /* Save and cancel below the fields. */
-.field-buttons { display: flex; gap: 6px; margin: -2px 0 14px; }
+.field-buttons { display: flex; gap: 6px; margin: 0 0 14px; }
+/* The title while the card is edited: a field in the heading's place, in
+   the heading's type, so the panel does not jump. */
+.field-title {
+  width: 100%; font: 500 19px/1.3 var(--mono); color: var(--text);
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius);
+  padding: 2px 7px; margin: -3px 0 -3px -8px;
+}
+/* The text: Markdown to write, or the preview, the same height. */
+.field-text { display: grid; gap: 8px; justify-items: start; margin: 14px 0 12px; }
+.field-textarea, .field-preview { width: 100%; min-height: 260px; border-radius: var(--radius); }
+.field-textarea {
+  font: 13px/1.55 var(--mono); color: var(--text); background: var(--surface);
+  border: 1px solid var(--border-strong); padding: 10px 12px; resize: vertical;
+}
+.field-textarea:hover, .field-title:hover { border-color: var(--dim); }
+.md.field-preview { border: 1px solid var(--border); padding: 10px 12px; }
+.field-preview.is-empty { margin: 0; border: 1px solid var(--border); padding: 10px 12px; font: 12px var(--mono); color: var(--faint); }
 
 /* What is wrong with the open card: a quiet field like the controls, no red. */
 .detail-problems { list-style: none; margin: 0 0 14px; padding: 1px 0 1px 10px; border-left: 2px solid var(--warn); font: 12px/1.45 var(--sans); color: var(--dim); }

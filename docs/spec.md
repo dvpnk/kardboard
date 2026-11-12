@@ -290,7 +290,8 @@ edit export-als-pdf
 new export-als-pdf
 ```
 
-`edit` steht für jede Änderung an anderen Feldern als `assignee`. Tut eine
+`edit` steht für jede Änderung an anderen Feldern als `assignee` und am
+Text. Tut eine
 Aktion mehreres, etwa `kb take` (verschieben und zuweisen), steht das Erste
 in der Betreffzeile und das Weitere darunter.
 
@@ -385,7 +386,7 @@ Karten ändern:
 | `kb assign <karte> <person>… [--add]` | bleibt | wird ersetzt, mit `--add` ergänzt | weist die Karte zu. `kb give` ist dasselbe |
 | `kb unassign <karte> [person…]` | bleibt | entfällt, mit Namen nur diese | gibt die Karte frei |
 | `kb set <karte> feld=wert …` | bleibt | bleibt | ändert Felder im Kopf, `feld=` entfernt eines |
-| `kb edit <karte>` | | | öffnet die Karte im Editor |
+| `kb edit <karte>` | bleibt | wie im Editor geändert | öffnet die Karte im Editor und speichert sie als eine Änderung, siehe unten |
 | `kb rename <karte> <neu>` | | | benennt um und zieht Verweise nach |
 
 Rechner:
@@ -397,6 +398,23 @@ Rechner:
 | `kb remove <id\|ordner>` | meldet ein Board ab, löscht nichts |
 | `kb scan <ordner>` | nimmt einen Ordner in die Suche auf, `--remove` nimmt ihn wieder heraus |
 | `kb sync` | holt, was auf dem Remote neu ist, und pusht, was hier wartet. Nur für Boards mit `sync: push` |
+
+Zu `kb edit`:
+
+- **Der Editor bekommt eine Kopie.** `kb edit` nimmt `$VISUAL`, sonst
+  `$EDITOR`, sonst `vi`. Erst wenn der Editor geschlossen ist, ersetzt die
+  Kopie die Karte, in einem Schritt. Bleibt sie unverändert, geschieht
+  nichts.
+- **Dieselben Regeln wie `kb set`.** Was im Kopf anders ist, gilt als
+  gesetzt oder entfernt: Eine fremde Karte braucht `--force`, ein
+  Pflichtfeld darf nicht wegfallen. Auf Boards mit `sync: commit` oder
+  `push` entsteht ein Commit, `edit <karte>` oder `assign …`, wenn sich
+  `assignee` geändert hat. Bei `push` holt `kb` vorher den Stand der
+  anderen.
+- **Nichts geht verloren.** Eine Karte mit Änderungen ohne Commit öffnet
+  `kb edit` gar nicht erst. Hätte die Kopie Fehler, die die Karte nicht
+  hatte (E02 bis E05, E07), oder hat sich die Karte inzwischen geändert,
+  bleibt die Karte, wie sie war, und `kb` nennt den Ort der Kopie.
 
 Zu `kb init`:
 
@@ -487,12 +505,22 @@ angemeldet ist.
   Ziel nennen.
 - **Ändern wie im CLI.** Karten lassen sich in eine andere Spalte ziehen, und
   die Kartenansicht bietet Nehmen, Abschließen, Verschieben, das Zuweisen
-  von Personen und das Ändern der Felder im Kopf. Jede dieser Handlungen ist
-  genau der gleichnamige Befehl, mit denselben Regeln. Felder ändert man in
-  einem Bearbeiten-Modus: Was dort geändert wird, geht erst mit „Speichern“
-  als ein einziges `kb set` an die Karte, also als ein Commit. Ein geleertes
-  Feld entfällt wie bei `kb set <karte> feld=`. Abbrechen verwirft alles. Lehnt eine Regel ab, zeigt die Seite den Grund und bietet
-  an, es trotzdem zu tun. Das entspricht `--force`.
+  von Personen und das Ändern von Titel, Feldern und Text. Jede dieser
+  Handlungen ist genau der gleichnamige Befehl, mit denselben Regeln. Lehnt
+  eine Regel ab, zeigt die Seite den Grund und bietet an, es trotzdem zu
+  tun. Das entspricht `--force`.
+- **Bearbeiten in einem Schritt.** Titel, Felder und Text ändert man in
+  einem Bearbeiten-Modus, den Text als Markdown mit Vorschau. Was dort
+  geändert wird, geht erst mit „Speichern“ als eine Änderung an die Karte,
+  also als ein Commit `edit <karte>`. Der Kopf bleibt dabei bis auf die
+  geänderten Felder, wie er war. Ein geleertes Feld entfällt wie bei
+  `kb set <karte> feld=`. Abbrechen verwirft alles.
+- **Kein Überschreiben.** Titel und Text werden beim Öffnen festgehalten,
+  zusammen mit einem Fingerabdruck der Datei. Hat sich die Datei bis zum
+  Speichern geändert, speichert die Seite den Text nicht, sagt das und
+  behält den Entwurf. Das lässt sich nicht erzwingen, denn es würde
+  überschreiben, was ein anderer geschrieben hat. Wer nur Felder ändert,
+  ändert nur diese Zeilen.
 - **Ziehen auf die Arbeitsspalte nimmt die Karte.** Gehört sie noch
   niemandem, wird man selbst eingetragen. Sonst ist Ziehen ein reines
   Verschieben. In der gemeinsamen Ansicht mehrerer Boards steht „in Arbeit“
@@ -556,12 +584,8 @@ angemeldet ist.
   damit die Regel für fremde Karten keine Ausnahme hat.
 - **Grenze je Person.** `limit` zählt die Karten der Spalte, nicht die einer
   Person.
-- **Text in der Oberfläche ändern.** Sie verschiebt, weist zu und ändert die
-  Felder im Kopf. Den Text ändert man im Editor.
 - **Verlauf im CLI.** Den Verlauf gibt es nur in der Oberfläche, einen
   Befehl wie `kb log` noch nicht.
-- **Text ändern mit `sync`.** `kb edit` fehlt noch. Wer den Text einer Karte
-  im Editor ändert, committet das auf Boards mit `commit` oder `push` selbst.
 - **`--all` für lesende Befehle.** `kb list --all` und `kb lint --all` über
   alle bekannten Boards gibt es noch nicht.
 - **Sprache dieses Dokuments** vor einer Veröffentlichung.

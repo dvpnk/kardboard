@@ -108,6 +108,8 @@ func TestMessages(t *testing.T) {
 		{board.ChangeResult{ID: "a", Set: map[string]any{"assignee": []string{"alex", "sam"}}}, []string{"assign a: alex, sam"}},
 		{board.ChangeResult{ID: "a", Removed: []string{"assignee"}}, []string{"unassign a"}},
 		{board.ChangeResult{ID: "a", Set: map[string]any{"size": "M"}, Removed: []string{"due"}}, []string{"edit a"}},
+		{board.ChangeResult{ID: "a", Text: true}, []string{"edit a"}},
+		{board.ChangeResult{ID: "a", Set: map[string]any{"size": "M"}, Text: true}, []string{"edit a"}},
 		{board.ChangeResult{ID: "a", From: "backlog", To: "working_on", Moved: true, Set: map[string]any{"assignee": []string{"alex"}}},
 			[]string{"move a: backlog -> working_on", "assign a: alex"}},
 	}

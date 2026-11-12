@@ -281,7 +281,7 @@ func Messages(res *board.ChangeResult) []string {
 			edited = true
 		}
 	}
-	if edited {
+	if edited || res.Text {
 		out = append(out, "edit "+res.ID)
 	}
 	return out
@@ -348,6 +348,23 @@ func Change(ctx context.Context, b *board.Board, id string, ch board.Change) (*R
 		out.Commit, out.Pushed = head(lctx, b.Root), true
 	}
 	return out, nil
+}
+
+// Check says whether Change could change the card now, as far as Git is
+// concerned: the board's sync mode works here, and the card has no changes
+// waiting to be committed. `kb edit` asks before it opens the editor, so
+// nobody writes a text that cannot be saved.
+func Check(ctx context.Context, b *board.Board, id string) error {
+	if b.Config == nil || b.Config.Sync == ModeNone {
+		return nil
+	}
+	if err := ready(ctx, b); err != nil {
+		return err
+	}
+	if c, ok := b.Card(id); ok {
+		return clean(ctx, b.Root, c.ID, c.Path)
+	}
+	return nil
 }
 
 // clean insists that a card has no changes waiting to be committed. They

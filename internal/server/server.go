@@ -376,6 +376,10 @@ type actionRequest struct {
 	Add bool `json:"add"`
 	// Set holds "field=value" for set.
 	Set []string `json:"set"`
+	// Text is a new title and text for set, Base the card's sum when it
+	// was read: if the file changed since, nothing is saved.
+	Text *board.Text `json:"text"`
+	Base string      `json:"base"`
 	// Force overrides the rules that protect other people's cards and
 	// required fields, like --force.
 	Force bool `json:"force"`
@@ -396,7 +400,8 @@ func fail(w http.ResponseWriter, status int, err error, refused bool) {
 
 func (s *Server) handleAction(w http.ResponseWriter, r *http.Request) {
 	var req actionRequest
-	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10))
+	// A card's text may be long; a megabyte is far more than any card.
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&req); err != nil {
 		fail(w, http.StatusBadRequest, fmt.Errorf("cannot read the request: %w", err), false)
@@ -442,10 +447,10 @@ func (s *Server) handleAction(w http.ResponseWriter, r *http.Request) {
 	case "unassign":
 		ch = b.UnassignChange(req.Card, req.People)
 	case "set":
-		if len(req.Set) == 0 {
-			err = errors.New("set needs at least one field=value")
+		if len(req.Set) == 0 && req.Text == nil {
+			err = errors.New("set needs at least one field=value or a text")
 		}
-		ch = board.Change{Set: req.Set}
+		ch = board.Change{Set: req.Set, Text: req.Text, Base: req.Base}
 	default:
 		err = fmt.Errorf("unknown action %q", req.Action)
 	}
@@ -458,6 +463,7 @@ func (s *Server) handleAction(w http.ResponseWriter, r *http.Request) {
 	res, err := gitsync.Change(r.Context(), b, req.Card, ch)
 	var refused *board.RefusedError
 	var conflict *gitsync.ConflictError
+	var stale *board.StaleError
 	switch {
 	case res != nil:
 		// The change happened. If it could not be pushed, the answer says so.
@@ -472,6 +478,9 @@ func (s *Server) handleAction(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusConflict, err, false)
 	case errors.As(err, &refused):
 		fail(w, http.StatusConflict, err, true)
+	case errors.As(err, &stale):
+		// Not to be forced: it would overwrite what someone else wrote.
+		fail(w, http.StatusConflict, err, false)
 	case errors.Is(err, board.ErrNeedUser):
 		if userErr == nil {
 			userErr = err
@@ -494,7 +503,8 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Board string `json:"board"`
 	}
-	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10))
+	// A card's text may be long; a megabyte is far more than any card.
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&req); err != nil {
 		fail(w, http.StatusBadRequest, fmt.Errorf("cannot read the request: %w", err), false)

@@ -876,3 +876,63 @@ func TestInitOptions(t *testing.T) {
 		t.Errorf("same id: code %d, out %q, err %q", code, out, errOut)
 	}
 }
+
+// editorWrites makes kb edit see an editor that replaces the card with text.
+// It is `cp`, so the test needs no shell script.
+func editorWrites(t *testing.T, text string) {
+	t.Helper()
+	src := filepath.Join(t.TempDir(), "edited.md")
+	if err := os.WriteFile(src, []byte(text), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("VISUAL", "")
+	t.Setenv("EDITOR", "cp "+src)
+}
+
+func TestEditCommand(t *testing.T) {
+	asUser(t, "alex")
+	root := syncRepo(t, "commit")
+	before := readFile(t, root, "backlog/druckvorlagen.md")
+
+	// The editor closes without a change: nothing happens.
+	t.Setenv("VISUAL", "true")
+	code, out, errOut := kb(t, "edit", "druckvorlagen", "-C", root)
+	if code != ExitOK || out != "druckvorlagen: nothing to change\n" {
+		t.Fatalf("unchanged: code %d, out %q, err %q", code, out, errOut)
+	}
+
+	// Text and a field changed in the editor: one commit "edit".
+	edited := strings.Replace(before, "size: S", "size: M", 1) + "\nDazu ein Satz.\n"
+	editorWrites(t, edited)
+	code, out, errOut = kb(t, "edit", "druckvorlagen", "-C", root)
+	if code != ExitOK || !strings.HasPrefix(out, "druckvorlagen: size = M, text changed  (commit ") {
+		t.Fatalf("edit: code %d, out %q, err %q", code, out, errOut)
+	}
+	if got := readFile(t, root, "backlog/druckvorlagen.md"); got != edited {
+		t.Errorf("file = %q", got)
+	}
+	if got := gitIn(t, root, "log", "-1", "--format=%s"); got != "edit druckvorlagen" {
+		t.Errorf("commit = %q", got)
+	}
+
+	// A card the editor breaks is not saved, and the text is kept.
+	editorWrites(t, "---\nsize: [\n---\n\n# Druckvorlagen\n")
+	code, _, errOut = kb(t, "edit", "druckvorlagen", "-C", root)
+	if code == ExitOK || !strings.Contains(errOut, "would have errors") || !strings.Contains(errOut, "your text is in ") {
+		t.Errorf("broken: code %d, err %q", code, errOut)
+	}
+	if readFile(t, root, "backlog/druckvorlagen.md") != edited {
+		t.Error("broken text was saved")
+	}
+
+	// A card with changes that are not committed is refused before the
+	// editor opens.
+	if err := os.WriteFile(filepath.Join(root, "backlog", "druckvorlagen.md"), []byte(edited+"x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("EDITOR", "false")
+	code, _, errOut = kb(t, "edit", "druckvorlagen", "-C", root)
+	if code == ExitOK || !strings.Contains(errOut, "not committed") {
+		t.Errorf("dirty: code %d, err %q", code, errOut)
+	}
+}

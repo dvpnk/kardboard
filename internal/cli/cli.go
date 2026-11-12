@@ -61,13 +61,14 @@ func Run(args []string, out, errOut io.Writer) int {
 	root.PersistentFlags().BoolVar(&a.asJSON, "json", false, "print JSON")
 	root.MarkFlagsMutuallyExclusive("dir", "board")
 	root.AddCommand(a.initCmd(), a.lintCmd(), a.listCmd(), a.showCmd())
-	root.AddCommand(a.newCmd(), a.moveCmd(), a.takeCmd(), a.doneCmd(), a.assignCmd(), a.unassignCmd(), a.setCmd())
+	root.AddCommand(a.newCmd(), a.moveCmd(), a.takeCmd(), a.doneCmd(), a.assignCmd(), a.unassignCmd(), a.setCmd(), a.editCmd())
 	root.AddCommand(a.boardsCmd(), a.addCmd(), a.removeCmd(), a.scanCmd(), a.syncCmd(), a.uiCmd())
 
 	err := root.Execute()
 	var refused *board.RefusedError
 	var conflict *gitsync.ConflictError
 	var notPushed *gitsync.PushError
+	var stale *board.StaleError
 	switch {
 	case err == nil:
 		return ExitOK
@@ -76,7 +77,7 @@ func Run(args []string, out, errOut io.Writer) int {
 	case errors.As(err, &refused):
 		fmt.Fprintf(errOut, "kb: %s (--force does it anyway)\n", refused.Reason)
 		return ExitViolation
-	case errors.As(err, &conflict), errors.As(err, &notPushed):
+	case errors.As(err, &conflict), errors.As(err, &notPushed), errors.As(err, &stale):
 		fmt.Fprintf(errOut, "kb: %s\n", err)
 		return ExitViolation
 	default:
@@ -432,6 +433,9 @@ func (a *app) change(b *board.Board, id string, ch board.Change) error {
 	}
 	for _, name := range res.Removed {
 		parts = append(parts, name+" removed")
+	}
+	if res.Text {
+		parts = append(parts, "text changed")
 	}
 	if len(parts) == 0 {
 		parts = []string{"nothing to change"}

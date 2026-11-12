@@ -3,17 +3,23 @@
 // icon, its name and its value, shown the way the card shows it, and what
 // belongs together stands together (see group).
 //
-// "Edit" (in the actions above) turns the fields into controls; what is
-// changed there is a draft until "Save" sends it as one `kb set`, which on
-// a board that commits is one commit "edit <card>". Escape or "Cancel"
-// drops the draft. Who the card belongs to is changed at once, not in the
-// draft (see People in panels.js).
+// The pencil turns the card into a form: the title in the heading, the
+// fields as controls, the text in an editor with a preview. What is changed
+// there is a draft until "Save" sends it as one `kb set` with the new text,
+// which on a board that commits is one commit "edit <card>". Escape or
+// "Cancel" drops the draft. Who the card belongs to is changed at once,
+// not in the draft (see People in panels.js).
+//
+// The draft remembers the card's sum from when editing started. If the
+// file changes on disk before "Save", the server refuses rather than
+// overwrite what is new; the draft stays.
 
-import { html, cls } from "./preact.js";
+import { html, cls, useState } from "./preact.js";
 import { t, day, fromToday } from "./texts.js";
 import { state, refresh, isLate } from "./state.js";
 import { act, openCard } from "./api.js";
 import { Icon } from "./parts.js";
+import { render as markdown } from "./md.js";
 
 // Enums with up to this many values show them side by side; longer ones
 // are a picker.
@@ -27,9 +33,27 @@ const editKey = (board, card) => board.key + "/" + card.id;
 // isEditing says whether the fields of this card are being edited.
 export const isEditing = (board, card) => state.edit?.key === editKey(board, card);
 
+// startEditing opens the form. draft holds changed fields by name. Title
+// and text are taken as they are now, together with the sum of the file
+// they come from: what the form shows is what the server checks against.
 export function startEditing(board, card) {
-  state.edit = { key: editKey(board, card), draft: {} };
+  const text = textOf(card);
+  state.edit = { key: editKey(board, card), draft: {}, title: card.title, text, base: card.sum, from: { title: card.title, text } };
   refresh();
+}
+
+// textOf is the card's text below its title line.
+export const textOf = (card) => card.body.replace(/^\s*# .*\n?/, "").replace(/^\n+/, "");
+
+// tidy is a text as the server would write it, to tell whether it changed.
+const tidy = (text) => text.replace(/\r\n/g, "\n").replace(/[ \t]+$/gm, "").trim();
+
+// TitleInput takes the place of the heading while the card is edited. It
+// belongs to the form below, so Enter in it saves.
+export function TitleInput({ card }) {
+  return html`<input class="field-title" form="field-form" type="text" required aria-label=${t.title}
+    value=${state.edit.title} autocomplete="off"
+    onInput=${(e) => { state.edit.title = e.target.value; refresh(); }} />`;
 }
 
 export function stopEditing() {
@@ -154,24 +178,57 @@ function FieldsForm({ board, card }) {
   const changes = fields
     .filter((f) => f.name in draft && raw(draft[f.name]).trim() !== raw(card.fields[f.name]).trim())
     .map((f) => `${f.name}=${raw(draft[f.name]).trim()}`);
+  const title = state.edit.title.trim();
+  const text = state.edit.text;
+  // Only a text changed here is sent; fields alone never overwrite a text
+  // someone else changed meanwhile.
+  const { from } = state.edit;
+  const textChanged = title !== from.title || tidy(text) !== tidy(from.text);
 
   const save = (e) => {
     e.preventDefault();
-    if (changes.length === 0) { stopEditing(); return; }
+    if (changes.length === 0 && !textChanged) { stopEditing(); return; }
+    const extra = { set: changes };
+    if (textChanged) Object.assign(extra, { text: { title, body: text }, base: state.edit.base });
     // The draft stays until the change is done, also after "Do it anyway".
-    act(board, card.id, "set", { set: changes }, false, () => { if (isEditing(board, card)) stopEditing(); });
+    act(board, card.id, "set", extra, false, () => { if (isEditing(board, card)) stopEditing(); });
   };
 
-  return html`<form class="field-form" onSubmit=${save}>
+  return html`<form id="field-form" class="field-form" onSubmit=${save}>
     <dl class="detail-fields is-editable">
       ${fields.map((field, i) => html`<div class=${cls("field-row", i > 0 && group(field) !== group(fields[i - 1]) && "is-group")}>
         <${Name} field=${field} /><dd><${Editor} field=${field} value=${current(field)} put=${put(field)} /></dd></div>`)}
     </dl>
+    <${TextEditor} value=${text} put=${(value) => { state.edit.text = value; refresh(); }} />
     <div class="field-buttons">
       <button type="submit" class="field-button is-primary">${t.save}</button>
       <button type="button" class="field-button" onClick=${stopEditing}>${t.cancel}</button>
     </div>
   </form>`;
+}
+
+// TextEditor is the card's text, as Markdown to write or as the page will
+// show it. Cmd or Ctrl and Enter saves. Escape leaves the editor first and
+// only a second one drops the draft, so a long text is not lost by one key.
+function TextEditor({ value, put }) {
+  const [preview, setPreview] = useState(false);
+  const keyDown = (e) => {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); e.target.form.requestSubmit(); }
+    if (e.key === "Escape") { e.stopPropagation(); e.target.blur(); }
+  };
+  const tab = (on, label, click) => html`<button type="button" role="tab" aria-selected=${String(on)}
+    class=${on ? "is-on" : ""} onClick=${click}>${label}</button>`;
+  return html`<div class="field-text">
+    <div class="field-segments" role="tablist" aria-label=${t.text}>
+      ${tab(!preview, t.write, () => setPreview(false))}${tab(preview, t.preview, () => setPreview(true))}
+    </div>
+    ${preview
+      ? (value.trim()
+        ? html`<div class="md field-preview" dangerouslySetInnerHTML=${{ __html: markdown(value) }}></div>`
+        : html`<p class="field-preview is-empty">${t.noText}</p>`)
+      : html`<textarea class="field-textarea" aria-label=${t.text} value=${value} spellcheck="true"
+          onInput=${(e) => put(e.target.value)} onKeyDown=${keyDown}></textarea>`}
+  </div>`;
 }
 
 // Editor picks the control that fits the field's type.

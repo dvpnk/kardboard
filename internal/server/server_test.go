@@ -489,6 +489,9 @@ func TestActions(t *testing.T) {
 		{`{"board":"demo","card":"druckvorlagen","action":"done","force":true}`, 200, `"to":"done"`, "done/druckvorlagen.md"},
 		{`{"board":"demo","card":"offline-modus","action":"move","column":"backlog"}`, 409, "would lack size", "planning/offline-modus.md"},
 		{`{"board":"demo","card":"offline-modus","action":"set","set":["size=S","tags=ui"]}`, 200, `"size":"S"`, ""},
+		// a text read before the file changed is not saved; one without a base is
+		{`{"board":"demo","card":"offline-modus","action":"set","text":{"title":"Offline-Modus","body":"Neu."},"base":"0123"}`, 409, "changed since it was opened", ""},
+		{`{"board":"demo","card":"offline-modus","action":"set","text":{"title":"Offline-Modus","body":"Neu."}}`, 200, `"text":true`, ""},
 		{`{"board":"demo","card":"offline-modus","action":"move","column":"backlog"}`, 200, `"to":"backlog"`, "backlog/offline-modus.md"},
 
 		{`{"board":"demo","card":"offline-modus","action":"move"}`, 400, "move needs a column", ""},
@@ -514,6 +517,9 @@ func TestActions(t *testing.T) {
 
 	if got, want := readFile(t, root, "done/druckvorlagen.md"), "assignee: alex\n"; !strings.Contains(got, want) {
 		t.Errorf("file = %q", got)
+	}
+	if got := readFile(t, root, "backlog/offline-modus.md"); !strings.HasSuffix(got, "# Offline-Modus\n\nNeu.\n") {
+		t.Errorf("text = %q", got)
 	}
 	// Everything the page did leaves a valid board.
 	if st := getState(t, s, ""); st.Boards[0].Errors != 0 {

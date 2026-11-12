@@ -104,6 +104,16 @@ type Change struct {
 	// Force overrides the rules that protect other people's cards and
 	// required fields.
 	Force bool
+	// Text replaces the title and the text below it. Nil leaves them.
+	Text *Text
+	// File replaces the whole file, header included: what `kb edit` brings
+	// back from the editor. It cannot go with Column, Set or Text. The
+	// fields it changes count as set or removed, with the same rules.
+	File *string
+	// Base is the card's Sum when Text or File was read. If the file has
+	// changed since, Change refuses with a *StaleError instead of
+	// overwriting what is new. Empty skips the check.
+	Base string
 }
 
 // ChangeResult says what Change did.
@@ -118,19 +128,25 @@ type ChangeResult struct {
 	// away. Fields that already had the requested value are in neither.
 	Set     map[string]any `json:"set,omitempty"`
 	Removed []string       `json:"removed,omitempty"`
+	// Text says whether the title or the text changed, or the file in a
+	// way that is no field.
+	Text bool `json:"text,omitempty"`
 }
 
 // Changed reports whether anything happened.
 func (r *ChangeResult) Changed() bool {
-	return r.Moved || len(r.Set) > 0 || len(r.Removed) > 0
+	return r.Moved || len(r.Set) > 0 || len(r.Removed) > 0 || r.Text
 }
 
-// Change moves a card and edits its header. Moving renames the file; only
-// the lines of the named fields are rewritten. Nothing is changed unless
-// every rule allows the whole step.
+// Change moves a card, edits its header and replaces its text. Moving
+// renames the file; only the lines of the named fields are rewritten.
+// Nothing is changed unless every rule allows the whole step.
 func (b *Board) Change(id string, ch Change) (*ChangeResult, error) {
 	if err := b.writable(); err != nil {
 		return nil, err
+	}
+	if ch.File != nil && (ch.Column != "" || len(ch.Set) > 0 || ch.Text != nil) {
+		return nil, errors.New("a whole file replaces everything; it cannot go with a move, fields or a text")
 	}
 	c, err := b.one(id)
 	if err != nil {
@@ -149,23 +165,78 @@ func (b *Board) Change(id string, ch Change) (*ChangeResult, error) {
 		return nil, err
 	}
 
+	src := filepath.Join(b.Root, filepath.FromSlash(c.Path))
+	// The file is read when its content will change, and only once, so
+	// what is checked against Base is what gets changed.
+	var data string
+	if len(names) > 0 || ch.Text != nil || ch.File != nil {
+		raw, err := os.ReadFile(src)
+		if err != nil {
+			return nil, err
+		}
+		data = string(raw)
+		if ch.Base != "" && (ch.Text != nil || ch.File != nil) && Sum(data) != ch.Base {
+			return nil, &StaleError{ID: c.ID}
+		}
+	}
+
 	res := &ChangeResult{ID: c.ID, From: c.Column, To: target, Path: c.Path, Moved: target != c.Column}
-	// Leave out fields that already are as requested.
-	var edits []string
-	for _, name := range names {
-		old, had := c.Fields[name]
-		switch {
-		case nodes[name] == nil:
-			if had || slices.Contains(c.rejected, name) {
+	newText := data
+	if ch.File != nil {
+		after, err := b.readable(c, *ch.File)
+		if err != nil {
+			return nil, err
+		}
+		newText = canonical(*ch.File)
+		// The fields the editor changed, in the board's order.
+		for _, f := range b.Config.AllFields() {
+			old, had := c.Fields[f.Name]
+			now, has := after.Fields[f.Name]
+			switch {
+			case had && !has:
+				res.Removed = append(res.Removed, f.Name)
+			case has && !reflect.DeepEqual(old, now):
+				if res.Set == nil {
+					res.Set = map[string]any{}
+				}
+				res.Set[f.Name] = now
+			}
+		}
+		fieldsChanged := len(res.Set) > 0 || len(res.Removed) > 0
+		res.Text = after.Body != c.Body || (!fieldsChanged && newText != data)
+	} else {
+		// Leave out fields that already are as requested.
+		var edits []string
+		for _, name := range names {
+			old, had := c.Fields[name]
+			switch {
+			case nodes[name] == nil:
+				if had || slices.Contains(c.rejected, name) {
+					edits = append(edits, name)
+					res.Removed = append(res.Removed, name)
+				}
+			case !had || !reflect.DeepEqual(old, values[name]):
 				edits = append(edits, name)
-				res.Removed = append(res.Removed, name)
+				if res.Set == nil {
+					res.Set = map[string]any{}
+				}
+				res.Set[name] = values[name]
 			}
-		case !had || !reflect.DeepEqual(old, values[name]):
-			edits = append(edits, name)
-			if res.Set == nil {
-				res.Set = map[string]any{}
+		}
+		if len(edits) > 0 {
+			if newText, err = editHead(data, edits, nodes); err != nil {
+				return nil, fmt.Errorf("%s: %w", c.Path, err)
 			}
-			res.Set[name] = values[name]
+		}
+		if ch.Text != nil {
+			withNew, err := withText(newText, *ch.Text)
+			if err != nil {
+				return nil, fmt.Errorf("%s: %w", c.Path, err)
+			}
+			res.Text = withNew != canonical(newText)
+			if res.Text {
+				newText = withNew
+			}
 		}
 	}
 	if !res.Changed() {
@@ -203,21 +274,11 @@ func (b *Board) Change(id string, ch Change) (*ChangeResult, error) {
 		}
 	}
 
-	src := filepath.Join(b.Root, filepath.FromSlash(c.Path))
 	newPath := target + "/" + c.ID + ".md"
 	dst := filepath.Join(b.Root, filepath.FromSlash(newPath))
 
 	// Work out everything that can fail before touching the disk.
-	var newText string
-	if len(edits) > 0 {
-		data, err := os.ReadFile(src)
-		if err != nil {
-			return nil, err
-		}
-		if newText, err = editHead(string(data), edits, nodes); err != nil {
-			return nil, fmt.Errorf("%s: %w", c.Path, err)
-		}
-	}
+	rewrite := newText != data
 	if res.Moved {
 		if _, err := os.Lstat(dst); err == nil {
 			return nil, fmt.Errorf("%s already exists", newPath)
@@ -229,7 +290,7 @@ func (b *Board) Change(id string, ch Change) (*ChangeResult, error) {
 		}
 	}
 
-	if len(edits) > 0 {
+	if rewrite {
 		if err := writeFileAtomic(src, newText); err != nil {
 			return nil, err
 		}

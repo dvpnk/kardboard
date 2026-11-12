@@ -7,7 +7,7 @@ import { render as markdown } from "./md.js";
 import { state, refresh, visibleBoards, people, colourOf } from "./state.js";
 import { act, openCard } from "./api.js";
 import { Icon, Dot, code } from "./parts.js";
-import { Fields } from "./fields.js";
+import { Fields, isEditing, textOf, TitleInput } from "./fields.js";
 
 // Panel is the frame the three share: the heading with the button to
 // close beside it, a quiet line saying where one is, and the content.
@@ -125,7 +125,10 @@ export function Detail() {
 
   // The title is shown as the panel's heading, so leave it out of the text.
   // md.js escapes everything it is given, so its markup is safe to insert.
-  const body = card.body.replace(/^\s*# .*\n?/, "");
+  // While the card is edited, the heading is a field and the text is in
+  // the form.
+  const editing = !!board && isEditing(board, card);
+  const body = textOf(card);
   const where = html`${board && html`<span class="panel-project"><${Dot} colour=${colourOf(board)} />${board.name}</span><span aria-hidden="true">·</span>`}<span>${column?.title ?? card.column}</span>`;
   // Who the card belongs to is the first row of the fields, and can be
   // changed there at once, while kb may change the card.
@@ -147,11 +150,11 @@ export function Detail() {
     requestAnimationFrame(() => el.closest(".shell-main")?.scrollBy({ left: covered, behavior: "smooth" }));
   }, [card.board, card.id]);
 
-  return html`<${Panel} label=${card.title} where=${where} title=${code(card.title)} onClose=${close}>
+  return html`<${Panel} label=${card.title} where=${where} title=${editing ? html`<${TitleInput} card=${card} />` : code(card.title)} onClose=${close}>
     ${board && html`<${Actions} key=${board.key + "/" + card.id} board=${board} card=${card} column=${column} />`}
     ${board && html`<${Fields} board=${board} card=${card} people=${who || null} />`}
     ${(card.problems ?? []).length > 0 && html`<ul class="detail-problems">${card.problems.map((p) => html`<li>${`${p.code} ${p.message}`}</li>`)}</ul>`}
-    <div class="md" dangerouslySetInnerHTML=${{ __html: markdown(body) }}></div>
+    ${!editing && html`<div class="md" dangerouslySetInnerHTML=${{ __html: markdown(body) }}></div>`}
     ${board && log?.available && log.entries.length > 0 && html`
       <h2 class="panel-section">${t.history}</h2>
       <ul class="hist-list">${log.entries.map((entry) => html`<${HistoryRow} board=${board} entry=${entry} inCard />`)}</ul>`}

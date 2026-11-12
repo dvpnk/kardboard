@@ -71,6 +71,15 @@ kb assign dunkles-design sam --add
 kb done dunkles-design
 ```
 
+Den Text einer Karte ändert man in jedem Editor. `kb edit` öffnet sie in
+`$VISUAL` oder `$EDITOR` und speichert sie danach wie ein `kb set`: mit
+denselben Regeln und auf Boards mit `sync: commit` oder `push` als ein
+Commit.
+
+```bash
+kb edit dunkles-design
+```
+
 ```bash
 kb list --mine
 ```
@@ -118,8 +127,8 @@ kb ui
 ```
 
 Karten lassen sich in eine andere Spalte ziehen. Ein Klick auf eine Karte
-öffnet ihren Text und bietet Nehmen, Abschließen, Verschieben und Zuweisen an,
-dazu ihre Felder wie Größe, Schlagworte und Termin zum Ändern.
+öffnet ihren Text und bietet Nehmen, Abschließen, Verschieben und Zuweisen an.
+Der Stift ändert Titel, Felder und Text in einem Schritt, mit Vorschau.
 Jede dieser Handlungen ist der gleichnamige Befehl, mit denselben Regeln.
 
 Liegt ein Board in einem Git-Repository, zeigt „Verlauf“ oben rechts die

@@ -31,6 +31,8 @@ type Card struct {
 	Problems []Problem      `json:"problems,omitempty"`
 	// Body is the file content after the header, title line included.
 	Body string `json:"-"`
+	// Sum is the fingerprint of the file as it was read, see Change.Base.
+	Sum string `json:"sum"`
 
 	// refs are the targets of all fields of type cards.
 	refs []string
@@ -62,6 +64,7 @@ func (c *Card) fail(code, format string, args ...any) {
 // violations of the rules E02 to E05 and E07.
 func (c *Card) parse(cfg *Config, text string) {
 	c.Fields = map[string]any{}
+	c.Sum = Sum(text)
 	text = strings.TrimPrefix(text, "\uFEFF")
 	text = strings.ReplaceAll(text, "\r\n", "\n")
 
