@@ -320,6 +320,8 @@ type NewOptions struct {
 	Today string
 	// Force creates the card even if the column requires a field it lacks.
 	Force bool
+	// Text is the Markdown below the title line. Empty means none.
+	Text string
 }
 
 // New creates a card and returns it as read back from disk.
@@ -395,6 +397,9 @@ func (b *Board) New(title string, opt NewOptions) (*Card, error) {
 		content.WriteString("---\n\n")
 	}
 	content.WriteString("# " + title + "\n")
+	if text := strings.Trim(strings.ReplaceAll(opt.Text, "\r\n", "\n"), "\n"); strings.TrimSpace(text) != "" {
+		content.WriteString("\n" + strings.TrimRight(text, " \t\n") + "\n")
+	}
 
 	file := id + ".md"
 	path := filepath.Join(b.Root, col.ID, file)

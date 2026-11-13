@@ -200,6 +200,36 @@ Mit `sync: commit` committet `kb` nur und pusht nicht. Git darf dabei nicht
 nach einem Passwort fragen; der Schlüssel gehört in den Agenten oder den
 Schlüsselbund.
 
+## Für Skripte und KI-Agenten
+
+`kb` braucht kein Gegenüber. Jeder Befehl erklärt sich mit `--help`, samt
+Beispielen, und gibt mit `--json` JSON aus, auch Fehler: als Objekt auf
+stderr, mit Grund, Art und ob `--force` hilft. Der Rückgabecode ist `0` bei
+Erfolg, `1` bei einer Regel, die ablehnt, `2` bei falschem Aufruf.
+
+Wer eine Karte ändert, tut das über `kb` und nicht in der Datei: Dann gelten
+die Regeln des Boards, und auf Boards mit Git entsteht der richtige Commit.
+Text, den sonst ein Editor liefert, kommt aus einer Datei oder von stdin:
+
+```bash
+echo "Was zu tun ist." | kb new "Login prüfen" -c backlog --set size=S --text -
+```
+
+Zum Ändern liest man die Karte mit ihrem Fingerabdruck und gibt ihn beim
+Speichern mit. Hat inzwischen jemand anderes die Karte geändert, wird nichts
+überschrieben:
+
+```bash
+kb show login-pruefen --json   # body, fields und sum
+```
+
+```bash
+kb edit login-pruefen --file neu.md --base <sum>
+```
+
+Welche Felder und Werte erlaubt sind, beschreibt `kb schema` als JSON
+Schema. Wer man selbst ist, steht in `KARDBOARD_USER`.
+
 ## Fremde Bestandteile
 
 Die Oberfläche nutzt die Schrift [JetBrains Mono](https://github.com/JetBrains/JetBrainsMono),

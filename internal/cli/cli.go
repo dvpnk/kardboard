@@ -33,6 +33,7 @@ const (
 var errViolation = errors.New("board violates the format")
 
 type app struct {
+	in          io.Reader // what `-` reads, for --file and --text
 	out, errOut io.Writer
 	dir         string // -C: the board directory
 	boardID     string // -b: the id of a board known on this machine
@@ -46,7 +47,12 @@ func Execute() int {
 
 // Run runs kb with the given arguments and returns the exit code.
 func Run(args []string, out, errOut io.Writer) int {
-	a := &app{out: out, errOut: errOut}
+	return run(args, os.Stdin, out, errOut)
+}
+
+// run is Run with the input `-` reads from, so tests can give one.
+func run(args []string, in io.Reader, out, errOut io.Writer) int {
+	a := &app{in: in, out: out, errOut: errOut}
 	root := &cobra.Command{
 		Use:           "kb",
 		Short:         "Boards made of Markdown cards that live in your projects",
@@ -57,32 +63,66 @@ func Run(args []string, out, errOut io.Writer) int {
 	root.SetErr(errOut)
 	root.SetArgs(args)
 	root.PersistentFlags().StringVarP(&a.dir, "dir", "C", "", "board directory, instead of looking it up from the current directory")
-	root.PersistentFlags().StringVarP(&a.boardID, "board", "b", "", "id of a board known on this machine, see `kb boards`")
+	root.PersistentFlags().StringVarP(&a.boardID, "board", "b", "", "board `id` known on this machine, see kb boards")
 	root.PersistentFlags().BoolVar(&a.asJSON, "json", false, "print JSON")
 	root.MarkFlagsMutuallyExclusive("dir", "board")
 	root.AddCommand(a.initCmd(), a.lintCmd(), a.schemaCmd(), a.listCmd(), a.showCmd(), a.logCmd())
 	root.AddCommand(a.newCmd(), a.moveCmd(), a.takeCmd(), a.doneCmd(), a.assignCmd(), a.unassignCmd(), a.setCmd(), a.editCmd(), a.renameCmd())
 	root.AddCommand(a.boardsCmd(), a.addCmd(), a.removeCmd(), a.scanCmd(), a.syncCmd(), a.uiCmd())
 
+	addExamples(root)
 	err := root.Execute()
+	if err == nil {
+		return ExitOK
+	}
+	if errors.Is(err, errViolation) {
+		return ExitViolation // the command has said what is wrong
+	}
+	kind, code := classify(err)
+	switch {
+	case a.asJSON:
+		// stdout keeps the one document a command printed, if any; the
+		// error goes to stderr, as an object a program can read.
+		enc := json.NewEncoder(errOut)
+		enc.SetEscapeHTML(false)
+		_ = enc.Encode(errorJSON{Error: err.Error(), Kind: kind, Force: kind == "refused"})
+	case kind == "refused":
+		fmt.Fprintf(errOut, "kb: %s (--force does it anyway)\n", err)
+	default:
+		fmt.Fprintf(errOut, "kb: %s\n", err)
+	}
+	return code
+}
+
+// errorJSON is what kb writes to stderr for an error when --json is given.
+type errorJSON struct {
+	Error string `json:"error"`
+	// Kind is refused (a rule of the board forbids it), conflict (someone
+	// changed the card at the same time), not_pushed (committed here, not
+	// on the remote), stale (the card changed since it was read) or usage
+	// (anything else: a wrong call, nothing to work on).
+	Kind string `json:"kind"`
+	// Force is true if --force would do it anyway.
+	Force bool `json:"force,omitempty"`
+}
+
+// classify names the kind of an error and the exit code that goes with it.
+func classify(err error) (kind string, code int) {
 	var refused *board.RefusedError
 	var conflict *gitsync.ConflictError
 	var notPushed *gitsync.PushError
 	var stale *board.StaleError
 	switch {
-	case err == nil:
-		return ExitOK
-	case errors.Is(err, errViolation):
-		return ExitViolation
 	case errors.As(err, &refused):
-		fmt.Fprintf(errOut, "kb: %s (--force does it anyway)\n", refused.Reason)
-		return ExitViolation
-	case errors.As(err, &conflict), errors.As(err, &notPushed), errors.As(err, &stale):
-		fmt.Fprintf(errOut, "kb: %s\n", err)
-		return ExitViolation
+		return "refused", ExitViolation
+	case errors.As(err, &conflict):
+		return "conflict", ExitViolation
+	case errors.As(err, &notPushed):
+		return "not_pushed", ExitViolation
+	case errors.As(err, &stale):
+		return "stale", ExitViolation
 	default:
-		fmt.Fprintf(errOut, "kb: %s\n", err)
-		return ExitUsage
+		return "usage", ExitUsage
 	}
 }
 
@@ -417,11 +457,21 @@ func (a *app) showCmd() *cobra.Command {
 
 func (a *app) newCmd() *cobra.Command {
 	var opt board.NewOptions
+	var text string
 	cmd := &cobra.Command{
 		Use:   "new <title>",
 		Short: "Create a card",
-		Args:  cobra.ExactArgs(1),
+		Example: `  kb new "Dunkles Design" -c backlog --set size=M --set tags=feature,ui
+  kb new "Export als PDF" --text notes.md
+  echo "Was zu tun ist." | kb new "Login prüfen" --text -`,
+		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
+			if text != "" {
+				var err error
+				if opt.Text, err = a.readInput(text); err != nil {
+					return err
+				}
+			}
 			b, err := a.loadValid()
 			if err != nil {
 				return err
@@ -451,6 +501,7 @@ func (a *app) newCmd() *cobra.Command {
 	cmd.Flags().StringArrayVar(&opt.Set, "set", nil, "header value as field=value, may be repeated")
 	cmd.Flags().StringVar(&opt.ID, "id", "", "file name without .md (default: derived from the title)")
 	cmd.Flags().BoolVar(&opt.Force, "force", false, "create the card even if the column requires a field it lacks")
+	cmd.Flags().StringVar(&text, "text", "", "Markdown below the title, from this file or from stdin with -")
 	return cmd
 }
 

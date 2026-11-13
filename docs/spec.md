@@ -396,14 +396,14 @@ Karten ändern:
 
 | Befehl | Spalte | Person | Wirkung |
 |---|---|---|---|
-| `kb new "<titel>" [-c spalte] [--set feld=wert] [--id kürzel]` | | | legt eine Karte an |
+| `kb new "<titel>" [-c spalte] [--set feld=wert] [--id kürzel] [--text datei]` | | | legt eine Karte an, mit `--text` samt Text |
 | `kb move <karte> <spalte>` | wechselt | bleibt | verschiebt die Karte |
 | `kb take <karte> [--add]` | geht in die erste Spalte mit `doing` | wird man selbst, mit `--add` kommt man dazu | nimmt die Karte in Arbeit |
 | `kb done <karte>` | geht in die erste Spalte mit `done` | bleibt | schließt die Karte ab |
 | `kb assign <karte> <person>… [--add]` | bleibt | wird ersetzt, mit `--add` ergänzt | weist die Karte zu. `kb give` ist dasselbe |
 | `kb unassign <karte> [person…]` | bleibt | entfällt, mit Namen nur diese | gibt die Karte frei |
 | `kb set <karte> feld=wert …` | bleibt | bleibt | ändert Felder im Kopf, `feld=` entfernt eines |
-| `kb edit <karte>` | bleibt | wie im Editor geändert | öffnet die Karte im Editor und speichert sie als eine Änderung, siehe unten |
+| `kb edit <karte> [--file datei] [--base sum]` | bleibt | wie im Editor geändert | öffnet die Karte im Editor, mit `--file` ohne, und speichert sie als eine Änderung, siehe unten |
 | `kb rename <karte> <neu>` | bleibt | bleibt | benennt um und zieht Verweise nach, siehe unten |
 
 Rechner:
@@ -519,6 +519,16 @@ Für alle Befehle gilt:
 
 - Lesende Befehle kennen `--json`, für Skripte und Agenten. Ein Feld vom Typ
   `person` ist dort immer eine Liste, auch bei einem einzelnen Namen.
+  `kb show --json` nennt auch den Fingerabdruck der Datei (`sum`).
+- Mit `--json` steht ein Fehler als ein Objekt auf stderr: `error` (der
+  Grund), `kind` (`refused`, `conflict`, `not_pushed`, `stale` oder `usage`)
+  und `force`, wenn `--force` es trotzdem täte. stdout trägt nur, was der
+  Befehl ausgibt.
+- Nichts braucht ein Gegenüber. Text, den sonst der Editor liefert, nimmt
+  `kb new --text` und `kb edit --file` aus einer Datei oder mit `-` von
+  stdin. `kb edit --file … --base <sum>` speichert nur, wenn die Karte seit
+  dem Lesen unverändert ist.
+- Jeder Befehl hat `--help` (oder `-h`, `kb help <befehl>`) mit Beispielen.
 - Rückgabecode `0` bei Erfolg, `1` bei einem Regelverstoß, bei einer
   Änderung, die wegen eines Konflikts zurückgenommen wurde, und bei einem
   Commit, der nicht gepusht werden konnte. `2` bei falschem Aufruf oder wenn

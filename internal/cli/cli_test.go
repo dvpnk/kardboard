@@ -1111,3 +1111,142 @@ func TestLogCommand(t *testing.T) {
 		t.Errorf("no repository: code %d, err %q", code, errOut)
 	}
 }
+
+// kbIn runs kb with stdin.
+func kbIn(t *testing.T, stdin string, args ...string) (int, string, string) {
+	t.Helper()
+	var out, errOut bytes.Buffer
+	code := run(args, strings.NewReader(stdin), &out, &errOut)
+	return code, out.String(), errOut.String()
+}
+
+// words splits an example line like a shell would, for the simple lines
+// the examples have: quotes, a comment at the end, a pipe into kb.
+func words(line string) []string {
+	if i := strings.Index(line, "| kb "); i >= 0 {
+		line = line[i+2:]
+	}
+	var out []string
+	var cur strings.Builder
+	quoted, has := false, false
+	for _, r := range line {
+		switch {
+		case r == '"':
+			quoted, has = !quoted, true
+		case r == '#' && !quoted:
+			if has {
+				out = append(out, cur.String())
+			}
+			return out
+		case r == ' ' && !quoted:
+			if has {
+				out = append(out, cur.String())
+				cur.Reset()
+				has = false
+			}
+		default:
+			cur.WriteRune(r)
+			has = true
+		}
+	}
+	if has {
+		out = append(out, cur.String())
+	}
+	return out
+}
+
+func TestHelpExamplesAreValidCalls(t *testing.T) {
+	n := 0
+	for name := range examples {
+		code, help, _ := kb(t, name, "--help")
+		if code != ExitOK || !strings.Contains(help, "Examples:") {
+			t.Errorf("kb %s --help: code %d, no examples", name, code)
+			continue
+		}
+		ex := help[strings.Index(help, "Examples:"):]
+		ex = ex[:strings.Index(ex, "\n\n")]
+		for _, line := range strings.Split(ex, "\n")[1:] {
+			args := words(strings.TrimSpace(line))
+			if len(args) == 0 || args[0] != "kb" {
+				t.Errorf("kb %s: example %q does not call kb", name, line)
+				continue
+			}
+			// --help after the call: cobra checks the flags, runs nothing.
+			if code, _, errOut := kb(t, append(args[1:], "--help")...); code != ExitOK {
+				t.Errorf("example %q: code %d, %s", line, code, errOut)
+			}
+			n++
+		}
+	}
+	for _, cmd := range []string{"edit", "new"} {
+		_, help, _ := kb(t, cmd, "--help")
+		ex := help[strings.Index(help, "Examples:"):]
+		ex = ex[:strings.Index(ex, "\n\n")]
+		for _, line := range strings.Split(ex, "\n")[1:] {
+			if code, _, errOut := kb(t, append(words(strings.TrimSpace(line))[1:], "--help")...); code != ExitOK {
+				t.Errorf("example %q: code %d, %s", line, code, errOut)
+			}
+			n++
+		}
+	}
+	if n < 30 {
+		t.Errorf("only %d examples checked", n)
+	}
+}
+
+func TestAgentFriendlyCalls(t *testing.T) {
+	asUser(t, "alex")
+	root := syncRepo(t, "commit")
+
+	// A card with text, from stdin.
+	code, out, errOut := kbIn(t, "Erste Zeile.\n\n- Punkt\n", "new", "Mit Text", "--text", "-", "-C", root)
+	if code != ExitOK || !strings.HasPrefix(out, "planning/mit-text.md  (commit ") {
+		t.Fatalf("new --text: code %d, out %q, err %q", code, out, errOut)
+	}
+	if got := readFile(t, root, "planning/mit-text.md"); !strings.HasSuffix(got, "# Mit Text\n\nErste Zeile.\n\n- Punkt\n") {
+		t.Errorf("card = %q", got)
+	}
+
+	// Read with its sum, change without an editor, one commit.
+	code, out, _ = kb(t, "show", "mit-text", "--json", "-C", root)
+	var shown struct {
+		Sum string `json:"sum"`
+	}
+	if code != ExitOK || json.Unmarshal([]byte(out), &shown) != nil || shown.Sum == "" {
+		t.Fatalf("show --json: code %d, out %s", code, out)
+	}
+	t.Setenv("VISUAL", "false") // no editor may run
+	changed := strings.Replace(readFile(t, root, "planning/mit-text.md"), "Erste Zeile.", "Neue Zeile.", 1)
+	code, out, errOut = kbIn(t, changed, "edit", "mit-text", "--file", "-", "--base", shown.Sum, "-C", root)
+	if code != ExitOK || !strings.HasPrefix(out, "mit-text: text changed  (commit ") {
+		t.Fatalf("edit --file: code %d, out %q, err %q", code, out, errOut)
+	}
+	if got := gitIn(t, root, "log", "-1", "--format=%s"); got != "edit mit-text" {
+		t.Errorf("commit = %q", got)
+	}
+
+	// The same old sum again: the card changed since, nothing is saved, and
+	// with --json the error says so as an object on stderr.
+	code, out, errOut = kbIn(t, "# Anders\n", "edit", "mit-text", "--file", "-", "--base", shown.Sum, "--json", "-C", root)
+	var failure errorJSON
+	if code != ExitViolation || out != "" || json.Unmarshal([]byte(errOut), &failure) != nil || failure.Kind != "stale" {
+		t.Errorf("stale: code %d, out %q, err %q", code, out, errOut)
+	}
+	if !strings.Contains(readFile(t, root, "planning/mit-text.md"), "Neue Zeile.") {
+		t.Error("the card was overwritten")
+	}
+
+	// A refusal says that --force helps.
+	code, _, errOut = kb(t, "done", "export-als-pdf", "--json", "-C", root)
+	if code != ExitViolation || json.Unmarshal([]byte(errOut), &failure) != nil || failure.Kind != "refused" || !failure.Force {
+		t.Errorf("refused: code %d, err %q", code, errOut)
+	}
+	failure = errorJSON{}
+	code, _, errOut = kb(t, "show", "nope", "--json", "-C", root)
+	if code != ExitUsage || json.Unmarshal([]byte(errOut), &failure) != nil || failure.Kind != "usage" || failure.Force {
+		t.Errorf("usage: code %d, err %q", code, errOut)
+	}
+	if code, _, errOut = kb(t, "edit", "mit-text", "--base", "abc", "-C", root); code != ExitUsage || !strings.Contains(errOut, "--base goes with --file") {
+		t.Errorf("--base alone: code %d, err %q", code, errOut)
+	}
+}
