@@ -234,6 +234,11 @@ kard edit login-pruefen --file neu.md --base <sum>
 Welche Felder und Werte erlaubt sind, beschreibt `kard schema` als JSON
 Schema. Wer man selbst ist, steht in `KARDBOARD_USER`.
 
+## Lizenz
+
+kardboard steht unter der [MIT License](LICENSE). Für die fremden
+Bestandteile unten gelten ihre eigenen Lizenzen.
+
 ## Fremde Bestandteile
 
 Die Oberfläche nutzt die Schrift [JetBrains Mono](https://github.com/JetBrains/JetBrainsMono),
