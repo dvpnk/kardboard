@@ -351,7 +351,9 @@ hidden:
 | `scan` | Ordner, in denen kardboard nach `board.yaml` sucht |
 | `hidden` | Boards, die in der Gesamtansicht ausgeblendet sind |
 
-Die Variable `KARDBOARD_USER` geht dem Eintrag `user` vor.
+Die Variable `KARDBOARD_USER` geht dem Eintrag `user` vor. Wie der Name ohne
+Eintrag aus Git kommen könnte, beschreibt der
+[Vorschlag: Personen aus Git](#vorschlag-personen-aus-git).
 
 Ein Board ist auf dem Rechner bekannt, wenn es unter `boards` steht oder unter
 einem Ordner aus `scan` liegt. Die Suche geht höchstens sechs Ebenen tief und
@@ -613,6 +615,151 @@ angemeldet ist.
   ihre Verstöße, ein unbrauchbares Board zeigt den Grund.
 - **Keine Anfrage nach außen.** Alles, was die Seite braucht, steckt im
   Programm.
+
+## Vorschlag: Personen aus Git
+
+**Stand:** Vorschlag, noch nicht umgesetzt. Wo er den Kapiteln oben
+widerspricht, gelten bis zur Umsetzung die Kapitel oben.
+
+Heute muss jeder einmal `user: <name>` eintragen, und der Name gilt für alle
+Boards gleich. Dabei hat Git schon eine Identität, oft je Repository eine
+andere, und die Commits von `kard` tragen sie ohnehin. Der Vorschlag nimmt
+diese Identität, ohne dass jemand etwas einrichtet, und lässt sie
+überschreiben, wo man das will.
+
+### Wer man ist
+
+kardboard bestimmt den eigenen Namen je Board. Es nimmt den ersten Eintrag,
+den es findet:
+
+| Nr. | Quelle | Gedacht für |
+|---|---|---|
+| 1 | `KARDBOARD_USER` | einen Aufruf, Skripte und Tests |
+| 2 | `user` in `.kard/config.yaml`, der nächsten vom Board aus | einen anderen Namen in einem Repository oder Board |
+| 3 | `user` in `~/.config/kardboard/config.yaml` | einen festen Namen in allen Boards |
+| 4 | `git config user.email`, gelesen im Ordner des Boards | den Normalfall: nichts einrichten |
+| 5 | der Kontoname im Betriebssystem | Rechner ohne Git oder ohne Git-Adresse |
+
+Was ausdrücklich eingetragen ist, geht dem Abgeleiteten vor. Wer schon heute
+`user: alex` eingetragen hat, merkt also keinen Unterschied.
+
+Zu den Quellen:
+
+- **Git je Board.** `git config user.email` wird im Ordner des Boards
+  gelesen. So greift, was Git dort gilt, auch eine Adresse je Repository
+  über `includeIf`. Liegt das Board in keinem Repository, gilt die globale
+  Git-Adresse. kardboard liest die Git-Config nur und schreibt nie hinein.
+- **Ein eigener Name je Repository oder Board** steht in `.kard/config.yaml`.
+  Er ist für den, der dort nicht unter seiner Adresse erscheinen will.
+- **Der Kontoname** ist der letzte Ausweg. Er wird klein geschrieben, unter
+  Windows ohne den Teil vor `\`. Ist er danach kein gültiges Kürzel, fehlt
+  ein Name, und `kard` sagt, wo man ihn einträgt. Der Kontoname kann auf
+  jedem Rechner ein anderer sein. Für ein Board, das man allein nutzt, ist
+  das gleich; im Team sollte ein Name aus Git oder den Einstellungen
+  kommen.
+- **`kard whoami`** zeigt den Namen und woher er kommt, mit Pfad der Datei,
+  für das Board, in dem man steht, oder mit `--all` für jedes. `--json`
+  gibt beides als Felder aus. `kard whoami --set <name>` schreibt den Namen
+  in `.kard/config.yaml` an der Wurzel des Repositorys, ohne Repository in
+  den Board-Ordner.
+
+### Persönliche Einstellungen im Projekt: `.kard/`
+
+```
+projekt/
+  .kard/
+    .gitignore      enthält nur: *
+    config.yaml     user: angelique-l
+  board/
+    board.yaml
+```
+
+- **Nur für einen selbst.** `.kard/` gehört dem, der den Klon hat. Was alle
+  angeht, steht in der `board.yaml`. In jedem neuen Klon legt man `.kard/`
+  neu an.
+- **Wird nie committet.** Die `.gitignore` in `.kard/` schließt den ganzen
+  Ordner aus, sich selbst eingeschlossen. Die `.gitignore` des Projekts
+  bleibt unberührt. `kard` legt diese Datei an, wenn es den Ordner anlegt,
+  und `kard lint` meldet einen Fehler, wenn Git eine Datei aus `.kard/`
+  verfolgt (neue Regel E11).
+- **Gesucht wird vom Board-Ordner aufwärts** bis zur Wurzel des
+  Repositorys, ohne Repository nur im Board-Ordner. Die erste
+  `.kard/config.yaml` gilt. So gilt eine an der Wurzel für alle Boards
+  eines Repositorys, und ein Board kann trotzdem seine eigene haben.
+- **Dieselbe Form wie `~/.config/kardboard/config.yaml`**, aber nur mit
+  `user`. Jeder andere Schlüssel ist ein Fehler, bis es einen Grund für ihn
+  gibt.
+
+### Was in der Karte steht
+
+Ein Wert vom Typ `person` ist ein Kürzel wie bisher oder eine E-Mail-Adresse.
+kardboard schreibt die Adresse klein und vergleicht ohne Rücksicht auf
+Groß- und Kleinschreibung.
+
+```yaml
+assignee: angelique.lambert@firma.de
+```
+
+```yaml
+assignee: [angelique.lambert@firma.de, sam]
+```
+
+Die Datei bleibt ohne kardboard lesbar, und `grep` findet die Person. Die
+Adresse ist dieselbe wie in den Commits des Boards. Wer sie in einem
+öffentlichen Repository nicht zeigen will, nutzt dort eine
+noreply-Adresse oder einen eigenen Namen in `.kard/config.yaml`.
+
+Bestehende Karten mit Kürzeln bleiben gültig und werden nicht umgeschrieben.
+
+### Andere zuweisen, ohne Adressen zu tippen
+
+Ein Board kennt seine Leute schon, ohne Liste in der `board.yaml`:
+
+- die Autoren der Commits, die das Board berührt haben, mit Name und Adresse
+- die Personen, die schon in den Karten stehen
+
+Git führt diese Personen über die `.mailmap` des Repositorys zusammen.
+kardboard nutzt dieselbe Datei: Zwei Adressen, die sie einer Person zuordnet,
+gelten auch auf Karten als dieselbe Person, etwa für `--mine` und für die
+Frage, ob eine Karte einem selbst gehört.
+
+`kard assign <karte> <person>` und `kard new --set assignee=…` nehmen eine
+Person so:
+
+1. Ist der Wert ein Kürzel oder eine Adresse, die das Board kennt, gilt sie.
+2. Sonst sucht `kard` unter den bekannten Personen nach dem Anfang einer
+   Adresse oder eines Namens, ohne Rücksicht auf Groß- und Kleinschreibung
+   und Umlaute. `sam` findet `sam@firma.de` und Sam Berger. Genau ein
+   Treffer gilt.
+3. Mehrere Treffer sind ein Fehler, der sie nennt. Mit `--json` hat er die
+   Art `ambiguous` und eine Liste `candidates`.
+4. Kein Treffer: Ein gültiges Kürzel oder eine gültige Adresse wird so
+   genommen, wie sie dasteht. Das ist eine neue Person. Hat das Feld
+   `values`, gilt das wie bisher als Fehler.
+
+### In der Oberfläche
+
+- **Ein Monogramm statt des Namens.** Zwei Buchstaben, aus dem Namen in Git,
+  sonst aus der Adresse vor dem `@` oder aus dem Kürzel: Angélique Lambert wird
+  AL, `sam@firma.de` wird SA. Das Monogramm ist quadratisch und in Mono
+  gesetzt, wie alles, was das Werkzeug sagt. Das eigene ist mit Tinte
+  gefüllt, die anderen haben eine Haarlinie.
+- **Name und Adresse beim Darüberfahren.** Zwei Personen mit gleichen
+  Buchstaben unterscheidet erst das; mehr soll das Monogramm nicht leisten.
+- **Zuweisen aus einer Auswahl** der bekannten Personen des Boards, mit
+  demselben Suchen wie im CLI.
+- **Wer man ist, gilt je Board.** „Nur meine“ meint in jedem angehakten
+  Board den Namen, den kardboard für dieses Board bestimmt. Kommt er dort
+  nur aus dem Kontonamen, sagt das Menü es.
+
+### Was dafür noch zu klären ist
+
+- **Umstellen bestehender Karten.** Ob es einen Befehl braucht, der ein
+  Kürzel in allen Karten eines Boards durch eine Adresse ersetzt, oder ob
+  ein eingetragenes `user` dafür reicht.
+- **Kartenverweise auf Personen anderer Boards.** Eine Adresse ist über
+  Boards hinweg dieselbe, ein Kürzel nicht unbedingt. „Nur meine“ über
+  mehrere Boards hängt davon ab, wie man dort heißt.
 
 ## Offene Punkte
 
