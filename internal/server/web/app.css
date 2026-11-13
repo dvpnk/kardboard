@@ -1,8 +1,28 @@
-/* kardboard: neutral, calm, almost square. Cards are plain fields on the
-   column, without frames; lines are kept for the few things that need one.
-   Colour only says which project a card belongs to and what needs attention.
-   The name and the column heads are set in a monospace face, everything a
-   card says in the system's sans-serif. */
+/* kardboard: ink on paper. The rules of the look, so a new part fits in:
+
+   - Ground and ink. An off-white ground, near-black ink; in the dark the
+     same, turned around. No gradients.
+   - Square. No rounded corners. The only round things are the small
+     status dots: something waits in the menu, the page is live.
+   - Lines make the structure. The page is a grid: the top bar, the columns
+     and the panel are cells divided by lines that meet. Two strengths keep
+     it calm: --border carries the grid (between columns, under the top bar,
+     around the panel's sections), --line-soft divides the rows inside a
+     cell (cards, column heads). A line never has a shadow; only what lies
+     over the page (menus, the panel) casts one.
+   - Filled ink means on. The chosen value, the active filter, the primary
+     button, the count of the working column: ink ground, paper text.
+   - Labels are spaced capitals. Buttons, column heads, menu headings and
+     the panel's bar: monospace, 11px, uppercase, 0.12em apart. What a card
+     says, and anything typed, keeps its own case in the sans-serif.
+   - Marks are a film of ink. Size, milestone and tags sit in a hairline on
+     a see-through tint (--badge, --badge-line), so they suit every ground.
+   - Colour is rare. It says which project a card belongs to (a small
+     square), and what needs attention (late, broken). An accent colour may
+     come later; it would mark the one thing to look at, never decorate.
+   - Native where it serves. Pickers stay the browser's own and are styled
+     as far as the browser allows; tick boxes are drawn here, because every
+     browser allows that. */
 
 /* JetBrains Mono ships inside kard (see fonts/README.md), so the page asks no
    other server for it. */
@@ -18,24 +38,29 @@
 }
 
 :root {
-  --bg: #f6f6f7;
-  --surface: #ffffff;
-  --sunken: #eeeef0;
-  --text: #1a1a1d;
-  --dim: #6a6a72;
-  --faint: #9a9aa2;
-  --border: #dfdfe3;
-  --border-strong: #c4c4cb;
-  --hover: #f0f0f2;
-  --badge: #f1f1f4;
-  --knob: #ffffff;
-  --doing: #d7d7de;
-  --focus: #1a1a1d;
+  --bg: #f4f4f2;
+  --surface: #fbfbfa;
+  --sunken: #ececea;
+  --text: #111114;
+  --dim: #5d5d62;
+  --faint: #96969b;
+  --border: #dcdcd9;
+  --border-strong: #c2c2bf;
+  --hover: #ececea;
+  /* Marks are a see-through film of ink, so they suit every ground they
+     lie on: column, working column, hover, the open card. */
+  --badge: rgba(17, 17, 20, 0.05);
+  --badge-line: rgba(17, 17, 20, 0.16);
+  /* Lines inside a column: between cards, under its head. */
+  --line-soft: rgba(17, 17, 20, 0.08);
+  --knob: #fbfbfa;
+  --doing: #efefec;
+  --focus: #111114;
   --danger: #c92a2a;
-  --danger-bg: #fdecec;
-  --warn: #b35c00;
+  --danger-bg: #f8e6e4;
+  --warn: #a35400;
 
-  --radius: 2px;
+  --radius: 0;
   /* Every button, field and menu trigger has this height and the same type
      size, wherever it sits. */
   --control: 30px;
@@ -50,19 +75,21 @@
    between a media query and a selector, hence the two copies: keep them the
    same. */
 :root[data-theme="dark"] {
-  --bg: #18181a;
-  --surface: #222225;
-  --sunken: #1d1d20;
-  --text: #e6e6e9;
-  --dim: #a0a0a8;
-  --faint: #72727a;
-  --border: #333338;
-  --border-strong: #46464d;
-  --hover: #2a2a2e;
-  --badge: #2c2c31;
-  --knob: #c8c8cf;
-  --doing: #303037;
-  --focus: #e6e6e9;
+  --bg: #121214;
+  --surface: #1b1b1e;
+  --sunken: #18181b;
+  --text: #ececee;
+  --dim: #a2a2a8;
+  --faint: #737379;
+  --border: #2b2b2f;
+  --border-strong: #424247;
+  --hover: #202024;
+  --badge: rgba(236, 236, 238, 0.06);
+  --badge-line: rgba(236, 236, 238, 0.16);
+  --line-soft: rgba(236, 236, 238, 0.07);
+  --knob: #c8c8cd;
+  --doing: #17171a;
+  --focus: #ececee;
   --danger: #ff8787;
   --danger-bg: #3a1f1f;
   --warn: #ffa94d;
@@ -70,19 +97,21 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #18181a;
-    --surface: #222225;
-    --sunken: #1d1d20;
-    --text: #e6e6e9;
-    --dim: #a0a0a8;
-    --faint: #72727a;
-    --border: #333338;
-    --border-strong: #46464d;
-    --hover: #2a2a2e;
-    --badge: #2c2c31;
-    --knob: #c8c8cf;
-    --doing: #303037;
-    --focus: #e6e6e9;
+    --bg: #121214;
+    --surface: #1b1b1e;
+    --sunken: #18181b;
+    --text: #ececee;
+    --dim: #a2a2a8;
+    --faint: #737379;
+    --border: #2b2b2f;
+    --border-strong: #424247;
+    --hover: #202024;
+    --badge: rgba(236, 236, 238, 0.06);
+    --badge-line: rgba(236, 236, 238, 0.16);
+    --line-soft: rgba(236, 236, 238, 0.07);
+    --knob: #c8c8cd;
+    --doing: #17171a;
+    --focus: #ececee;
     --danger: #ff8787;
     --danger-bg: #3a1f1f;
     --warn: #ffa94d;
@@ -123,6 +152,13 @@ button { cursor: pointer; }
   border: 1px solid var(--border-strong); border-radius: var(--radius);
   padding: 0 10px;
 }
+/* What one clicks is labelled in small spaced capitals: the type of a
+   label, not of a sentence. Fields one types into, and values like names
+   and tags, keep their own case. */
+.menu-button, .act-button, .act-select, .notice-button, .field-button,
+.settings-segments button, .col-head, .col-more {
+  font: 500 11px/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase;
+}
 .menu-button:hover, .menu-button.is-open, .panel-close:hover,
 .act-button:hover, .act-select:hover, .notice-button:hover, .act-remove:hover, .field-select:hover, .field-button:hover { background: var(--hover); }
 /* Pickers: the browser's own arrow is drawn differently in each browser and
@@ -134,6 +170,30 @@ button { cursor: pointer; }
   content: ""; position: absolute; right: 11px; top: 50%; width: 5px; height: 5px; pointer-events: none;
   border-right: 1.5px solid var(--dim); border-bottom: 1.5px solid var(--dim);
   transform: translateY(-70%) rotate(45deg);
+}
+/* Where the browser lets a page style the open list of a picker too, it
+   looks like the menus of the page: square, a hairline, a quiet shadow,
+   entries like menu entries. Elsewhere the system draws the open list,
+   which is fine: it knows the keyboard, touch and screen readers best. */
+@supports (appearance: base-select) {
+  .act-select, .field-select,
+  .act-select::picker(select), .field-select::picker(select) { appearance: base-select; }
+  .act-select, .field-select { display: inline-flex; align-items: center; }
+  .act-select::picker-icon, .field-select::picker-icon { display: none; }
+  .act-select::picker(select), .field-select::picker(select) {
+    margin-top: 4px; padding: 4px; min-width: 180px;
+    color: var(--text); background: var(--surface);
+    border: 1px solid var(--border-strong); border-radius: 0;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16);
+  }
+  .act-select option, .field-select option { padding: 9px 10px; border-radius: 0; }
+  .act-select option { font: 500 11px/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; }
+  .act-select option:hover, .field-select option:hover,
+  .act-select option:focus-visible, .field-select option:focus-visible { background: var(--hover); outline: none; }
+  .field-select option:checked { background: var(--text); color: var(--surface); }
+  .act-select option::checkmark, .field-select option::checkmark { display: none; }
+  /* "Move to …" is the label of the button, not a place to move to. */
+  .act-select option[value=""] { display: none; }
 }
 .filter-search:hover, .act-input:hover, .field-input:hover, .field-date:hover { border-color: var(--dim); }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
@@ -149,21 +209,35 @@ button { cursor: pointer; }
 .ic-clock { color: var(--danger); }
 .ic-bug { color: var(--warn); }
 
-.dot { width: 9px; height: 9px; border-radius: 50%; flex: none; display: inline-block; }
+.dot { width: 9px; height: 9px; flex: none; display: inline-block; }
 
 /* ── Top bar ─────────────────────────────────────────────────────────────── */
 
+/* The top bar is a row of cells divided by hairlines, as tall as the bar.
+   Its buttons have no frame of their own: the cell is the button. */
 .top {
-  display: flex; align-items: center; gap: 10px;
-  padding: 8px 16px;
-  background: var(--surface);
+  display: flex; align-items: stretch; height: 48px;
+  background: var(--bg);
   border-bottom: 1px solid var(--border);
 }
-.top-brand { display: inline-flex; align-items: center; gap: 8px; font: 500 16px/1 var(--mono); letter-spacing: -0.01em; margin: 0 14px 0 0; }
-.top-mark { display: inline-flex; }
+.top-brand {
+  display: inline-flex; align-items: center; margin: 0; padding: 0 20px;
+  border-right: 1px solid var(--border);
+}
+.top-word { display: block; width: auto; }
+.top-mark { display: none; }
 .top-spacer { flex: 1; }
+.top > .menu-wrap { display: flex; border-right: 1px solid var(--border); }
+.top > .menu-wrap:last-child { border-right: 0; border-left: 1px solid var(--border); }
+.top .menu-button { height: 100%; border: 0; background: transparent; padding: 0 16px; }
+.top .menu-button:hover, .top .menu-button.is-open { background: var(--hover); }
+.top .menu-button.is-active, .top .menu-button.is-active:hover { background: var(--text); color: var(--bg); }
+.top .menu-square { width: 48px; padding: 0; }
+.top .menu-square.is-active { width: auto; padding: 0 14px; }
+.top .menu-panel { top: calc(100% + 1px); }
+.top .menu-pip { top: 12px; right: 12px; box-shadow: 0 0 0 2px var(--bg); }
 /* Shown in the top bar only while the page has lost its server. */
-.top-offline { font: 12px var(--mono); color: var(--warn); white-space: nowrap; }
+.top-offline { align-self: center; padding: 0 16px; font: 500 11px var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--warn); white-space: nowrap; }
 
 /* ── Menus ───────────────────────────────────────────────────────────────── */
 
@@ -203,7 +277,7 @@ button { cursor: pointer; }
   padding: 8px;
 }
 .menu-heading {
-  font: 500 11px var(--mono); text-transform: uppercase; letter-spacing: 0.06em;
+  font: 500 11px var(--mono); text-transform: uppercase; letter-spacing: 0.12em;
   color: var(--dim); margin: 12px 6px 6px;
 }
 .menu-hint { font-size: 12px; color: var(--dim); margin: 8px 6px 2px; }
@@ -249,7 +323,7 @@ button { cursor: pointer; }
 .filter-keys { display: inline-flex; gap: 3px; flex: none; }
 .filter-keys kbd {
   font: 11px/1 var(--mono); color: var(--dim);
-  background: var(--sunken); border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 3px;
+  background: var(--sunken); border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 0;
   padding: 2px 5px;
 }
 
@@ -269,11 +343,11 @@ button { cursor: pointer; }
    Almost square, like everything else here. */
 .filter-switch, .field-switch {
   appearance: none; -webkit-appearance: none; flex: none; position: relative;
-  width: 30px; height: 18px; margin: 0; border-radius: 3px;
+  width: 30px; height: 18px; margin: 0; border-radius: 0;
   background: var(--border-strong); cursor: pointer; transition: background 120ms;
 }
 .filter-switch::after, .field-switch::after {
-  content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 2px;
+  content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 0;
   background: var(--knob); transition: transform 120ms;
 }
 .filter-switch:checked, .field-switch:checked { background: var(--text); }
@@ -311,7 +385,19 @@ button { cursor: pointer; }
 .proj-row { display: flex; align-items: center; gap: 4px; border-radius: var(--radius); }
 .proj-row:hover { background: var(--hover); }
 .proj-row.is-off { color: var(--faint); }
-.proj-check { margin: 0; accent-color: var(--text); }
+/* The tick boxes are drawn here, so they look the same in every browser
+   and system: a square with a hairline, filled with ink and ticked when on. */
+.proj-check {
+  appearance: none; -webkit-appearance: none; flex: none; position: relative;
+  width: 14px; height: 14px; margin: 0; cursor: pointer;
+  border: 1px solid var(--border-strong); border-radius: 0; background: var(--surface);
+}
+.proj-check:hover { border-color: var(--dim); }
+.proj-check:checked { background: var(--text); border-color: var(--text); }
+.proj-check:checked::after {
+  content: ""; position: absolute; left: 4px; top: 1px; width: 4px; height: 8px;
+  border: solid var(--bg); border-width: 0 1.5px 1.5px 0; transform: rotate(45deg);
+}
 .proj-pick {
   flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px;
   background: none; border: 0; padding: 5px 6px; text-align: left; border-radius: var(--radius);
@@ -339,29 +425,33 @@ button { cursor: pointer; }
 
 .shell { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); min-height: 0; }
 
-.shell-main { overflow: auto; padding: 14px 16px 40px; min-width: 0; }
+.shell-main { overflow: auto; padding: 0; min-width: 0; }
 
-.main-empty { max-width: 560px; margin: 48px auto; color: var(--dim); }
+.main-empty { max-width: 560px; margin: 48px auto; padding: 0 16px; color: var(--dim); }
 .main-empty h2 { font: 500 16px var(--mono); color: var(--text); margin: 0 0 8px; }
 .main-empty code { font: 13px var(--mono); background: var(--sunken); padding: 1px 5px; border-radius: var(--radius); }
 /* What cannot be loaded says why, in one quiet line. */
 .main-error {
   border-left: 2px solid var(--danger);
   color: var(--dim); font: 12px/1.45 var(--sans); padding: 1px 10px;
+  margin: 16px;
 }
 
 /* ── Columns ─────────────────────────────────────────────────────────────── */
 
-/* Columns share the width while it is scarce and stop growing at 320px:
-   wider than that, a card's title and its facts drift too far apart. When
-   they do not fit, the board area scrolls sideways, not this row: the row
-   is only as high as its longest column, the board area reaches the bottom
-   of the window, and that is where the scrollbar belongs. */
+/* The board is a grid drawn with lines, as tall as the window: each column
+   a cell, each card a row in it. Two strengths keep it calm: a hairline
+   between columns carries the grid, a fainter one divides the cards. Columns
+   share the width while it is scarce and stop growing at 340px: wider than
+   that, a card's title and its facts drift too far apart. When they do not
+   fit, the board area scrolls sideways; it reaches the bottom of the window,
+   and that is where the scrollbar belongs. */
+.lane { display: grid; min-height: 100%; }
 .cols {
-  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(220px, 320px);
-  justify-content: start; gap: 10px;
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(240px, 340px);
+  justify-content: start; gap: 0; min-height: 100%;
 }
-.col { background: var(--sunken); border-radius: var(--radius); padding: 8px 6px 6px; min-width: 0; align-self: start; }
+.col { min-width: 0; display: flex; flex-direction: column; border-right: 1px solid var(--border); }
 /* When the panel covers the open card, the row of columns can be scrolled
    on past its last column by the panel's width, so the card can be moved
    out from under it. The space is no column: the columns keep their
@@ -369,31 +459,40 @@ button { cursor: pointer; }
 .shell.is-room .col:last-child { position: relative; }
 .shell.is-room .col:last-child::after { content: ""; position: absolute; top: 0; left: 100%; width: calc(var(--panel) + 16px); height: 1px; }
 /* The column for work in progress stands out a little: it is where the
-   eye should land first. */
+   eye should land first. Its count is set in ink. */
 .col.is-doing { background: var(--doing); }
-.col-head { display: flex; justify-content: space-between; gap: 8px; font: 500 12px var(--mono); color: var(--dim); margin: 0 4px 8px; }
-.col-over { color: var(--warn); }
-.col-none { font: 12px var(--mono); color: var(--faint); margin: 2px; }
-.col-more {
-  width: 100%; background: none; border: 0; text-align: left;
-  padding: 6px 4px; font: 12px var(--mono); color: var(--dim);
+.col-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  height: 44px; padding: 0 16px; color: var(--dim);
+  border-bottom: 1px solid var(--line-soft);
 }
-.col-more:hover { color: var(--text); }
+.col-head > :last-child { padding: 3px 7px; border: 1px solid var(--badge-line); background: var(--badge); color: var(--dim); }
+.col.is-doing .col-head > :last-child { background: var(--text); border-color: var(--text); color: var(--bg); }
+.col-over { color: var(--warn); }
+.col.is-doing .col-head > .col-over { color: var(--bg); }
+.col-none { font: 12px var(--mono); color: var(--faint); margin: 0; padding: 16px; }
+.col-more {
+  width: 100%; background: none; border: 0; border-bottom: 1px solid var(--line-soft); text-align: left;
+  padding: 14px 16px; color: var(--dim);
+}
+.col-more:hover { color: var(--text); background: var(--hover); }
 
 /* ── Card ────────────────────────────────────────────────────────────────── */
 
+/* A card is a row of its column, divided from the next by a hairline. The
+   open card is marked with a bar of ink on its left edge. */
 .card {
   display: block; width: 100%; text-align: left;
-  background: var(--surface);
-  border: 1px solid transparent; border-radius: var(--radius);
-  padding: 9px 10px; margin: 0 0 4px;
+  background: transparent;
+  border: 0; border-bottom: 1px solid var(--line-soft); border-radius: 0;
+  padding: 16px 16px 17px; margin: 0;
   cursor: pointer;
 }
-.card:hover { border-color: var(--border-strong); }
-.card.is-open { border-color: var(--text); }
+.card:hover { background: var(--hover); }
+.card.is-open { background: var(--surface); box-shadow: inset 3px 0 0 var(--text); }
 .card-head { position: relative; display: flex; align-items: flex-start; gap: 8px; }
 .card-title { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.card-title code, .panel-title code { font-family: var(--mono); font-size: 0.92em; background: var(--sunken); padding: 0 3px; border-radius: var(--radius); }
+.card-title code, .panel-title code { font-family: var(--mono); font-size: 0.92em; background: var(--badge); padding: 0 3px; border-radius: var(--radius); }
 .card.is-done .card-title { color: var(--dim); }
 
 /* The marks (overdue, broken) sit at the right edge of the card. The three
@@ -423,26 +522,36 @@ button { cursor: pointer; }
    wraps, so the same fact sits at the same spot on every card. */
 .card-line {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  margin-top: 5px; font: 12px/1.4 var(--sans); color: var(--dim);
+  margin-top: 10px; font: 11px/1.4 var(--mono); color: var(--dim);
   white-space: nowrap;
 }
-.card-facts { display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; }
+.card-facts { display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; }
 .card-facts > * { flex: none; }
 .card-due, .card-people { flex: none; }
-/* Size and milestone are small filled marks. A frame is reserved for
-   things one can click, so a mark must not have one. */
-.card-chip, .field-chip {
-  font: 10px/1.7 var(--mono); color: var(--dim);
-  background: var(--badge); border-radius: var(--radius); padding: 0 5px;
+/* Size, milestone and tags are small marks in a hairline, like labels on a
+   specimen: monospace capitals on a slightly darker ground. */
+.card-chip, .card-tag, .field-chip {
+  font: 500 10px/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--dim); background: var(--badge);
+  border: 1px solid var(--badge-line); border-radius: 0; padding: 3px 5px;
 }
-.card-project { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.card-chip { color: var(--text); }
+/* Which project: its colour and its name, as a quiet label. */
+.card-project {
+  display: flex; align-items: center; gap: 6px; min-width: 0;
+  font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+}
 .card-project .dot { width: 7px; height: 7px; }
 .card-project-name { overflow: hidden; text-overflow: ellipsis; }
 .card-people { display: flex; gap: 8px; }
 .card-who.is-me { color: var(--text); font-weight: 500; }
 
 .card[draggable="true"] { cursor: grab; }
-.card.is-dragging { opacity: 0.4; }
+/* A card being dragged: the picture under the pointer is the card with a
+   ground and a frame (the browser takes it the moment the drag begins,
+   see is-lifted), and the place it left is drawn dashed. */
+.card.is-lifted { background: var(--surface); box-shadow: inset 0 0 0 1px var(--text); }
+.card.is-dragging { opacity: 0.5; outline: 1px dashed var(--dim); outline-offset: -1px; }
 .col.is-drop { outline: 2px dashed var(--text); outline-offset: -2px; background: var(--hover); }
 
 /* ── Card menu ───────────────────────────────────────────────────────────── */
@@ -461,41 +570,60 @@ button { cursor: pointer; }
 
 /* The panel lies over the board instead of taking width from it, so the
    board does not move when a card opens. It grows with the window. The
-   board behind it stays as it is: a click on a card opens that one. */
+   board behind it stays as it is: a click on a card opens that one.
+   Inside, it is built like the board: a bar along the top, then sections
+   that run across the whole width, divided by hairlines. */
 .panel {
   position: absolute; top: 0; right: 0; bottom: 0;
   width: var(--panel);
-  border-left: 1px solid var(--border);
+  border-left: 1px solid var(--border-strong);
   background: var(--surface);
-  box-shadow: -8px 0 28px rgba(0, 0, 0, 0.10);
+  box-shadow: -8px 0 28px rgba(0, 0, 0, 0.08);
   overflow-y: auto;
-  padding: 14px 18px 40px;
+  padding: 0 0 40px;
 }
-/* The heading sits beside the button that closes the panel; the first line
-   of the heading is level with the button. */
-.panel-head { display: flex; align-items: flex-start; gap: 10px; }
-.panel-close { width: var(--control); padding: 0; font-size: 16px; flex: none; }
-.panel-title { flex: 1; min-width: 0; font: 500 19px/1.3 var(--mono); margin: 2px 0 0; overflow-wrap: anywhere; }
-/* One quiet line below the heading: project and column, or the branch. */
-.panel-where { display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; margin: 6px 0 16px; font: 12px var(--mono); color: var(--dim); overflow-wrap: anywhere; }
-.panel-project { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
+/* Everything in the panel keeps the same distance from its sides. */
+:where(.panel > *) { padding-left: 20px; padding-right: 20px; }
+/* The bar: where one is on the left, the cell that closes on the right,
+   like the cells of the top bar. It stays in view while the panel scrolls. */
+.panel-bar {
+  position: sticky; top: 0; z-index: 2;
+  display: flex; align-items: stretch; height: 44px; padding-right: 0;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.panel-where {
+  flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px;
+  font: 500 11px var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim);
+  overflow-wrap: anywhere;
+}
+.panel-close {
+  flex: none; width: 44px; height: auto; padding: 0; font-size: 16px;
+  border: 0; border-left: 1px solid var(--border); background: transparent;
+}
+.panel-project { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
 .panel-project .dot { width: 7px; height: 7px; }
-.panel-head + :not(.panel-where) { margin-top: 16px; }
-.panel-section {
-  font: 500 11px var(--mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim);
-  margin: 22px 0 4px; padding-top: 12px; border-top: 1px solid var(--border);
+.panel-head { padding-top: 20px; padding-bottom: 18px; }
+.panel-title { margin: 0; font: 500 22px/1.25 var(--mono); letter-spacing: -0.01em; overflow-wrap: anywhere; }
+/* A heading inside the panel is a strip of its own, between two lines. */
+.panel-section, .issues-group {
+  display: flex; align-items: center; gap: 8px;
+  font: 500 11px var(--mono); text-transform: uppercase; letter-spacing: 0.12em; color: var(--dim);
+  margin: 0; padding-top: 12px; padding-bottom: 12px;
+  border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
 }
-.panel-note { font: 12px var(--mono); color: var(--dim); background: var(--sunken); border-radius: var(--radius); padding: 8px 10px; margin: 0 0 14px; }
+.panel-section { margin-top: 24px; }
+.issues-row + .issues-group { margin-top: 24px; }
+.panel-note { font: 12px var(--mono); color: var(--dim); background: var(--sunken); border-radius: var(--radius); padding: 8px 10px; margin: 0 20px 14px; }
 
 /* ── Card in the panel ───────────────────────────────────────────────────── */
 
 /* The fields stand apart from the actions above, between two hairlines;
    the pencil that starts editing them sits at the right of their first
    line. */
-.detail-section { position: relative; border-top: 1px solid var(--border); padding-top: 14px; margin-top: 14px; }
+.detail-section { position: relative; padding-top: 16px; padding-bottom: 2px; border-bottom: 1px solid var(--border); }
 .detail-section > .detail-facts { padding-right: 34px; }
 .detail-edit {
-  position: absolute; top: 14px; right: 0; width: 26px; height: 26px; padding: 0;
+  position: absolute; top: 16px; right: 20px; width: 26px; height: 26px; padding: 0;
   display: flex; align-items: center; justify-content: center;
   background: var(--surface); color: var(--dim);
   border: 1px solid var(--border-strong); border-radius: var(--radius);
@@ -535,6 +663,7 @@ button { cursor: pointer; }
 .detail-fields.is-editable { gap: 6px 18px; }
 .detail-fields.is-editable .field-row { min-height: var(--control); }
 .field-list { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.field-list.is-marks { gap: 4px; }
 .field-dim { color: var(--dim); }
 .field-when { color: var(--faint); }
 .field-when.is-late { color: var(--danger); }
@@ -553,7 +682,7 @@ button { cursor: pointer; }
 .act-people .act-person, .act-people .act-add, .act-people .act-input { height: 24px; font-size: 12px; }
 .act-people .act-add { width: 24px; }
 /* The file the card lives in: a fact for the curious, at the very end. */
-.detail-path { margin: 24px 0 0; font: 11px var(--mono); color: var(--faint); overflow-wrap: anywhere; }
+.detail-path { margin: 24px 0 0; padding-top: 14px; border-top: 1px solid var(--border); font: 11px var(--mono); color: var(--faint); overflow-wrap: anywhere; }
 .field-input { width: 100%; max-width: 280px; }
 .field-input::placeholder { color: var(--faint); }
 .field-date { padding: 0 8px; }
@@ -566,7 +695,7 @@ button { cursor: pointer; }
 .field-segments button.is-on { background: var(--text); color: var(--surface); }
 .field-tags { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0; }
 /* Save and cancel below the fields. */
-.field-buttons { display: flex; gap: 6px; margin: 0 0 14px; }
+.field-buttons { margin: 0 0 14px; }
 /* The title while the card is edited: a field in the heading's place, in
    the heading's type, so the panel does not jump. */
 .field-title {
@@ -586,11 +715,12 @@ button { cursor: pointer; }
 .field-preview.is-empty { margin: 0; border: 1px solid var(--border); padding: 10px 12px; font: 12px var(--mono); color: var(--faint); }
 
 /* What is wrong with the open card: a quiet field like the controls, no red. */
-.detail-problems { list-style: none; margin: 0 0 14px; padding: 1px 0 1px 10px; border-left: 2px solid var(--warn); font: 12px/1.45 var(--sans); color: var(--dim); }
+.detail-problems { list-style: none; margin: 16px 20px 0; padding: 1px 0 1px 10px; border-left: 2px solid var(--warn); font: 12px/1.45 var(--sans); color: var(--dim); }
 .detail-problems li + li { margin-top: 4px; }
 
 /* The card's text, as md.js renders it. */
-.md { border-top: 1px solid var(--border); padding-top: 12px; overflow-wrap: anywhere; }
+.md { padding-top: 16px; overflow-wrap: anywhere; }
+.panel > .md { padding-bottom: 4px; }
 /* Running text keeps a length one can read in a wide panel. */
 .md p, .md ul, .md ol, .md blockquote, .md h1, .md h2, .md h3, .md h4 { max-width: 72ch; }
 .md > :first-child { margin-top: 0; }
@@ -610,8 +740,12 @@ button { cursor: pointer; }
 .md a { color: inherit; text-underline-offset: 2px; }
 
 /* What can be done with the open card. */
-.act { display: grid; gap: 8px; }
-.act-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.act { display: grid; gap: 8px; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
+.act .panel-note { margin: 0; }
+/* Buttons that belong together hang together, sharing their hairlines. */
+.act-row, .field-buttons { display: flex; flex-wrap: wrap; align-items: center; gap: 0; }
+.act-row > * + *, .field-buttons > * + * { margin-left: -1px; }
+.act-row > :hover, .field-buttons > :hover, .act-row > :focus-visible, .field-buttons > :focus-visible { position: relative; z-index: 1; }
 .act-button.is-primary, .notice-button.is-primary, .field-button.is-primary { background: var(--text); color: var(--surface); border-color: var(--text); }
 .act-button.is-primary:hover, .notice-button.is-primary:hover, .field-button.is-primary:hover { opacity: 0.85; }
 .act-add { width: var(--control); padding: 0; color: var(--dim); }
@@ -626,10 +760,11 @@ button { cursor: pointer; }
 
 /* ── Problems and history ────────────────────────────────────────────────── */
 
-.issues-group { display: flex; align-items: center; gap: 7px; font: 500 13px var(--mono); margin: 16px 0 4px; }
+/* What is wrong, board by board: each board a strip, each finding a row. */
 .issues-row {
   display: block; width: 100%; text-align: left; margin: 0;
-  background: none; border: 0; border-radius: var(--radius); padding: 6px 4px;
+  background: none; border: 0; border-bottom: 1px solid var(--border); border-radius: 0;
+  padding-top: 10px; padding-bottom: 10px;
   font: 12px/1.45 var(--sans); color: var(--dim);
 }
 button.issues-row:hover { background: var(--hover); }
@@ -669,7 +804,13 @@ button.hist:hover { background: var(--hover); }
 /* ── Narrow windows ──────────────────────────────────────────────────────── */
 
 @media (max-width: 760px) {
-  .top { flex-wrap: wrap; row-gap: 8px; }
+  /* The bar stays one row: the brand keeps only its mark, cells get closer. */
+  .top-brand { padding: 0 14px; }
+  .top-word { display: none; }
+  .top-mark { display: block; }
+  .top .menu-button { padding: 0 12px; }
+  .top .menu-square { width: 44px; }
+  .top > .menu-wrap:first-of-type { flex: 0 1 auto; min-width: 0; }
   .shell.is-split .shell-main { display: none; }
   .panel { width: auto; left: 0; border-left: 0; box-shadow: none; }
 }

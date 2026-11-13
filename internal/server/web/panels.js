@@ -9,15 +9,16 @@ import { act, openCard } from "./api.js";
 import { Icon, Dot, code } from "./parts.js";
 import { Fields, isEditing, textOf, TitleInput } from "./fields.js";
 
-// Panel is the frame the three share: the heading with the button to
-// close beside it, a quiet line saying where one is, and the content.
+// Panel is the frame the three share: a bar along the top that says where
+// one is and holds the button that closes it, the heading, and the content
+// in sections that run across the whole panel.
 function Panel({ kind = "", label, where, title, onClose, children }) {
   return html`<aside class=${cls("panel", kind)} aria-label=${label}>
-    <div class="panel-head">
-      <h1 class="panel-title">${title}</h1>
+    <div class="panel-bar">
+      <div class="panel-where">${where}</div>
       <button class="panel-close" type="button" aria-label=${t.close} title=${t.close} onClick=${onClose}>×</button>
     </div>
-    ${where && html`<div class="panel-where">${where}</div>`}
+    <div class="panel-head"><h1 class="panel-title">${title}</h1></div>
     ${children}
   </aside>`;
 }

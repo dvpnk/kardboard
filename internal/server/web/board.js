@@ -153,6 +153,11 @@ function Card({ card, board, done = false, project = false }) {
     if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openCard(board, card); }
   };
   const dragStart = (e) => {
+    // The browser takes its picture of the card when this handler is done;
+    // for that moment the card gets its ground and frame back.
+    const el = e.currentTarget;
+    el.classList.add("is-lifted");
+    requestAnimationFrame(() => el.classList.remove("is-lifted"));
     state.drag = { board, card };
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", card.id);

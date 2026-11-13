@@ -161,7 +161,7 @@ function Value({ board, card, field, value }) {
     case "bool":
       return value ? "✓" : "–";
     case "list":
-      return html`<span class="field-list">${list.map((v) => html`<span key=${v}>${v}</span>`)}</span>`;
+      return html`<span class="field-list is-marks">${list.map((v) => html`<span key=${v} class="field-chip">${v}</span>`)}</span>`;
     default:
       return String(value);
   }
