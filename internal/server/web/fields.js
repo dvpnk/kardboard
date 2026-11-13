@@ -48,6 +48,14 @@ export const textOf = (card) => card.body.replace(/^\s*# .*\n?/, "").replace(/^\
 // tidy is a text as the server would write it, to tell whether it changed.
 const tidy = (text) => text.replace(/\r\n/g, "\n").replace(/[ \t]+$/gm, "").trim();
 
+// FormButtons are the panel's footer while the card is edited: they act
+// on the whole form, so they sit below all of it, Save at the right. They
+// belong to the form by its id, like the title in the heading.
+export const FormButtons = () => html`<div class="panel-foot field-buttons">
+  <button type="button" class="field-button" onClick=${stopEditing}>${t.cancel}</button>
+  <button type="submit" form="field-form" class="field-button is-primary">${t.save}</button>
+</div>`;
+
 // TitleInput takes the place of the heading while the card is edited. It
 // belongs to the form below, so Enter in it saves.
 export function TitleInput({ card }) {
@@ -200,10 +208,6 @@ function FieldsForm({ board, card }) {
         <${Name} field=${field} /><dd><${Editor} field=${field} value=${current(field)} put=${put(field)} /></dd></div>`)}
     </dl>
     <${TextEditor} value=${text} put=${(value) => { state.edit.text = value; refresh(); }} />
-    <div class="field-buttons">
-      <button type="submit" class="field-button is-primary">${t.save}</button>
-      <button type="button" class="field-button" onClick=${stopEditing}>${t.cancel}</button>
-    </div>
   </form>`;
 }
 

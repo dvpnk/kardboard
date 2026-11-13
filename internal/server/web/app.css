@@ -695,7 +695,20 @@ button { cursor: pointer; }
 .field-segments button.is-on { background: var(--text); color: var(--surface); }
 .field-tags { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0; }
 /* Save and cancel below the fields. */
-.field-buttons { margin: 0 0 14px; }
+/* While a card is edited, the panel is a column: the form takes the room
+   there is, the text area grows down to the footer, and the footer with
+   Cancel and Save stays at the bottom of the panel, Save at the right. */
+.panel.is-editing { display: flex; flex-direction: column; padding-bottom: 0; }
+.panel.is-editing > * { flex: none; }
+.panel.is-editing > .detail-section { flex: 1 0 auto; display: flex; flex-direction: column; border-bottom: 0; }
+.panel.is-editing .field-form { flex: 1; display: flex; flex-direction: column; }
+.panel.is-editing .field-text { flex: 1; grid-template-rows: auto 1fr; margin-bottom: 20px; }
+.panel.is-editing .field-textarea { height: 100%; }
+.panel-foot {
+  position: sticky; bottom: 0; z-index: 2;
+  justify-content: flex-end; padding-top: 12px; padding-bottom: 12px;
+  background: var(--surface); border-top: 1px solid var(--border);
+}
 /* The title while the card is edited: a field in the heading's place, in
    the heading's type, so the panel does not jump. */
 .field-title {

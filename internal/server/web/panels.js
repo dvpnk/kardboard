@@ -7,7 +7,7 @@ import { render as markdown } from "./md.js";
 import { state, refresh, visibleBoards, people, colourOf } from "./state.js";
 import { act, openCard } from "./api.js";
 import { Icon, Dot, code } from "./parts.js";
-import { Fields, isEditing, textOf, TitleInput } from "./fields.js";
+import { Fields, isEditing, textOf, TitleInput, FormButtons } from "./fields.js";
 
 // Panel is the frame the three share: a bar along the top that says where
 // one is and holds the button that closes it, the heading, and the content
@@ -151,15 +151,15 @@ export function Detail() {
     requestAnimationFrame(() => el.closest(".shell-main")?.scrollBy({ left: covered, behavior: "smooth" }));
   }, [card.board, card.id]);
 
-  return html`<${Panel} label=${card.title} where=${where} title=${editing ? html`<${TitleInput} card=${card} />` : code(card.title)} onClose=${close}>
+  return html`<${Panel} kind=${editing ? "is-editing" : ""} label=${card.title} where=${where} title=${editing ? html`<${TitleInput} card=${card} />` : code(card.title)} onClose=${close}>
     ${board && html`<${Actions} key=${board.key + "/" + card.id} board=${board} card=${card} column=${column} />`}
     ${board && html`<${Fields} board=${board} card=${card} people=${who || null} />`}
     ${(card.problems ?? []).length > 0 && html`<ul class="detail-problems">${card.problems.map((p) => html`<li>${`${p.code} ${p.message}`}</li>`)}</ul>`}
     ${!editing && html`<div class="md" dangerouslySetInnerHTML=${{ __html: markdown(body) }}></div>`}
-    ${board && log?.available && log.entries.length > 0 && html`
+    ${!editing && board && log?.available && log.entries.length > 0 && html`
       <h2 class="panel-section">${t.history}</h2>
       <ul class="hist-list">${log.entries.map((entry) => html`<${HistoryRow} board=${board} entry=${entry} inCard />`)}</ul>`}
-    <p class="detail-path" title=${t.file}>${card.path}</p>
+    ${editing ? html`<${FormButtons} />` : html`<p class="detail-path" title=${t.file}>${card.path}</p>`}
   <//>`;
 }
 
