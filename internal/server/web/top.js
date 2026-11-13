@@ -63,7 +63,34 @@ function FilterMenu() {
     state.tags = state.tags.includes(tag) ? state.tags.filter((x) => x !== tag) : [...state.tags, tag];
     refresh();
   };
-  const clear = () => { state.filter = ""; state.overdue = false; state.tags = []; setMine(false); };
+  // The enum fields of the visible boards, such as size and milestone, by
+  // name: each lists the values the visible cards have, in the order the
+  // board gives them, and how many cards have each.
+  const choices = new Map();
+  for (const board of visibleBoards()) {
+    for (const field of board.fields.filter((f) => f.type === "enum")) {
+      if (!choices.has(field.name)) choices.set(field.name, { field, counts: new Map() });
+    }
+  }
+  for (const { card } of all) {
+    for (const [name, { counts }] of choices) {
+      const v = card.fields[name];
+      if (v != null) counts.set(v, (counts.get(v) ?? 0) + 1);
+    }
+  }
+  for (const [name, choice] of choices) {
+    const order = choice.field.values ?? [];
+    choice.values = [...choice.counts.keys()].sort((a, b) => order.indexOf(a) - order.indexOf(b));
+    // As with tags: a value no visible card has cannot be switched off.
+    state.values[name] = (state.values[name] ?? []).filter((v) => choice.counts.has(v));
+    if (!choice.values.length) choices.delete(name);
+  }
+  const toggleValue = (name, v) => {
+    const now = state.values[name] ?? [];
+    state.values[name] = now.includes(v) ? now.filter((x) => x !== v) : [...now, v];
+    refresh();
+  };
+  const clear = () => { state.filter = ""; state.overdue = false; state.tags = []; state.values = {}; setMine(false); };
   const open = state.menu === "filters";
 
   return html`<div class="menu-wrap">
@@ -83,12 +110,21 @@ function FilterMenu() {
           checked=${state.overdue} onChange=${(e) => { state.overdue = e.target.checked; refresh(); }} />
       </div>
       ${!known && html`<p class="menu-hint">${code(t.mineHint)}</p>`}
+      ${[...choices].map(([name, { field, counts, values }]) => html`
+        <h2 key=${"h-" + name} class="menu-heading">${field.title}</h2>
+        <div key=${"v-" + name} class="filter-tags">${values.map((v) => {
+          const on = (state.values[name] ?? []).includes(v);
+          return html`<button key=${v} type="button" class=${cls("filter-tag", "is-value", on && "is-on")}
+            aria-pressed=${String(on)} onClick=${() => toggleValue(name, v)}>
+            ${v}<span class="filter-count">${String(counts.get(v))}</span>
+          </button>`;
+        })}</div>`)}
       ${tags.length > 0 && html`
         <h2 class="menu-heading">${t.tags}</h2>
         <div class="filter-tags">${tags.map((tag) => html`
           <button key=${tag} type="button" class=${cls("filter-tag", state.tags.includes(tag) && "is-on")}
             aria-pressed=${String(state.tags.includes(tag))} onClick=${() => toggleTag(tag)}>
-            ${tag}<span class="filter-count">${String(tagCounts.get(tag))}</span>
+            ${"#" + tag}<span class="filter-count">${String(tagCounts.get(tag))}</span>
           </button>`)}
         </div>`}
       <div class="filter-foot">

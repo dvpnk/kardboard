@@ -134,7 +134,7 @@ function Card({ card, board, done = false, project = false }) {
     const value = card.fields[field.name];
     if (value == null) continue;
     if (field.type === "enum") facts.push(html`<span class="card-chip" title=${field.title}>${String(value)}</span>`);
-    else if (field.name === "tags") facts.push(...value.map((tag) => html`<span class="card-tag">${tag}</span>`));
+    else if (field.name === "tags") facts.push(...value.map((tag) => html`<span class="card-tag">${"#" + tag}</span>`));
   }
   const who = people(card);
   const names = who.slice(0, MAX_NAMES).map((id) =>

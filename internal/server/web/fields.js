@@ -84,7 +84,7 @@ const ICON_BY_TYPE = { person: "person", list: "tag", date: "calendar", cards: "
 const iconOf = (field) => ICON_BY_NAME[field.name] ?? ICON_BY_TYPE[field.type] ?? "text";
 
 // Name is the left side of a row in the form: icon and name.
-const Name = ({ field }) => html`<dt><${Icon} name=${iconOf(field)} /><span>${label(field)}</span></dt>`;
+const Name = ({ field }) => html`<dt title=${label(field)}><${Icon} name=${iconOf(field)} /><span>${label(field)}</span></dt>`;
 
 // group puts fields that belong together next to each other: who, when,
 // what kind of work, what it waits for, and the rest.
@@ -109,17 +109,18 @@ export function Fields({ board, card, people = null }) {
 
 // FieldsList shows the fields the card has, each the way the card shows
 // it, one line after the other in the order of the groups: who, when, the
-// marks, what the card waits for, and the rest. The marks (enums such as
-// size and milestone, and lists such as tags) share one line, as on the
-// card. A line is named by its icon; the name shows when the pointer rests
-// on it, and screen readers read it. When the card was made and when it is
-// due share one line too.
+// marks, what the card waits for, and the rest. Each mark has a line of its
+// own icon, so it says what it is: the flag of a milestone, the ruler of a
+// size, the label of tags. A fact is named by its icon; the name shows when
+// the pointer rests on it, and screen readers read it. The people have a
+// line of their own; the other facts run on side by side and wrap, so they
+// take little room above the text. When the card was made and when it is
+// due are one fact.
 function FieldsList({ board, card, people }) {
   const facts = [];
-  const fact = (key, icon, name, value) => facts.push(html`<div key=${key} class="detail-fact">
+  const fact = (key, icon, name, value) => facts.push(html`<div key=${key} class=${cls("detail-fact", key === "assignee" && "is-people")}>
     <dt title=${name}><${Icon} name=${icon} /><span class="detail-label">${name}</span></dt><dd>${value}</dd></div>`);
-  const isMark = (f) => f.type === "enum" || f.type === "list";
-  let dates = false, marks = false;
+  let dates = false;
   for (const field of inOrder(board.fields)) {
     const value = card.fields[field.name];
     if (field.name === "assignee" && people) { fact(field.name, iconOf(field), label(field), people); continue; }
@@ -127,17 +128,6 @@ function FieldsList({ board, card, people }) {
       if (dates || (card.fields.created == null && card.fields.due == null)) continue;
       dates = true;
       fact("dates", "calendar", t.dates, html`<${Dates} board=${board} card=${card} />`);
-      continue;
-    }
-    if (isMark(field)) {
-      if (marks) continue;
-      marks = true;
-      const chips = inOrder(board.fields).filter(isMark).flatMap((f) => {
-        const v = card.fields[f.name];
-        if (v == null) return [];
-        return (Array.isArray(v) ? v : [v]).map((x) => html`<span key=${f.name + "/" + x} class="field-chip" title=${label(f)}>${String(x)}</span>`);
-      });
-      if (chips.length) fact("marks", "tag", t.marks, html`<span class="field-list is-marks">${chips}</span>`);
       continue;
     }
     if (value == null) continue;
@@ -177,7 +167,7 @@ function Value({ board, card, field, value }) {
     case "bool":
       return value ? "✓" : "–";
     case "list":
-      return html`<span class="field-list is-marks">${list.map((v) => html`<span key=${v} class="field-chip">${v}</span>`)}</span>`;
+      return html`<span class="field-list is-tags">${list.map((v) => html`<span key=${v} class="field-hash">${"#" + v}</span>`)}</span>`;
     default:
       return String(value);
   }

@@ -40,7 +40,7 @@ const TEXTS = {
     syncNow: "Pull what is new and push what is waiting",
     notCommitted: "This card has changes that are not committed. Commit them first, then it can be changed here.",
     listHint: "a, b, c", clearValue: "Click again to remove", edit: "Edit card", editShort: "Edit", save: "Save", title: "Title", text: "Text", write: "Write", preview: "Preview", noText: "No text yet", file: "file",
-    dates: "Dates", marks: "Size, milestone, tags", since: (d) => `since ${d}`,
+    dates: "Dates", since: (d) => `since ${d}`,
     // The fields kard knows without board.yaml, when the board gives them no title.
     fieldNames: { assignee: "People", tags: "Tags", due: "Due", depends_on: "Depends on", created: "Created" },
   },
@@ -82,7 +82,7 @@ const TEXTS = {
     syncNow: "Neues holen und Wartendes senden",
     notCommitted: "Diese Karte hat Änderungen ohne Commit. Erst committen, dann lässt sie sich hier ändern.",
     listHint: "a, b, c", clearValue: "Noch einmal klicken zum Entfernen", edit: "Karte bearbeiten", editShort: "Bearbeiten", save: "Speichern", title: "Titel", text: "Text", write: "Schreiben", preview: "Vorschau", noText: "Noch kein Text", file: "Datei",
-    dates: "Zeitraum", marks: "Größe, Meilenstein, Tags", since: (d) => `seit ${d}`,
+    dates: "Zeitraum", since: (d) => `seit ${d}`,
     // The fields kard knows without board.yaml, when the board gives them no title.
     fieldNames: { assignee: "Personen", tags: "Tags", due: "Fällig", depends_on: "Hängt ab von", created: "Angelegt" },
   },

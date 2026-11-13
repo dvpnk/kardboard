@@ -19,8 +19,9 @@
    - Labels are spaced capitals. Buttons, column heads, menu headings and
      the panel's bar: monospace, 11px, uppercase, 0.12em apart. Anything
      typed keeps its own case.
-   - Marks are a film of ink. Size, milestone and tags sit in a hairline on
-     a see-through tint (--badge, --badge-line), so they suit every ground.
+   - Marks are a film of ink. Size, milestone and other values from a fixed
+     list sit in a hairline on a see-through tint (--badge, --badge-line),
+     so they suit every ground. Tags are typed words: "#abo", no frame.
    - Colour is rare. It says which project a card belongs to (a small
      square), and what needs attention (late, broken).
    - The accent is a highlighter: yellow (--accent) with ink on it. It
@@ -382,6 +383,9 @@ button { cursor: pointer; }
   background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius);
 }
 .filter-tag:hover, .field-tag:hover { background: var(--hover); }
+/* A value from a fixed list is written as on the card: in capitals. */
+.filter-tag.is-value { font: 500 11px/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; }
+.filter-tag.is-value .filter-count { text-transform: none; letter-spacing: 0; font-weight: 400; }
 .filter-tag.is-on, .field-tag.is-on { background: var(--text); color: var(--surface); border-color: var(--text); }
 .filter-tag.is-on .filter-count { color: inherit; opacity: 0.7; }
 
@@ -545,13 +549,19 @@ button { cursor: pointer; }
 .card-facts { display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; }
 .card-facts > * { flex: none; }
 .card-due, .card-people { flex: none; }
-/* Size, milestone and tags are small marks in a hairline, like labels on a
-   specimen: monospace capitals on a slightly darker ground. */
-.card-chip, .card-tag, .field-chip {
+/* Size, milestone and other values from a fixed list are small marks in a
+   hairline, like labels on a specimen: monospace capitals on a slightly
+   darker ground. */
+.card-chip, .field-chip {
   font: 500 10px/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--dim); background: var(--badge);
   border: 1px solid var(--badge-line); border-radius: 0; padding: 3px 5px;
 }
+/* Tags are words someone typed, so they keep their case and get no frame:
+   "#abo". A frame in capitals is always a value from a fixed list. */
+.card-tag, .field-hash { font: 11px/1 var(--mono); color: var(--dim); }
+.card-facts .card-tag { margin-left: 3px; }
+.field-hash { font-size: 12px; }
 .card-chip { color: var(--text); }
 /* Which project: its colour and its name, as a quiet label. */
 .card-project {
@@ -670,8 +680,11 @@ button { cursor: pointer; }
 /* The fields of a card: each line an icon and its value, one below the
    other. The icon is the line's name; the name itself is there for screen
    readers and as a tooltip. */
-.detail-facts { display: grid; gap: 6px; font: 12px var(--mono); margin: 0 0 16px; }
-.detail-fact { position: relative; display: flex; align-items: center; gap: 10px; min-height: 26px; min-width: 0; }
+/* The facts run on side by side and wrap; the people take a line of their
+   own. */
+.detail-facts { display: flex; flex-wrap: wrap; gap: 6px 24px; font: 12px var(--mono); margin: 0 0 16px; }
+.detail-fact { position: relative; display: flex; align-items: center; gap: 8px; min-height: 26px; min-width: 0; max-width: 100%; }
+.detail-fact.is-people { flex-basis: 100%; }
 .detail-fact dt { flex: none; display: flex; align-items: center; justify-content: center; width: 16px; color: var(--faint); cursor: default; }
 .detail-fact dt .ic { display: flex; margin-top: 0; }
 .detail-fact dd { margin: 0; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; overflow-wrap: anywhere; }
@@ -690,8 +703,11 @@ button { cursor: pointer; }
 .field-row.is-group { margin-top: 10px; }
 .detail-fields dt {
   flex: 0 0 112px; min-height: var(--control);
-  display: flex; align-items: center; gap: 8px; color: var(--dim); overflow-wrap: anywhere;
+  display: flex; align-items: center; gap: 8px; color: var(--dim); min-width: 0;
 }
+/* A long name stays on one line and ends in "…"; the whole name is the
+   row's title. */
+.detail-fields dt > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .detail-fields dt .ic { display: inline-flex; flex: none; color: var(--faint); margin-top: 0; }
 .detail-fields dd {
   flex: 1 1 0; margin: 0; min-width: 0; min-height: var(--control);
@@ -699,7 +715,7 @@ button { cursor: pointer; }
 }
 .field-chip { font-size: 11px; }
 .field-list { display: flex; flex-wrap: wrap; gap: 4px 10px; }
-.field-list.is-marks { gap: 4px; }
+.field-list.is-tags { gap: 4px 10px; }
 .field-dim { color: var(--dim); }
 .field-when { color: var(--faint); }
 .field-when.is-late { color: var(--danger); }

@@ -22,6 +22,7 @@ export const state = {
   mine: stored("mine", false),
   overdue: false,       // show only cards past their due date
   tags: [],             // show only cards with one of these tags; empty = all
+  values: {},           // per enum field, show only cards with one of these values, e.g. { size: ["S", "M"] }
   filter: "",
   expanded: new Set(),  // columns shown in full, as "boardKey/columnId"
   open: null,           // { board, id, detail, log } of the card in the side panel
@@ -104,7 +105,8 @@ export function isLate(card, board) {
 
 // activeFilters counts the filters that are on, the search aside.
 export function activeFilters() {
-  return (state.mine && knowsMe() ? 1 : 0) + (state.overdue ? 1 : 0) + state.tags.length;
+  return (state.mine && knowsMe() ? 1 : 0) + (state.overdue ? 1 : 0) + state.tags.length
+    + Object.values(state.values).filter((v) => v.length).length;
 }
 
 // matches says whether a card passes the filters and the search.
@@ -112,6 +114,10 @@ export function matches(card, board) {
   if (state.mine && knowsMe() && !isMine(card, board)) return false;
   if (state.overdue && !isLate(card, board)) return false;
   if (state.tags.length && !state.tags.some((tag) => (card.fields.tags ?? []).includes(tag))) return false;
+  // Values of one field are alternatives; different fields must all fit.
+  for (const [name, chosen] of Object.entries(state.values)) {
+    if (chosen.length && !chosen.includes(card.fields[name])) return false;
+  }
   const q = state.filter.trim().toLowerCase();
   if (!q) return true;
   const who = people(card).flatMap((id) => [id, personOf(board, id).name ?? ""]);
