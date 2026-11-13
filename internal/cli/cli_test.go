@@ -1054,3 +1054,60 @@ func TestAllBoards(t *testing.T) {
 		t.Errorf("--all with -C: code %d, err %q", code, errOut)
 	}
 }
+
+func TestLogCommand(t *testing.T) {
+	asUser(t, "alex")
+	root := syncRepo(t, "commit")
+	for _, args := range [][]string{
+		{"move", "druckvorlagen", "working_on", "--force"},
+		{"rename", "druckvorlagen", "print-templates"},
+		{"set", "print-templates", "size=M"},
+	} {
+		if code, _, errOut := kb(t, append(args, "-C", root)...); code != ExitOK {
+			t.Fatalf("%v: %s", args, errOut)
+		}
+	}
+
+	// Newest first, read from what the commits contain.
+	code, out, errOut := kb(t, "log", "-C", root)
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	var what []string
+	for _, line := range lines {
+		// hash, date, time, author: the rest says what happened
+		fields := strings.Fields(line)
+		what = append(what, strings.Join(fields[4:], " "))
+	}
+	if code != ExitOK || len(lines) != 4 ||
+		what[0] != "edited print-templates" ||
+		what[1] != "edited export-als-pdf; renamed druckvorlagen -> print-templates" ||
+		what[2] != "druckvorlagen: backlog -> working_on" ||
+		!strings.HasPrefix(what[3], "new ") || !strings.HasSuffix(what[3], "and 2 more; 1 other file") {
+		t.Errorf("log: code %d, err %q, out\n%s", code, errOut, out)
+	}
+
+	// One card, followed through its move and its rename.
+	code, out, _ = kb(t, "log", "print-templates", "-C", root)
+	if n := strings.Count(out, "\n"); code != ExitOK || n != 4 {
+		t.Errorf("log of a card: code %d, %d lines\n%s", code, n, out)
+	}
+	if code, out, _ = kb(t, "log", "-n", "1", "-C", root); code != ExitOK || strings.Count(out, "\n") != 1 {
+		t.Errorf("-n 1: code %d, out %q", code, out)
+	}
+	code, out, _ = kb(t, "log", "--json", "-C", root)
+	var log struct {
+		Available bool `json:"available"`
+		Entries   []struct {
+			Subject string `json:"subject"`
+		} `json:"entries"`
+	}
+	if code != ExitOK || json.Unmarshal([]byte(out), &log) != nil || !log.Available || log.Entries[0].Subject != "edit print-templates" {
+		t.Errorf("--json: code %d, out %s", code, out)
+	}
+
+	if code, _, errOut = kb(t, "log", "nope", "-C", root); code != ExitUsage || !strings.Contains(errOut, "no card") {
+		t.Errorf("unknown card: code %d, err %q", code, errOut)
+	}
+	if code, _, errOut = kb(t, "log", "-C", copyOfExample(t)); code != ExitUsage || !strings.Contains(errOut, "not in a Git repository") {
+		t.Errorf("no repository: code %d, err %q", code, errOut)
+	}
+}

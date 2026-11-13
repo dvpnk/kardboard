@@ -34,6 +34,13 @@ go build -o bin/kb ./cmd/kb
 ./bin/kb show export-als-pdf -C examples/board
 ```
 
+Liegt ein Board in einem Git-Repository, zeigt `kb log`, welche Commits es
+geändert haben, mit einer Karte nur deren Geschichte:
+
+```bash
+./bin/kb log export-als-pdf -C examples/board
+```
+
 Ohne `-C` sucht `kb` das Board vom aktuellen Ordner aus. `--json` gibt JSON
 aus.
 

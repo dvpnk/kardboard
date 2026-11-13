@@ -60,7 +60,7 @@ func Run(args []string, out, errOut io.Writer) int {
 	root.PersistentFlags().StringVarP(&a.boardID, "board", "b", "", "id of a board known on this machine, see `kb boards`")
 	root.PersistentFlags().BoolVar(&a.asJSON, "json", false, "print JSON")
 	root.MarkFlagsMutuallyExclusive("dir", "board")
-	root.AddCommand(a.initCmd(), a.lintCmd(), a.schemaCmd(), a.listCmd(), a.showCmd())
+	root.AddCommand(a.initCmd(), a.lintCmd(), a.schemaCmd(), a.listCmd(), a.showCmd(), a.logCmd())
 	root.AddCommand(a.newCmd(), a.moveCmd(), a.takeCmd(), a.doneCmd(), a.assignCmd(), a.unassignCmd(), a.setCmd(), a.editCmd(), a.renameCmd())
 	root.AddCommand(a.boardsCmd(), a.addCmd(), a.removeCmd(), a.scanCmd(), a.syncCmd(), a.uiCmd())
 

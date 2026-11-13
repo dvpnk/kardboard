@@ -390,6 +390,7 @@ Karten lesen:
 |---|---|
 | `kb list [spalte] [--mine] [--all]` | listet Karten, mit `--mine` nur die eigenen, aus jeder Spalte, mit `--all` aus allen bekannten Boards |
 | `kb show <karte>` | zeigt eine Karte |
+| `kb log [karte] [-n anzahl]` | zeigt, welche Commits das Board oder eine Karte geändert haben, die neuesten zuerst, in der Vorgabe 20 |
 
 Karten ändern:
 
@@ -596,7 +597,8 @@ angemeldet ist.
   und nicht aus seiner Nachricht: Eine Datei, die Git als von `backlog/` nach
   `done/` umbenannt führt, ist eine verschobene Karte, gleich wer sie wie
   committet hat. Das gilt für jedes Board, auch mit `sync: none`. Ein Board
-  ohne Repository hat keinen Verlauf, und die Seite sagt das.
+  ohne Repository hat keinen Verlauf, und die Seite sagt das. Denselben
+  Verlauf zeigt `kb log` im Terminal, eine Zeile je Commit.
 - **Fehler bleiben sichtbar.** Eine fehlerhafte Karte ist markiert und zeigt
   ihre Verstöße, ein unbrauchbares Board zeigt den Grund.
 - **Keine Anfrage nach außen.** Alles, was die Seite braucht, steckt im
@@ -616,6 +618,4 @@ angemeldet ist.
   damit die Regel für fremde Karten keine Ausnahme hat.
 - **Grenze je Person.** `limit` zählt die Karten der Spalte, nicht die einer
   Person.
-- **Verlauf im CLI.** Den Verlauf gibt es nur in der Oberfläche, einen
-  Befehl wie `kb log` noch nicht.
 - **Sprache dieses Dokuments** vor einer Veröffentlichung.
