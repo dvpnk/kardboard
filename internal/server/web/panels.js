@@ -7,12 +7,13 @@ import { render as markdown } from "./md.js";
 import { state, refresh, visibleBoards, people, colourOf } from "./state.js";
 import { act, openCard } from "./api.js";
 import { Icon, Dot, code } from "./parts.js";
-import { Fields, isEditing, textOf, TitleInput, FormButtons } from "./fields.js";
+import { Fields, isEditing, startEditing, textOf, TitleInput, FormButtons } from "./fields.js";
 
 // Panel is the frame the three share: a bar along the top that says where
 // one is and holds the button that closes it, the heading, and the content
 // in sections that run across the whole panel.
-function Panel({ kind = "", label, where, title, onClose, children }) {
+// foot, if given, is a footer that stays at the bottom of the panel.
+function Panel({ kind = "", label, where, title, foot = null, onClose, children }) {
   return html`<aside class=${cls("panel", kind)} aria-label=${label}>
     <div class="panel-bar">
       <div class="panel-where">${where}</div>
@@ -20,6 +21,7 @@ function Panel({ kind = "", label, where, title, onClose, children }) {
     </div>
     <div class="panel-head"><h1 class="panel-title">${title}</h1></div>
     ${children}
+    ${foot && html`<div class="panel-foot">${foot}</div>`}
   </aside>`;
 }
 
@@ -151,7 +153,7 @@ export function Detail() {
     requestAnimationFrame(() => el.closest(".shell-main")?.scrollBy({ left: covered, behavior: "smooth" }));
   }, [card.board, card.id]);
 
-  return html`<${Panel} kind=${editing ? "is-editing" : ""} label=${card.title} where=${where} title=${editing ? html`<${TitleInput} card=${card} />` : code(card.title)} onClose=${close}>
+  return html`<${Panel} kind=${editing ? "is-editing" : ""} label=${card.title} where=${where} foot=${html`<span class="panel-file" title=${card.path}>${card.path}</span>${editing && html`<${FormButtons} />`}`} title=${editing ? html`<${TitleInput} card=${card} />` : code(card.title)} onClose=${close}>
     ${board && html`<${Actions} key=${board.key + "/" + card.id} board=${board} card=${card} column=${column} />`}
     ${board && html`<${Fields} board=${board} card=${card} people=${who || null} />`}
     ${(card.problems ?? []).length > 0 && html`<ul class="detail-problems">${card.problems.map((p) => html`<li>${`${p.code} ${p.message}`}</li>`)}</ul>`}
@@ -159,13 +161,12 @@ export function Detail() {
     ${!editing && board && log?.available && log.entries.length > 0 && html`
       <h2 class="panel-section">${t.history}</h2>
       <ul class="hist-list">${log.entries.map((entry) => html`<${HistoryRow} board=${board} entry=${entry} inCard />`)}</ul>`}
-    ${editing ? html`<${FormButtons} />` : html`<p class="detail-path" title=${t.file}>${card.path}</p>`}
   <//>`;
 }
 
-// Actions shows what can be done with the open card on its way through
-// the columns. Each control is one action of the command line: take,
-// done, move. Changing the fields is part of the fields below.
+// Actions shows what can be done with the open card: on its way through
+// the columns (take, done, move, each an action of the command line) and,
+// apart at the right, "Edit", which turns the whole card into a form.
 function Actions({ board, card, column }) {
   if (!board.writable) return html`<p class="panel-note">${t.readOnly(board.git?.error ?? board.sync)}</p>`;
   // A card with changes that are not committed cannot be changed through
@@ -189,6 +190,8 @@ function Actions({ board, card, column }) {
         <option value="">${t.moveTo + " …"}</option>
         ${board.columns.filter((c) => c.id !== card.column).map((c) => html`<option key=${c.id} value=${c.id}>${c.title}</option>`)}
       </select></span>
+      ${!unsaved && !isEditing(board, card) && html`<button type="button" class="act-button act-edit" title=${t.edit}
+        onClick=${() => startEditing(board, card)}><${Icon} name="pencil" /><span>${t.editShort}</span></button>`}
     </div>
   </div>`;
 }

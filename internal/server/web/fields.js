@@ -3,11 +3,11 @@
 // icon, its name and its value, shown the way the card shows it, and what
 // belongs together stands together (see group).
 //
-// The pencil turns the card into a form: the title in the heading, the
-// fields as controls, the text in an editor with a preview. What is changed
-// there is a draft until "Save" sends it as one `kard set` with the new text,
-// which on a board that commits is one commit "edit <card>". Escape or
-// "Cancel" drops the draft. Who the card belongs to is changed at once,
+// "Edit" in the actions turns the card into a form: the title in the
+// heading, the fields as controls, the text in an editor with a preview.
+// What is changed there is a draft until "Save" sends it as one `kard set`
+// with the new text, which on a board that commits is one commit
+// "edit <card>". Escape or "Cancel" drops the draft. Who the card belongs to is changed at once,
 // not in the draft (see People in panels.js).
 //
 // The draft remembers the card's sum from when editing started. If the
@@ -48,10 +48,10 @@ export const textOf = (card) => card.body.replace(/^\s*# .*\n?/, "").replace(/^\
 // tidy is a text as the server would write it, to tell whether it changed.
 const tidy = (text) => text.replace(/\r\n/g, "\n").replace(/[ \t]+$/gm, "").trim();
 
-// FormButtons are the panel's footer while the card is edited: they act
+// FormButtons sit in the panel's footer while the card is edited: they act
 // on the whole form, so they sit below all of it, Save at the right. They
 // belong to the form by its id, like the title in the heading.
-export const FormButtons = () => html`<div class="panel-foot field-buttons">
+export const FormButtons = () => html`<div class="field-buttons">
   <button type="button" class="field-button" onClick=${stopEditing}>${t.cancel}</button>
   <button type="submit" form="field-form" class="field-button is-primary">${t.save}</button>
 </div>`;
@@ -100,40 +100,48 @@ const inOrder = (fields) => [...fields].sort((a, b) => group(a) - group(b));
 // Fields shows the card's fields as a section of its own, apart from the
 // actions above. people is the row for who the card belongs to, when it
 // can be changed there; without it, the people are a row like the others.
-// When people is given, kard may change the card, and the pencil at the
-// right of the section starts editing the fields.
 export function Fields({ board, card, people = null }) {
   if (isEditing(board, card)) return html`<section class="detail-section"><${FieldsForm} board=${board} card=${card} /></section>`;
   return html`<section class="detail-section">
     <${FieldsList} board=${board} card=${card} people=${people} />
-    ${people && html`<button type="button" class="detail-edit" aria-label=${t.edit} title=${t.edit}
-      onClick=${() => startEditing(board, card)}><${Icon} name="pencil" /></button>`}
   </section>`;
 }
 
-// FieldsList shows the fields the card has, each the way the card shows it,
-// in the order of the groups: who and when each on a line of their own,
-// the short ones below in two columns where there is room. A field
-// is named by its icon; the name shows when the pointer rests on it, and
-// screen readers read it. When the card was made and when it is due share
-// one place.
+// FieldsList shows the fields the card has, each the way the card shows
+// it, one line after the other in the order of the groups: who, when, the
+// marks, what the card waits for, and the rest. The marks (enums such as
+// size and milestone, and lists such as tags) share one line, as on the
+// card. A line is named by its icon; the name shows when the pointer rests
+// on it, and screen readers read it. When the card was made and when it is
+// due share one line too.
 function FieldsList({ board, card, people }) {
   const facts = [];
-  const fact = (key, icon, name, value, wide = false) => facts.push(html`<div key=${key} class=${cls("detail-fact", wide && "is-wide")}>
+  const fact = (key, icon, name, value) => facts.push(html`<div key=${key} class="detail-fact">
     <dt title=${name}><${Icon} name=${icon} /><span class="detail-label">${name}</span></dt><dd>${value}</dd></div>`);
-  let dates = false;
+  const isMark = (f) => f.type === "enum" || f.type === "list";
+  let dates = false, marks = false;
   for (const field of inOrder(board.fields)) {
     const value = card.fields[field.name];
-    if (field.name === "assignee" && people) { fact(field.name, iconOf(field), label(field), people, true); continue; }
+    if (field.name === "assignee" && people) { fact(field.name, iconOf(field), label(field), people); continue; }
     if (group(field) === 1) {
       if (dates || (card.fields.created == null && card.fields.due == null)) continue;
       dates = true;
-      fact("dates", "calendar", t.dates, html`<${Dates} board=${board} card=${card} />`, true);
+      fact("dates", "calendar", t.dates, html`<${Dates} board=${board} card=${card} />`);
+      continue;
+    }
+    if (isMark(field)) {
+      if (marks) continue;
+      marks = true;
+      const chips = inOrder(board.fields).filter(isMark).flatMap((f) => {
+        const v = card.fields[f.name];
+        if (v == null) return [];
+        return (Array.isArray(v) ? v : [v]).map((x) => html`<span key=${f.name + "/" + x} class="field-chip" title=${label(f)}>${String(x)}</span>`);
+      });
+      if (chips.length) fact("marks", "tag", t.marks, html`<span class="field-list is-marks">${chips}</span>`);
       continue;
     }
     if (value == null) continue;
-    fact(field.name, iconOf(field), label(field), html`<${Value} board=${board} card=${card} field=${field} value=${value} />`,
-      field.type === "text" || field.type === "person");
+    fact(field.name, iconOf(field), label(field), html`<${Value} board=${board} card=${card} field=${field} value=${value} />`);
   }
   return html`<dl class="detail-facts">${facts}</dl>`;
 }
