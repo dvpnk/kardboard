@@ -1,4 +1,4 @@
-// Talking to `kb ui`: loading the boards, a card and the history, following
+// Talking to `kard ui`: loading the boards, a card and the history, following
 // changes, and asking for the actions the command line has.
 
 import { state, refresh, visibleBoards } from "./state.js";
@@ -105,7 +105,7 @@ export async function act(board, cardId, action, extra = {}, force = false, done
   await load();
 }
 
-// syncBoard pulls and pushes one board with sync: push, like `kb sync`.
+// syncBoard pulls and pushes one board with sync: push, like `kard sync`.
 export async function syncBoard(board) {
   if (state.syncing) return;
   state.notice = null;

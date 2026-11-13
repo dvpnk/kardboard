@@ -106,7 +106,7 @@ type Change struct {
 	Force bool
 	// Text replaces the title and the text below it. Nil leaves them.
 	Text *Text
-	// File replaces the whole file, header included: what `kb edit` brings
+	// File replaces the whole file, header included: what `kard edit` brings
 	// back from the editor. It cannot go with Column, Set or Text. The
 	// fields it changes count as set or removed, with the same rules.
 	File *string

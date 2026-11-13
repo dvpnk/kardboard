@@ -4,7 +4,7 @@
    The name and the column heads are set in a monospace face, everything a
    card says in the system's sans-serif. */
 
-/* JetBrains Mono ships inside kb (see fonts/README.md), so the page asks no
+/* JetBrains Mono ships inside kard (see fonts/README.md), so the page asks no
    other server for it. */
 @font-face {
   font-family: "JetBrains Mono";

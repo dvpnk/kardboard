@@ -35,7 +35,7 @@ func (a *app) renameCmd() *cobra.Command {
 			res, out, err := gitsync.Rename(ctx, b, args[0], args[1], board.RenameOptions{User: user, Force: force})
 			if res == nil {
 				if errors.Is(err, board.ErrNeedUser) && userErr != nil {
-					return fmt.Errorf("card %s is assigned to someone, so kb must know who you are: %w", args[0], userErr)
+					return fmt.Errorf("card %s is assigned to someone, so kard must know who you are: %w", args[0], userErr)
 				}
 				return err
 			}

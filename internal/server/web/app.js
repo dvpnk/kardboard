@@ -1,4 +1,4 @@
-// kardboard web UI. It shows what `kb ui` reads from disk and follows
+// kardboard web UI. It shows what `kard ui` reads from disk and follows
 // changes. Cards are changed by asking the server for the same actions the
 // command line has.
 //

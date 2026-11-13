@@ -42,7 +42,7 @@ func refersTo(ref, boardID, id string) bool {
 // Rename gives a card a new file name, which is its id, and makes every
 // reference to it on this board name the new id. The card keeps its column
 // and its content; a referencing card changes only in the lines of the
-// fields that name it. References from other boards are not touched: kb
+// fields that name it. References from other boards are not touched: kard
 // does not change other boards.
 //
 // Renaming someone else's card follows the same rule as Change. Updating

@@ -76,7 +76,7 @@ func editHeadLines(lines []string, name string, value *yaml.Node) ([]string, err
 		case root.Kind != yaml.MappingNode:
 			return nil, errors.New("header must be a mapping of fields, fix it by hand first")
 		case root.Style&yaml.FlowStyle != 0:
-			return nil, errors.New("header is written as {...} on one line, which kb cannot edit")
+			return nil, errors.New("header is written as {...} on one line, which kard cannot edit")
 		}
 	}
 

@@ -5,7 +5,7 @@
 //
 // The pencil turns the card into a form: the title in the heading, the
 // fields as controls, the text in an editor with a preview. What is changed
-// there is a draft until "Save" sends it as one `kb set` with the new text,
+// there is a draft until "Save" sends it as one `kard set` with the new text,
 // which on a board that commits is one commit "edit <card>". Escape or
 // "Cancel" drops the draft. Who the card belongs to is changed at once,
 // not in the draft (see People in panels.js).
@@ -25,7 +25,7 @@ import { render as markdown } from "./md.js";
 // are a picker.
 const SEGMENTS_UP_TO = 6;
 
-// Fields kb fills in itself or that are changed elsewhere.
+// Fields kard fills in itself or that are changed elsewhere.
 const NOT_HERE = ["created", "assignee"];
 
 const editKey = (board, card) => board.key + "/" + card.id;
@@ -61,12 +61,12 @@ export function stopEditing() {
   refresh();
 }
 
-// raw writes a value the way `kb set` takes it: lists as "a, b", nothing
+// raw writes a value the way `kard set` takes it: lists as "a, b", nothing
 // as "", which takes the field off the card.
 const raw = (value) => (value == null ? "" : Array.isArray(value) ? value.join(", ") : String(value));
 
 // label is the name a field is shown with: the board's title for it, or
-// for the fields kb knows by itself, a name in the language of the page.
+// for the fields kard knows by itself, a name in the language of the page.
 const label = (field) => (field.title === field.name && t.fieldNames[field.name]) || field.title;
 
 // ICON_BY_NAME and ICON_BY_TYPE pick a field's icon: by name for the
@@ -92,7 +92,7 @@ const inOrder = (fields) => [...fields].sort((a, b) => group(a) - group(b));
 // Fields shows the card's fields as a section of its own, apart from the
 // actions above. people is the row for who the card belongs to, when it
 // can be changed there; without it, the people are a row like the others.
-// When people is given, kb may change the card, and the pencil at the
+// When people is given, kard may change the card, and the pencil at the
 // right of the section starts editing the fields.
 export function Fields({ board, card, people = null }) {
   if (isEditing(board, card)) return html`<section class="detail-section"><${FieldsForm} board=${board} card=${card} /></section>`;

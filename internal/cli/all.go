@@ -9,12 +9,12 @@ import (
 	"kardboard/internal/userconfig"
 )
 
-const allHelp = "every board known on this machine, see `kb boards`"
+const allHelp = "every board known on this machine, see `kard boards`"
 
 // errNoBoards ends a command with --all when no board is known at all.
-var errNoBoards = errors.New("no boards known on this machine; add one with `kb add <dir>` or a whole directory of projects with `kb scan <dir>`")
+var errNoBoards = errors.New("no boards known on this machine; add one with `kard add <dir>` or a whole directory of projects with `kard scan <dir>`")
 
-// everyBoard returns the boards --all works on: those `kb boards` lists,
+// everyBoard returns the boards --all works on: those `kard boards` lists,
 // with the one the command was started in. -C and -b name one board, so
 // they do not go with --all.
 func (a *app) everyBoard() ([]*registry.Loaded, error) {
@@ -117,9 +117,9 @@ func (a *app) listAll(column, me string) error {
 	for _, l := range loaded {
 		if why := unusable(l); why != "" || l.Board.Config == nil {
 			if why == "" {
-				why = "board.yaml is missing or invalid, see `kb lint -C " + userconfig.Abbrev(l.Root) + "`"
+				why = "board.yaml is missing or invalid, see `kard lint -C " + userconfig.Abbrev(l.Root) + "`"
 			}
-			fmt.Fprintf(a.errOut, "kb: %s left out: %s\n", userconfig.Abbrev(l.Root), why)
+			fmt.Fprintf(a.errOut, "kard: %s left out: %s\n", userconfig.Abbrev(l.Root), why)
 			continue
 		}
 		b := l.Board

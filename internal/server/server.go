@@ -1,4 +1,4 @@
-// Package server is the local web server behind `kb ui`. It shows the boards
+// Package server is the local web server behind `kard ui`. It shows the boards
 // as they are on disk and changes cards through the same actions as the
 // command line.
 package server
@@ -45,7 +45,7 @@ const (
 
 // Server serves the boards known on this machine.
 type Server struct {
-	// here is the board of the directory kb was started in, or "".
+	// here is the board of the directory kard was started in, or "".
 	here string
 
 	mu      sync.Mutex
@@ -100,7 +100,7 @@ func (s *Server) known(force bool) []registry.Entry {
 // ── JSON ────────────────────────────────────────────────────────────────────
 
 type stateJSON struct {
-	// User is the user's own name, or "" if kb does not know it.
+	// User is the user's own name, or "" if kard does not know it.
 	User string `json:"user"`
 	// Hidden lists the ids of boards the settings hide by default.
 	Hidden []string    `json:"hidden"`
@@ -485,7 +485,7 @@ func (s *Server) handleAction(w http.ResponseWriter, r *http.Request) {
 		if userErr == nil {
 			userErr = err
 		}
-		fail(w, http.StatusBadRequest, fmt.Errorf("the card is assigned to someone, so kb must know who you are: %w", userErr), false)
+		fail(w, http.StatusBadRequest, fmt.Errorf("the card is assigned to someone, so kard must know who you are: %w", userErr), false)
 	default:
 		fail(w, http.StatusBadRequest, err, false)
 	}
@@ -498,7 +498,7 @@ type actionResult struct {
 	Warning string `json:"warning,omitempty"`
 }
 
-// handleSync pulls and pushes one board with sync: push, like `kb sync`.
+// handleSync pulls and pushes one board with sync: push, like `kard sync`.
 func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Board string `json:"board"`
@@ -704,7 +704,7 @@ func (s *Server) fingerprint() string {
 func (s *Server) Run(ctx context.Context, port int, ready func(url string)) error {
 	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
 	if err != nil {
-		return fmt.Errorf("cannot listen on port %d (is kb ui already running? try --port): %w", port, err)
+		return fmt.Errorf("cannot listen on port %d (is kard ui already running? try --port): %w", port, err)
 	}
 	srv := &http.Server{Handler: s.Handler(), ReadHeaderTimeout: 10 * time.Second}
 

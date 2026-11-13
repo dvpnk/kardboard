@@ -12,7 +12,7 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-// Keys of the lists in config.yaml that kb edits.
+// Keys of the lists in config.yaml that kard edits.
 const (
 	KeyBoards = "boards"
 	KeyScan   = "scan"

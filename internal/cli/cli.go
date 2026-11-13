@@ -1,4 +1,4 @@
-// Package cli implements the kb command.
+// Package cli implements the kard command.
 package cli
 
 import (
@@ -21,7 +21,7 @@ import (
 	"kardboard/internal/userconfig"
 )
 
-// Exit codes of kb.
+// Exit codes of kard.
 const (
 	ExitOK        = 0
 	ExitViolation = 1 // the board breaks a rule of the format, or a rule forbids the change
@@ -40,12 +40,12 @@ type app struct {
 	asJSON      bool
 }
 
-// Execute runs kb with the process arguments and returns the exit code.
+// Execute runs kard with the process arguments and returns the exit code.
 func Execute() int {
 	return Run(os.Args[1:], os.Stdout, os.Stderr)
 }
 
-// Run runs kb with the given arguments and returns the exit code.
+// Run runs kard with the given arguments and returns the exit code.
 func Run(args []string, out, errOut io.Writer) int {
 	return run(args, os.Stdin, out, errOut)
 }
@@ -54,7 +54,7 @@ func Run(args []string, out, errOut io.Writer) int {
 func run(args []string, in io.Reader, out, errOut io.Writer) int {
 	a := &app{in: in, out: out, errOut: errOut}
 	root := &cobra.Command{
-		Use:           "kb",
+		Use:           "kard",
 		Short:         "Boards made of Markdown cards that live in your projects",
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -63,7 +63,7 @@ func run(args []string, in io.Reader, out, errOut io.Writer) int {
 	root.SetErr(errOut)
 	root.SetArgs(args)
 	root.PersistentFlags().StringVarP(&a.dir, "dir", "C", "", "board directory, instead of looking it up from the current directory")
-	root.PersistentFlags().StringVarP(&a.boardID, "board", "b", "", "board `id` known on this machine, see kb boards")
+	root.PersistentFlags().StringVarP(&a.boardID, "board", "b", "", "board `id` known on this machine, see kard boards")
 	root.PersistentFlags().BoolVar(&a.asJSON, "json", false, "print JSON")
 	root.MarkFlagsMutuallyExclusive("dir", "board")
 	root.AddCommand(a.initCmd(), a.lintCmd(), a.schemaCmd(), a.listCmd(), a.showCmd(), a.logCmd())
@@ -87,14 +87,14 @@ func run(args []string, in io.Reader, out, errOut io.Writer) int {
 		enc.SetEscapeHTML(false)
 		_ = enc.Encode(errorJSON{Error: err.Error(), Kind: kind, Force: kind == "refused"})
 	case kind == "refused":
-		fmt.Fprintf(errOut, "kb: %s (--force does it anyway)\n", err)
+		fmt.Fprintf(errOut, "kard: %s (--force does it anyway)\n", err)
 	default:
-		fmt.Fprintf(errOut, "kb: %s\n", err)
+		fmt.Fprintf(errOut, "kard: %s\n", err)
 	}
 	return code
 }
 
-// errorJSON is what kb writes to stderr for an error when --json is given.
+// errorJSON is what kard writes to stderr for an error when --json is given.
 type errorJSON struct {
 	Error string `json:"error"`
 	// Kind is refused (a rule of the board forbids it), conflict (someone
@@ -135,7 +135,7 @@ func (a *app) load() (*board.Board, error) {
 		}
 		l, ok := registry.Find(loaded, a.boardID)
 		if !ok {
-			return nil, fmt.Errorf("no board %q on this machine, see `kb boards`", a.boardID)
+			return nil, fmt.Errorf("no board %q on this machine, see `kard boards`", a.boardID)
 		}
 		return l.Board, nil
 	}
@@ -183,7 +183,7 @@ func formatValue(v any) string {
 	return fmt.Sprint(v)
 }
 
-// ── kb lint ─────────────────────────────────────────────────────────────────
+// ── kard lint ─────────────────────────────────────────────────────────────────
 
 type lintResult struct {
 	Board    string          `json:"board"`
@@ -252,11 +252,11 @@ func (a *app) schemaCmd() *cobra.Command {
 		Use:   "schema [column]",
 		Short: "Print the JSON Schema for the header of the board's cards",
 		Long: `Print the JSON Schema for the header of the board's cards, made from
-board.yaml, so editors and other tools check the fields as kb does.
+board.yaml, so editors and other tools check the fields as kard does.
 
 Without a column, only the fields required in every column are required.
 With one, so are those required there: give each column's directory its
-own schema, e.g. working_on/*.md the one of "kb schema working_on".`,
+own schema, e.g. working_on/*.md the one of "kard schema working_on".`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			b, err := a.loadValid()
@@ -284,7 +284,7 @@ func plural(n int, word string) string {
 	return fmt.Sprintf("%d %ss", n, word)
 }
 
-// ── kb list ─────────────────────────────────────────────────────────────────
+// ── kard list ─────────────────────────────────────────────────────────────────
 
 type boardInfo struct {
 	ID   string `json:"id"`
@@ -404,7 +404,7 @@ func (a *app) printList(columns []board.Column, cards []*board.Card) {
 	}
 }
 
-// ── kb show ─────────────────────────────────────────────────────────────────
+// ── kard show ─────────────────────────────────────────────────────────────────
 
 type showResult struct {
 	Board boardInfo `json:"board"`
@@ -453,7 +453,7 @@ func (a *app) showCmd() *cobra.Command {
 	}
 }
 
-// ── kb new ──────────────────────────────────────────────────────────────────
+// ── kard new ──────────────────────────────────────────────────────────────────
 
 func (a *app) newCmd() *cobra.Command {
 	var opt board.NewOptions
@@ -461,9 +461,9 @@ func (a *app) newCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "new <title>",
 		Short: "Create a card",
-		Example: `  kb new "Dunkles Design" -c backlog --set size=M --set tags=feature,ui
-  kb new "Export als PDF" --text notes.md
-  echo "Was zu tun ist." | kb new "Login prüfen" --text -`,
+		Example: `  kard new "Dunkles Design" -c backlog --set size=M --set tags=feature,ui
+  kard new "Export als PDF" --text notes.md
+  echo "Was zu tun ist." | kard new "Login prüfen" --text -`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			if text != "" {
@@ -505,7 +505,7 @@ func (a *app) newCmd() *cobra.Command {
 	return cmd
 }
 
-// ── kb move, take, done, assign, unassign, set ──────────────────────────────
+// ── kard move, take, done, assign, unassign, set ──────────────────────────────
 
 const forceHelp = "also change a card assigned to someone else, or leave a required field empty"
 
@@ -521,7 +521,7 @@ func (a *app) change(b *board.Board, id string, ch board.Change) error {
 	res, err := gitsync.Change(context.Background(), b, id, ch)
 	if res == nil {
 		if errors.Is(err, board.ErrNeedUser) && userErr != nil {
-			return fmt.Errorf("card %s is assigned to someone, so kb must know who you are: %w", id, userErr)
+			return fmt.Errorf("card %s is assigned to someone, so kard must know who you are: %w", id, userErr)
 		}
 		return err
 	}

@@ -70,7 +70,7 @@ func (e *ConflictError) Error() string {
 type PushError struct{ Reason string }
 
 func (e *PushError) Error() string {
-	return "committed here, but not pushed: " + e.Reason + "; try `kb sync` later"
+	return "committed here, but not pushed: " + e.Reason + "; try `kard sync` later"
 }
 
 // ── Running Git ─────────────────────────────────────────────────────────────
@@ -251,7 +251,7 @@ func Prepare(ctx context.Context, b *board.Board) (*board.Board, error) {
 		return nil, err
 	}
 	if fresh.Config == nil {
-		return nil, errors.New("board.yaml is invalid after pulling, see `kb lint`")
+		return nil, errors.New("board.yaml is invalid after pulling, see `kard lint`")
 	}
 	return fresh, nil
 }
@@ -352,7 +352,7 @@ func Change(ctx context.Context, b *board.Board, id string, ch board.Change) (*R
 
 // Check says whether Change could change the card now, as far as Git is
 // concerned: the board's sync mode works here, and the card has no changes
-// waiting to be committed. `kb edit` asks before it opens the editor, so
+// waiting to be committed. `kard edit` asks before it opens the editor, so
 // nobody writes a text that cannot be saved.
 func Check(ctx context.Context, b *board.Board, id string) error {
 	if b.Config == nil || b.Config.Sync == ModeNone {
@@ -527,7 +527,7 @@ func lastLine(err error) string {
 	return strings.TrimSpace(lines[len(lines)-1])
 }
 
-// ── Status and kb sync ──────────────────────────────────────────────────────
+// ── Status and kard sync ──────────────────────────────────────────────────────
 
 // Status compares the board's repository with its remote, as far as the
 // last fetch knows it.

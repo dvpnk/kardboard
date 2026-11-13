@@ -5,6 +5,8 @@
 
 import { t } from "./texts.js";
 
+// The keys start with "kb.", the command's name when they were made. They
+// stay so, or every browser would lose its theme and hidden boards.
 export const stored = (key, fallback) => {
   try { return JSON.parse(localStorage.getItem("kb." + key)) ?? fallback; } catch { return fallback; }
 };

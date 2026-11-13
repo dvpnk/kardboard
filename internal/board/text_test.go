@@ -128,7 +128,7 @@ func TestFileRules(t *testing.T) {
 			t.Errorf("%s: accepted", name)
 		}
 	}
-	// size is required in backlog: taking it away is refused like kb set.
+	// size is required in backlog: taking it away is refused like kard set.
 	without := "# A\n"
 	var refused *RefusedError
 	if _, err := b.Change("a", Change{File: &without}); !errors.As(err, &refused) {

@@ -8,8 +8,8 @@ import (
 )
 
 // The header of a card as a JSON Schema, so editors and other tools check
-// what kb checks: which fields exist, their types and values. Rules that
-// need more than the header are left to `kb lint`: whether a referenced
+// what kard checks: which fields exist, their types and values. Rules that
+// need more than the header are left to `kard lint`: whether a referenced
 // card exists, and which column a card lies in. As the column is not part
 // of the header, a schema is made either for every column, requiring only
 // the fields required everywhere, or for one column.
@@ -45,7 +45,7 @@ func (o object) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// The patterns are the very ones kb checks with; they are written so that
+// The patterns are the very ones kard checks with; they are written so that
 // JSON Schema reads them the same.
 var (
 	slugPattern    = slugRe.String()
@@ -121,7 +121,7 @@ func (c *Config) Schema(column string) ([]byte, error) {
 	schema := object{
 		{"$schema", "https://json-schema.org/draft/2020-12/schema"},
 		{"title", title},
-		{"description", "Made by `kb schema` from board.yaml. References to other cards and the rules of the board are checked by `kb lint`."},
+		{"description", "Made by `kard schema` from board.yaml. References to other cards and the rules of the board are checked by `kard lint`."},
 		{"type", "object"},
 		{"properties", props},
 		{"required", required},

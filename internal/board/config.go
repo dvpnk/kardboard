@@ -71,9 +71,9 @@ type Config struct {
 type Column struct {
 	ID    string `yaml:"id"`
 	Title string `yaml:"title"`
-	// Doing marks the column for work in progress, the target of `kb take`.
+	// Doing marks the column for work in progress, the target of `kard take`.
 	Doing bool `yaml:"doing"`
-	// Done marks the column for finished work, the target of `kb done`.
+	// Done marks the column for finished work, the target of `kard done`.
 	Done  bool `yaml:"done"`
 	Limit int  `yaml:"limit"`
 }

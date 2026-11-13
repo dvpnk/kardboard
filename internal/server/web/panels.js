@@ -131,7 +131,7 @@ export function Detail() {
   const body = textOf(card);
   const where = html`${board && html`<span class="panel-project"><${Dot} colour=${colourOf(board)} />${board.name}</span><span aria-hidden="true">·</span>`}<span>${column?.title ?? card.column}</span>`;
   // Who the card belongs to is the first row of the fields, and can be
-  // changed there at once, while kb may change the card.
+  // changed there at once, while kard may change the card.
   const changeable = !!board?.writable && !board.git?.dirty?.includes(card.id);
   const who = changeable && html`<${People} key=${board.key + "/" + card.id} board=${board} card=${card} />`;
   const log = state.open.log;
@@ -168,7 +168,7 @@ export function Detail() {
 function Actions({ board, card, column }) {
   if (!board.writable) return html`<p class="panel-note">${t.readOnly(board.git?.error ?? board.sync)}</p>`;
   // A card with changes that are not committed cannot be changed through
-  // kb on a board that commits: say so before the action is refused.
+  // kard on a board that commits: say so before the action is refused.
   const unsaved = board.git?.dirty?.includes(card.id);
   const who = people(card);
   const me = state.data.user;

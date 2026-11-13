@@ -532,7 +532,7 @@ func TestActionsNeedTheUserOnlyWhenItMatters(t *testing.T) {
 	root := copyOfExample(t)
 	s := New(root)
 
-	// Nobody's card moves without kb knowing who asks.
+	// Nobody's card moves without kard knowing who asks.
 	if rec := post(t, s, `{"board":"demo","card":"druckvorlagen","action":"move","column":"done"}`, nil); rec.Code != 200 {
 		t.Errorf("move: status %d, %s", rec.Code, rec.Body)
 	}

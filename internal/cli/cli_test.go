@@ -13,16 +13,16 @@ import (
 
 var example = filepath.Join("..", "..", "examples", "board")
 
-// kb runs the command and returns exit code, stdout and stderr.
-func kb(t *testing.T, args ...string) (int, string, string) {
+// kard runs the command and returns exit code, stdout and stderr.
+func kard(t *testing.T, args ...string) (int, string, string) {
 	t.Helper()
 	var out, errOut bytes.Buffer
 	code := Run(args, &out, &errOut)
 	return code, out.String(), errOut.String()
 }
 
-// asUser makes kb see the given user and no settings file. An empty name
-// means: nobody has told kb who they are.
+// asUser makes kard see the given user and no settings file. An empty name
+// means: nobody has told kard who they are.
 func asUser(t *testing.T, name string) {
 	t.Helper()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
@@ -65,12 +65,12 @@ func isFile(root, rel string) bool {
 }
 
 func TestLint(t *testing.T) {
-	code, out, _ := kb(t, "lint", "-C", example)
+	code, out, _ := kard(t, "lint", "-C", example)
 	if code != ExitOK || out != "5 cards, 0 errors, 0 warnings\n" {
 		t.Errorf("code %d, out %q", code, out)
 	}
 
-	code, out, _ = kb(t, "lint", "-C", brokenBoard(t))
+	code, out, _ = kard(t, "lint", "-C", brokenBoard(t))
 	if code != ExitViolation {
 		t.Errorf("code %d, want %d", code, ExitViolation)
 	}
@@ -86,7 +86,7 @@ func TestLint(t *testing.T) {
 }
 
 func TestLintJSON(t *testing.T) {
-	code, out, _ := kb(t, "lint", "--json", "-C", brokenBoard(t))
+	code, out, _ := kard(t, "lint", "--json", "-C", brokenBoard(t))
 	if code != ExitViolation {
 		t.Errorf("code %d", code)
 	}
@@ -101,7 +101,7 @@ func TestLintJSON(t *testing.T) {
 		t.Errorf("result = %+v", res)
 	}
 
-	_, out, _ = kb(t, "lint", "--json", "-C", example)
+	_, out, _ = kard(t, "lint", "--json", "-C", example)
 	if !strings.Contains(out, `"problems": []`) {
 		t.Errorf("a clean board must print an empty list, not null:\n%s", out)
 	}
@@ -112,24 +112,24 @@ func TestLintBrokenConfig(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "board.yaml"), []byte("kardboard: 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	code, out, _ := kb(t, "lint", "-C", root)
+	code, out, _ := kard(t, "lint", "-C", root)
 	if code != ExitViolation || !strings.Contains(out, "board.yaml: E01 ") {
 		t.Errorf("code %d, out %q", code, out)
 	}
 	// A directory without board.yaml is the same violation.
-	code, out, _ = kb(t, "lint", "-C", t.TempDir())
+	code, out, _ = kard(t, "lint", "-C", t.TempDir())
 	if code != ExitViolation || !strings.Contains(out, "board.yaml: E01 file is missing") {
 		t.Errorf("code %d, out %q", code, out)
 	}
 	// Other commands cannot work without a valid board.yaml.
-	code, _, errOut := kb(t, "list", "-C", root)
+	code, _, errOut := kard(t, "list", "-C", root)
 	if code != ExitViolation || !strings.Contains(errOut, "board.yaml: E01 ") {
 		t.Errorf("list: code %d, stderr %q", code, errOut)
 	}
 }
 
 func TestList(t *testing.T) {
-	code, out, _ := kb(t, "list", "-C", example)
+	code, out, _ := kard(t, "list", "-C", example)
 	want := `Planung (1)
     offline-modus              Offline-Modus
 Backlog (2)
@@ -144,7 +144,7 @@ Erledigt (1)
 		t.Errorf("code %d, out:\n%s", code, out)
 	}
 
-	code, out, _ = kb(t, "list", "backlog", "-C", brokenBoard(t))
+	code, out, _ = kard(t, "list", "backlog", "-C", brokenBoard(t))
 	if code != ExitOK || !strings.Contains(out, "  ! kaputt") || strings.Contains(out, "Planung") {
 		t.Errorf("code %d, out:\n%s", code, out)
 	}
@@ -153,7 +153,7 @@ Erledigt (1)
 func TestListMine(t *testing.T) {
 	// sam's card is still in the backlog: --mine finds it in any column.
 	asUser(t, "sam")
-	code, out, _ := kb(t, "list", "--mine", "--json", "-C", example)
+	code, out, _ := kard(t, "list", "--mine", "--json", "-C", example)
 	var res struct {
 		Board struct{ ID, Name string }
 		Cards []struct {
@@ -170,14 +170,14 @@ func TestListMine(t *testing.T) {
 	}
 
 	asUser(t, "")
-	code, _, errOut := kb(t, "list", "--mine", "-C", example)
+	code, _, errOut := kard(t, "list", "--mine", "-C", example)
 	if code != ExitUsage || !strings.Contains(errOut, "no user set") {
 		t.Errorf("code %d, stderr %q", code, errOut)
 	}
 }
 
 func TestShow(t *testing.T) {
-	code, out, _ := kb(t, "show", "login-fehler-bei-umlauten.md", "-C", example)
+	code, out, _ := kard(t, "show", "login-fehler-bei-umlauten.md", "-C", example)
 	for _, want := range []string{
 		"path:      working_on/login-fehler-bei-umlauten.md",
 		"column:    In Arbeit",
@@ -193,7 +193,7 @@ func TestShow(t *testing.T) {
 		t.Errorf("code %d", code)
 	}
 
-	_, out, _ = kb(t, "show", "export-als-pdf", "--json", "-C", example)
+	_, out, _ = kard(t, "show", "export-als-pdf", "--json", "-C", example)
 	var res struct {
 		ID, Title, Body string
 		Fields          map[string]any
@@ -218,9 +218,9 @@ func TestUsageErrors(t *testing.T) {
 		{"set", "druckvorlagen", "-C", example},
 	}
 	for _, args := range tests {
-		code, _, errOut := kb(t, args...)
-		if code != ExitUsage || !strings.HasPrefix(errOut, "kb: ") {
-			t.Errorf("kb %v: code %d, stderr %q", args, code, errOut)
+		code, _, errOut := kard(t, args...)
+		if code != ExitUsage || !strings.HasPrefix(errOut, "kard: ") {
+			t.Errorf("kard %v: code %d, stderr %q", args, code, errOut)
 		}
 	}
 }
@@ -229,7 +229,7 @@ func TestNewCommand(t *testing.T) {
 	asUser(t, "")
 	root := copyOfExample(t)
 
-	code, out, _ := kb(t, "new", "Dunkles Design", "-C", root)
+	code, out, _ := kard(t, "new", "Dunkles Design", "-C", root)
 	if code != ExitOK || out != "planning/dunkles-design.md\n" {
 		t.Errorf("code %d, out %q", code, out)
 	}
@@ -239,11 +239,11 @@ func TestNewCommand(t *testing.T) {
 	}
 
 	// The column requires a size: refused, then accepted with --set.
-	code, _, errOut := kb(t, "new", "Export als CSV", "-c", "backlog", "-C", root)
+	code, _, errOut := kard(t, "new", "Export als CSV", "-c", "backlog", "-C", root)
 	if code != ExitViolation || !strings.Contains(errOut, "requires size") || !strings.Contains(errOut, "--force") {
 		t.Errorf("code %d, stderr %q", code, errOut)
 	}
-	code, out, _ = kb(t, "new", "Export als CSV", "-c", "backlog",
+	code, out, _ = kard(t, "new", "Export als CSV", "-c", "backlog",
 		"--set", "size=S", "--set", "tags=feature,ui", "--set", "assignee=sam", "--json", "-C", root)
 	var res struct {
 		ID, Path string
@@ -256,13 +256,13 @@ func TestNewCommand(t *testing.T) {
 		t.Errorf("code %d, result %+v", code, res)
 	}
 
-	code, out, _ = kb(t, "new", "Mit Namen", "-c", "working_on", "--id", "eigener-name", "--set", "size=S", "--set", "assignee=sam", "-C", root)
+	code, out, _ = kard(t, "new", "Mit Namen", "-c", "working_on", "--id", "eigener-name", "--set", "size=S", "--set", "assignee=sam", "-C", root)
 	if code != ExitOK || out != "working_on/eigener-name.md\n" {
 		t.Errorf("code %d, out %q", code, out)
 	}
 
-	if code, out, _ = kb(t, "lint", "-C", root); code != ExitOK {
-		t.Errorf("board is invalid after kb new:\n%s", out)
+	if code, out, _ = kard(t, "lint", "-C", root); code != ExitOK {
+		t.Errorf("board is invalid after kard new:\n%s", out)
 	}
 }
 
@@ -305,29 +305,29 @@ func TestChangeCommands(t *testing.T) {
 		{[]string{"move", "gibt-es-nicht", "done"}, ExitUsage, `no card "gibt-es-nicht"`, ""},
 	}
 	for _, s := range steps {
-		code, out, errOut := kb(t, append(s.args, "-C", root)...)
+		code, out, errOut := kard(t, append(s.args, "-C", root)...)
 		if code != s.code {
-			t.Fatalf("kb %v: code %d, want %d\nstdout: %s\nstderr: %s", s.args, code, s.code, out, errOut)
+			t.Fatalf("kard %v: code %d, want %d\nstdout: %s\nstderr: %s", s.args, code, s.code, out, errOut)
 		}
 		if code == ExitOK && out != s.out {
-			t.Errorf("kb %v: out %q, want %q", s.args, out, s.out)
+			t.Errorf("kard %v: out %q, want %q", s.args, out, s.out)
 		}
 		if code != ExitOK && !strings.Contains(errOut, s.out) {
-			t.Errorf("kb %v: stderr %q lacks %q", s.args, errOut, s.out)
+			t.Errorf("kard %v: stderr %q lacks %q", s.args, errOut, s.out)
 		}
 		if s.wantFile != "" && !isFile(root, s.wantFile) {
-			t.Errorf("kb %v: %s is missing", s.args, s.wantFile)
+			t.Errorf("kard %v: %s is missing", s.args, s.wantFile)
 		}
 	}
 
 	if got, want := readFile(t, root, "backlog/offline-modus.md"), "---\nsize: S\n---\n\n# Offline-Modus\n"; !strings.HasPrefix(got, want) {
 		t.Errorf("offline-modus = %q, want it to start with %q", got, want)
 	}
-	if code, out, _ := kb(t, "lint", "-C", root); code != ExitOK {
+	if code, out, _ := kard(t, "lint", "-C", root); code != ExitOK {
 		t.Errorf("board is invalid after the changes:\n%s", out)
 	}
 
-	_, out, _ := kb(t, "move", "druckvorlagen", "done", "--force", "--json", "-C", root)
+	_, out, _ := kard(t, "move", "druckvorlagen", "done", "--force", "--json", "-C", root)
 	var res struct {
 		ID, From, To, Path string
 		Moved              bool
@@ -371,41 +371,41 @@ func TestSeveralPeople(t *testing.T) {
 		{[]string{"assign", card, ""}, ExitUsage, "no person named", "assignee: [sam, alex]"},
 	}
 	for _, s := range steps {
-		code, out, errOut := kb(t, append(s.args, "-C", root)...)
+		code, out, errOut := kard(t, append(s.args, "-C", root)...)
 		if code != s.code {
-			t.Fatalf("kb %v: code %d, want %d\nstdout: %s\nstderr: %s", s.args, code, s.code, out, errOut)
+			t.Fatalf("kard %v: code %d, want %d\nstdout: %s\nstderr: %s", s.args, code, s.code, out, errOut)
 		}
 		if code == ExitOK && out != s.out {
-			t.Errorf("kb %v: out %q, want %q", s.args, out, s.out)
+			t.Errorf("kard %v: out %q, want %q", s.args, out, s.out)
 		}
 		if code != ExitOK && !strings.Contains(errOut, s.out) {
-			t.Errorf("kb %v: stderr %q lacks %q", s.args, errOut, s.out)
+			t.Errorf("kard %v: stderr %q lacks %q", s.args, errOut, s.out)
 		}
 		path := "backlog/druckvorlagen.md"
 		if !isFile(root, path) {
 			path = "working_on/druckvorlagen.md"
 		}
 		if text := readFile(t, root, path); !strings.Contains(text, "\n"+s.file+"\n") {
-			t.Errorf("kb %v: file lacks %q:\n%s", s.args, s.file, text)
+			t.Errorf("kard %v: file lacks %q:\n%s", s.args, s.file, text)
 		}
 	}
 
 	// Both people see the card as theirs.
-	_, out, _ := kb(t, "list", "working_on", "-C", root)
+	_, out, _ := kard(t, "list", "working_on", "-C", root)
 	if !strings.Contains(out, "Druckvorlagen  @sam @alex\n") {
 		t.Errorf("list:\n%s", out)
 	}
 	for _, name := range []string{"sam", "alex"} {
 		asUser(t, name)
-		if _, out, _ := kb(t, "list", "working_on", "--mine", "-C", root); !strings.Contains(out, "druckvorlagen") {
+		if _, out, _ := kard(t, "list", "working_on", "--mine", "-C", root); !strings.Contains(out, "druckvorlagen") {
 			t.Errorf("--mine for %s:\n%s", name, out)
 		}
 	}
 	asUser(t, "laura")
-	if _, out, _ := kb(t, "list", "working_on", "--mine", "-C", root); strings.Contains(out, "druckvorlagen") {
+	if _, out, _ := kard(t, "list", "working_on", "--mine", "-C", root); strings.Contains(out, "druckvorlagen") {
 		t.Errorf("--mine for laura:\n%s", out)
 	}
-	if code, out, _ := kb(t, "lint", "-C", root); code != ExitOK {
+	if code, out, _ := kard(t, "lint", "-C", root); code != ExitOK {
 		t.Errorf("board is invalid after the changes:\n%s", out)
 	}
 }
@@ -415,18 +415,18 @@ func TestWhoYouAreMattersOnlyForAssignedCards(t *testing.T) {
 	root := copyOfExample(t)
 
 	// Nobody's cards can be moved and assigned without any setup.
-	if code, _, errOut := kb(t, "move", "druckvorlagen", "done", "-C", root); code != ExitOK {
+	if code, _, errOut := kard(t, "move", "druckvorlagen", "done", "-C", root); code != ExitOK {
 		t.Errorf("move: code %d, stderr %q", code, errOut)
 	}
-	if code, _, errOut := kb(t, "assign", "offline-modus", "laura", "-C", root); code != ExitOK {
+	if code, _, errOut := kard(t, "assign", "offline-modus", "laura", "-C", root); code != ExitOK {
 		t.Errorf("assign: code %d, stderr %q", code, errOut)
 	}
 	// An assigned card and `take` need to know who is asking.
-	code, _, errOut := kb(t, "done", "login-fehler-bei-umlauten", "-C", root)
+	code, _, errOut := kard(t, "done", "login-fehler-bei-umlauten", "-C", root)
 	if code != ExitUsage || !strings.Contains(errOut, "must know who you are") || !strings.Contains(errOut, "no user set") {
 		t.Errorf("done: code %d, stderr %q", code, errOut)
 	}
-	code, _, errOut = kb(t, "take", "projekt-aufsetzen", "-C", root)
+	code, _, errOut = kard(t, "take", "projekt-aufsetzen", "-C", root)
 	if code != ExitUsage || !strings.Contains(errOut, "no user set") {
 		t.Errorf("take: code %d, stderr %q", code, errOut)
 	}
@@ -450,14 +450,14 @@ func TestBoardWithoutSpecialColumns(t *testing.T) {
 	}
 
 	// Without a doing column, taking a card only assigns it.
-	code, out, _ := kb(t, "take", "karte", "-C", root)
+	code, out, _ := kard(t, "take", "karte", "-C", root)
 	if code != ExitOK || out != "karte: assignee = sam\n" {
 		t.Errorf("take: code %d, out %q", code, out)
 	}
 	if got, want := readFile(t, root, "todo/karte.md"), "---\nassignee: sam\n---\n\n# Karte\n"; got != want {
 		t.Errorf("file = %q, want %q", got, want)
 	}
-	code, _, errOut := kb(t, "done", "karte", "-C", root)
+	code, _, errOut := kard(t, "done", "karte", "-C", root)
 	if code != ExitUsage || !strings.Contains(errOut, "has no column with done: true") {
 		t.Errorf("done: code %d, stderr %q", code, errOut)
 	}
@@ -503,37 +503,37 @@ func TestAddRemoveAndBoards(t *testing.T) {
 	beta := makeBoard(t, filepath.Join(home, "repos", "beta"), "beta")
 	twin := makeBoard(t, filepath.Join(home, "elsewhere", "twin"), "alpha")
 
-	code, out, _ := kb(t, "boards")
+	code, out, _ := kard(t, "boards")
 	if code != ExitOK || !strings.Contains(out, "No boards yet") {
 		t.Errorf("empty machine: code %d, out %q", code, out)
 	}
 
 	// A directory inside the board works as well as the board itself.
-	code, out, _ = kb(t, "add", filepath.Join(alpha, "todo"))
+	code, out, _ = kard(t, "add", filepath.Join(alpha, "todo"))
 	if code != ExitOK || out != "alpha: added (~/repos/alpha/board)\n" {
 		t.Errorf("add: code %d, out %q", code, out)
 	}
 	if got, want := readFile(t, filepath.Dir(configFile), "config.yaml"), "boards:\n  - ~/repos/alpha/board\n"; got != want {
 		t.Errorf("settings = %q, want %q", got, want)
 	}
-	code, out, _ = kb(t, "add", alpha)
+	code, out, _ = kard(t, "add", alpha)
 	if code != ExitOK || !strings.Contains(out, "already added") {
 		t.Errorf("add twice: code %d, out %q", code, out)
 	}
-	if code, out, _ = kb(t, "add", beta); code != ExitOK {
+	if code, out, _ = kard(t, "add", beta); code != ExitOK {
 		t.Errorf("add beta: code %d, out %q", code, out)
 	}
 
 	// Two boards with the same id cannot both be known.
-	code, _, errOut := kb(t, "add", twin)
+	code, _, errOut := kard(t, "add", twin)
 	if code != ExitUsage || !strings.Contains(errOut, `id "alpha" is already used by the board in ~/repos/alpha/board`) {
 		t.Errorf("add twin: code %d, stderr %q", code, errOut)
 	}
-	if code, _, errOut = kb(t, "add", filepath.Join(home, "repos")); code != ExitUsage || !strings.Contains(errOut, "no board found") {
+	if code, _, errOut = kard(t, "add", filepath.Join(home, "repos")); code != ExitUsage || !strings.Contains(errOut, "no board found") {
 		t.Errorf("add without board: code %d, stderr %q", code, errOut)
 	}
 
-	code, out, _ = kb(t, "boards")
+	code, out, _ = kard(t, "boards")
 	want := "ID     CARDS  SOURCE  PATH\n" +
 		"alpha      1  added   ~/repos/alpha/board\n" +
 		"beta       1  added   ~/repos/beta\n"
@@ -542,26 +542,26 @@ func TestAddRemoveAndBoards(t *testing.T) {
 	}
 
 	// -b reaches a known board from anywhere.
-	code, out, _ = kb(t, "list", "-b", "beta")
+	code, out, _ = kard(t, "list", "-b", "beta")
 	if code != ExitOK || !strings.Contains(out, "eins") {
 		t.Errorf("list -b: code %d, out %q", code, out)
 	}
-	if code, _, errOut = kb(t, "list", "-b", "nope"); code != ExitUsage || !strings.Contains(errOut, `no board "nope"`) {
+	if code, _, errOut = kard(t, "list", "-b", "nope"); code != ExitUsage || !strings.Contains(errOut, `no board "nope"`) {
 		t.Errorf("list -b nope: code %d, stderr %q", code, errOut)
 	}
-	if code, _, _ = kb(t, "list", "-b", "beta", "-C", alpha); code != ExitUsage {
+	if code, _, _ = kard(t, "list", "-b", "beta", "-C", alpha); code != ExitUsage {
 		t.Errorf("-b together with -C: code %d", code)
 	}
 
 	// Removing forgets the board and leaves its files alone.
-	code, out, _ = kb(t, "remove", "alpha")
+	code, out, _ = kard(t, "remove", "alpha")
 	if code != ExitOK || !strings.Contains(out, "removed ~/repos/alpha/board") || !isFile(alpha, "todo/eins.md") {
 		t.Errorf("remove by id: code %d, out %q", code, out)
 	}
-	if code, _, _ = kb(t, "remove", beta); code != ExitOK {
+	if code, _, _ = kard(t, "remove", beta); code != ExitOK {
 		t.Errorf("remove by directory: code %d", code)
 	}
-	if code, _, errOut = kb(t, "remove", "alpha"); code != ExitUsage || !strings.Contains(errOut, "no added board") {
+	if code, _, errOut = kard(t, "remove", "alpha"); code != ExitUsage || !strings.Contains(errOut, "no added board") {
 		t.Errorf("remove again: code %d, stderr %q", code, errOut)
 	}
 	if got := readFile(t, filepath.Dir(configFile), "config.yaml"); got != "boards: []\n" {
@@ -581,19 +581,19 @@ func TestScan(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	code, out, _ := kb(t, "scan", filepath.Join(home, "repos"))
+	code, out, _ := kard(t, "scan", filepath.Join(home, "repos"))
 	want := "scanning ~/repos: 3 boards found\n  ~/repos/alpha/board\n  ~/repos/beta\n  ~/repos/broken\n"
 	if code != ExitOK || out != want {
 		t.Errorf("scan: code %d, out:\n%s", code, out)
 	}
-	if code, out, _ = kb(t, "scan", filepath.Join(home, "repos")); code != ExitOK || !strings.HasPrefix(out, "already scanning") {
+	if code, out, _ = kard(t, "scan", filepath.Join(home, "repos")); code != ExitOK || !strings.HasPrefix(out, "already scanning") {
 		t.Errorf("scan twice: code %d, out %q", code, out)
 	}
-	if code, _, errOut := kb(t, "scan", filepath.Join(home, "nope")); code != ExitUsage || !strings.Contains(errOut, "not a directory") {
+	if code, _, errOut := kard(t, "scan", filepath.Join(home, "nope")); code != ExitUsage || !strings.Contains(errOut, "not a directory") {
 		t.Errorf("scan nothing: code %d, stderr %q", code, errOut)
 	}
 
-	code, out, _ = kb(t, "boards")
+	code, out, _ = kard(t, "boards")
 	for _, line := range []string{
 		"alpha      1  scan    ~/repos/alpha/board\n",
 		"beta       1  scan    ~/repos/beta\n",
@@ -607,7 +607,7 @@ func TestScan(t *testing.T) {
 		t.Errorf("boards: code %d", code)
 	}
 
-	_, out, _ = kb(t, "boards", "--json")
+	_, out, _ = kard(t, "boards", "--json")
 	var rows []struct {
 		ID, Path, Source, Error string
 		Cards, Errors           int
@@ -620,17 +620,17 @@ func TestScan(t *testing.T) {
 	}
 
 	// A board found by a scan cannot be removed by itself.
-	code, _, errOut := kb(t, "remove", "alpha")
+	code, _, errOut := kard(t, "remove", "alpha")
 	if code != ExitUsage || !strings.Contains(errOut, "found through a directory under `scan`") {
 		t.Errorf("remove a scanned board: code %d, stderr %q", code, errOut)
 	}
-	if code, out, _ = kb(t, "scan", "--remove", filepath.Join(home, "repos")); code != ExitOK || out != "no longer scanning ~/repos\n" {
+	if code, out, _ = kard(t, "scan", "--remove", filepath.Join(home, "repos")); code != ExitOK || out != "no longer scanning ~/repos\n" {
 		t.Errorf("scan --remove: code %d, out %q", code, out)
 	}
-	if code, _, _ = kb(t, "scan", "--remove", filepath.Join(home, "repos")); code != ExitUsage {
+	if code, _, _ = kard(t, "scan", "--remove", filepath.Join(home, "repos")); code != ExitUsage {
 		t.Errorf("scan --remove twice: code %d", code)
 	}
-	if _, out, _ = kb(t, "boards"); !strings.Contains(out, "No boards yet") {
+	if _, out, _ = kard(t, "boards"); !strings.Contains(out, "No boards yet") {
 		t.Errorf("boards after --remove:\n%s", out)
 	}
 }
@@ -644,7 +644,7 @@ func TestAddRefusesABrokenBoard(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "board.yaml"), []byte("kardboard: 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	code, _, errOut := kb(t, "add", dir)
+	code, _, errOut := kard(t, "add", dir)
 	if code != ExitViolation || !strings.Contains(errOut, "board.yaml: E01 ") {
 		t.Errorf("code %d, stderr %q", code, errOut)
 	}
@@ -689,15 +689,15 @@ func TestCommitBoard(t *testing.T) {
 	asUser(t, "alex")
 	root := syncRepo(t, "commit")
 
-	code, out, errOut := kb(t, "new", "Dunkles Design", "-c", "planning", "-C", root)
+	code, out, errOut := kard(t, "new", "Dunkles Design", "-c", "planning", "-C", root)
 	if code != ExitOK || !strings.HasPrefix(out, "planning/dunkles-design.md  (commit ") {
 		t.Fatalf("new: code %d, out %q, err %q", code, out, errOut)
 	}
-	code, out, errOut = kb(t, "assign", "dunkles-design", "sam", "-C", root)
+	code, out, errOut = kard(t, "assign", "dunkles-design", "sam", "-C", root)
 	if code != ExitOK || !strings.HasPrefix(out, "dunkles-design: assignee = sam  (commit ") {
 		t.Fatalf("assign: code %d, out %q, err %q", code, out, errOut)
 	}
-	code, out, _ = kb(t, "assign", "dunkles-design", "sam", "-C", root, "--force")
+	code, out, _ = kard(t, "assign", "dunkles-design", "sam", "-C", root, "--force")
 	if code != ExitOK || out != "dunkles-design: nothing to change\n" {
 		t.Errorf("assign again: code %d, out %q", code, out)
 	}
@@ -705,7 +705,7 @@ func TestCommitBoard(t *testing.T) {
 		t.Errorf("log = %q", got)
 	}
 
-	code, _, errOut = kb(t, "sync", "-C", root)
+	code, _, errOut = kard(t, "sync", "-C", root)
 	if code != ExitUsage || !strings.Contains(errOut, "sync: commit") {
 		t.Errorf("sync: code %d, err %q", code, errOut)
 	}
@@ -725,14 +725,14 @@ func TestPushBoard(t *testing.T) {
 	}
 	alex, sam := clone("alex"), clone("sam")
 
-	code, out, errOut := kb(t, "take", "druckvorlagen", "-C", alex, "--force")
+	code, out, errOut := kard(t, "take", "druckvorlagen", "-C", alex, "--force")
 	if code != ExitOK || !strings.Contains(out, "backlog -> working_on") || !strings.HasSuffix(out, ", pushed)\n") {
 		t.Fatalf("take: code %d, out %q, err %q", code, out, errOut)
 	}
 
 	// Sam's command pulls first, so it sees that the card is Alex's.
 	t.Setenv("KARDBOARD_USER", "sam")
-	code, _, errOut = kb(t, "done", "druckvorlagen", "-C", sam)
+	code, _, errOut = kard(t, "done", "druckvorlagen", "-C", sam)
 	if code != ExitViolation || !strings.Contains(errOut, "assigned to alex") {
 		t.Errorf("done: code %d, err %q", code, errOut)
 	}
@@ -740,25 +740,25 @@ func TestPushBoard(t *testing.T) {
 		t.Error("sam did not get alex's change")
 	}
 
-	// A commit made by hand goes out with kb sync.
+	// A commit made by hand goes out with kard sync.
 	gitIn(t, sam, "commit", "-q", "--allow-empty", "-m", "by hand")
-	code, out, errOut = kb(t, "sync", "-C", sam)
+	code, out, errOut = kard(t, "sync", "-C", sam)
 	if code != ExitOK || out != "demo: 0 commits pulled, 1 commit pushed\n" {
 		t.Errorf("sync: code %d, out %q, err %q", code, out, errOut)
 	}
-	if code, out, _ = kb(t, "sync", "-C", sam); code != ExitOK || out != "demo: up to date\n" {
+	if code, out, _ = kard(t, "sync", "-C", sam); code != ExitOK || out != "demo: up to date\n" {
 		t.Errorf("sync again: code %d, out %q", code, out)
 	}
 
-	// Without the remote the change stays here, and kb says so.
+	// Without the remote the change stays here, and kard says so.
 	gitIn(t, sam, "remote", "set-url", "origin", filepath.Join(t.TempDir(), "gone.git"))
-	code, _, errOut = kb(t, "move", "offline-modus", "backlog", "-C", sam, "--force")
+	code, _, errOut = kard(t, "move", "offline-modus", "backlog", "-C", sam, "--force")
 	if code != ExitUsage || !strings.Contains(errOut, "nothing was changed") || !isFile(sam, "planning/offline-modus.md") {
 		t.Errorf("move: code %d, err %q", code, errOut)
 	}
 }
 
-// ── kb init ─────────────────────────────────────────────────────────────────
+// ── kard init ─────────────────────────────────────────────────────────────────
 
 func put(t *testing.T, root string, files ...string) {
 	t.Helper()
@@ -777,7 +777,7 @@ func TestInitInAnEmptyDirectory(t *testing.T) {
 	home, configFile := machine(t)
 	root := filepath.Join(home, "Mein Projekt", "board") // does not exist yet
 
-	code, out, errOut := kb(t, "init", root)
+	code, out, errOut := kard(t, "init", root)
 	if code != ExitOK || errOut != "" {
 		t.Fatalf("code %d, out %q, err %q", code, out, errOut)
 	}
@@ -795,15 +795,15 @@ func TestInitInAnEmptyDirectory(t *testing.T) {
 	}
 
 	// The new board works right away.
-	if code, out, _ := kb(t, "lint", "-C", root); code != ExitOK || out != "0 cards, 0 errors, 0 warnings\n" {
+	if code, out, _ := kard(t, "lint", "-C", root); code != ExitOK || out != "0 cards, 0 errors, 0 warnings\n" {
 		t.Errorf("lint: code %d, out %q", code, out)
 	}
-	if code, out, errOut := kb(t, "new", "Erste Karte", "-b", "mein-projekt"); code != ExitOK || out != "backlog/erste-karte.md\n" {
+	if code, out, errOut := kard(t, "new", "Erste Karte", "-b", "mein-projekt"); code != ExitOK || out != "backlog/erste-karte.md\n" {
 		t.Errorf("new: code %d, out %q, err %q", code, out, errOut)
 	}
 
 	// A board is never written over.
-	code, _, errOut = kb(t, "init", root, "--id", "anders")
+	code, _, errOut = kard(t, "init", root, "--id", "anders")
 	if code != ExitUsage || !strings.Contains(errOut, "is a board already") || readFile(t, root, "board.yaml") != want {
 		t.Errorf("second init: code %d, err %q", code, errOut)
 	}
@@ -819,7 +819,7 @@ func TestInitAdoptsDirectoriesWithCards(t *testing.T) {
 		"bin/tool.sh", "README.md", // no cards: not columns
 		".github/x.md", "Mit Leerzeichen/y.md", // not usable as column ids
 	)
-	code, out, errOut := kb(t, "init", "-C", root, "--name", "Zettel: alle", "--no-add")
+	code, out, errOut := kard(t, "init", "-C", root, "--name", "Zettel: alle", "--no-add")
 	if code != ExitOK || errOut != "" {
 		t.Fatalf("code %d, out %q, err %q", code, out, errOut)
 	}
@@ -834,7 +834,7 @@ func TestInitAdoptsDirectoriesWithCards(t *testing.T) {
 	if readFile(t, root, "working_on/sam/e.md") != "# working_on/sam/e.md\n" || isFile(root, "bin/board.yaml") {
 		t.Error("init touched the files")
 	}
-	if code, out, _ := kb(t, "boards"); code != ExitOK || strings.Contains(out, "zettel") {
+	if code, out, _ := kard(t, "boards"); code != ExitOK || strings.Contains(out, "zettel") {
 		t.Errorf("boards: code %d, out %q, want the board not added", code, out)
 	}
 }
@@ -845,13 +845,13 @@ func TestInitOptions(t *testing.T) {
 
 	// A wrong value leaves nothing behind.
 	for _, args := range [][]string{{"--sync", "always"}, {"--id", "Nicht Gut"}, {"--columns", "a,a"}, {"--columns", "Spalte Eins"}} {
-		code, _, errOut := kb(t, append([]string{"init", root}, args...)...)
+		code, _, errOut := kard(t, append([]string{"init", root}, args...)...)
 		if _, err := os.Stat(root); code != ExitUsage || errOut == "" || err == nil {
 			t.Errorf("%v: code %d, err %q", args, code, errOut)
 		}
 	}
 
-	code, out, errOut := kb(t, "init", root, "--id", "team", "--sync", "push", "--columns", "todo, doing ,closed", "--json")
+	code, out, errOut := kard(t, "init", root, "--id", "team", "--sync", "push", "--columns", "todo, doing ,closed", "--json")
 	if code != ExitOK {
 		t.Fatalf("code %d, out %q, err %q", code, out, errOut)
 	}
@@ -871,13 +871,13 @@ func TestInitOptions(t *testing.T) {
 
 	// A second board with the same id is created, but not added.
 	other := filepath.Join(home, "y")
-	code, out, errOut = kb(t, "init", other, "--id", "team")
+	code, out, errOut = kard(t, "init", other, "--id", "team")
 	if code != ExitOK || !isFile(other, "board.yaml") || !strings.Contains(errOut, "already used") || strings.Contains(out, "added") {
 		t.Errorf("same id: code %d, out %q, err %q", code, out, errOut)
 	}
 }
 
-// editorWrites makes kb edit see an editor that replaces the card with text.
+// editorWrites makes kard edit see an editor that replaces the card with text.
 // It is `cp`, so the test needs no shell script.
 func editorWrites(t *testing.T, text string) {
 	t.Helper()
@@ -896,7 +896,7 @@ func TestEditCommand(t *testing.T) {
 
 	// The editor closes without a change: nothing happens.
 	t.Setenv("VISUAL", "true")
-	code, out, errOut := kb(t, "edit", "druckvorlagen", "-C", root)
+	code, out, errOut := kard(t, "edit", "druckvorlagen", "-C", root)
 	if code != ExitOK || out != "druckvorlagen: nothing to change\n" {
 		t.Fatalf("unchanged: code %d, out %q, err %q", code, out, errOut)
 	}
@@ -904,7 +904,7 @@ func TestEditCommand(t *testing.T) {
 	// Text and a field changed in the editor: one commit "edit".
 	edited := strings.Replace(before, "size: S", "size: M", 1) + "\nDazu ein Satz.\n"
 	editorWrites(t, edited)
-	code, out, errOut = kb(t, "edit", "druckvorlagen", "-C", root)
+	code, out, errOut = kard(t, "edit", "druckvorlagen", "-C", root)
 	if code != ExitOK || !strings.HasPrefix(out, "druckvorlagen: size = M, text changed  (commit ") {
 		t.Fatalf("edit: code %d, out %q, err %q", code, out, errOut)
 	}
@@ -917,7 +917,7 @@ func TestEditCommand(t *testing.T) {
 
 	// A card the editor breaks is not saved, and the text is kept.
 	editorWrites(t, "---\nsize: [\n---\n\n# Druckvorlagen\n")
-	code, _, errOut = kb(t, "edit", "druckvorlagen", "-C", root)
+	code, _, errOut = kard(t, "edit", "druckvorlagen", "-C", root)
 	if code == ExitOK || !strings.Contains(errOut, "would have errors") || !strings.Contains(errOut, "your text is in ") {
 		t.Errorf("broken: code %d, err %q", code, errOut)
 	}
@@ -931,7 +931,7 @@ func TestEditCommand(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("EDITOR", "false")
-	code, _, errOut = kb(t, "edit", "druckvorlagen", "-C", root)
+	code, _, errOut = kard(t, "edit", "druckvorlagen", "-C", root)
 	if code == ExitOK || !strings.Contains(errOut, "not committed") {
 		t.Errorf("dirty: code %d, err %q", code, errOut)
 	}
@@ -941,7 +941,7 @@ func TestRenameCommand(t *testing.T) {
 	asUser(t, "alex")
 	root := syncRepo(t, "commit")
 
-	code, out, errOut := kb(t, "rename", "druckvorlagen", "print-templates", "-C", root)
+	code, out, errOut := kard(t, "rename", "druckvorlagen", "print-templates", "-C", root)
 	if code != ExitOK || !strings.HasPrefix(out, "backlog/druckvorlagen.md -> backlog/print-templates.md  (commit ") ||
 		!strings.Contains(out, "references updated in backlog/export-als-pdf.md") {
 		t.Fatalf("rename: code %d, out %q, err %q", code, out, errOut)
@@ -962,7 +962,7 @@ func TestRenameCommand(t *testing.T) {
 	if got := gitIn(t, root, "status", "--porcelain"); got != "" {
 		t.Errorf("left over: %q", got)
 	}
-	code, _, _ = kb(t, "lint", "-C", root)
+	code, _, _ = kard(t, "lint", "-C", root)
 	if code != ExitOK {
 		t.Error("board is not valid after the rename")
 	}
@@ -972,14 +972,14 @@ func TestRenameCommand(t *testing.T) {
 	if err := os.WriteFile(path, []byte(readFile(t, root, "backlog/export-als-pdf.md")+"x\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	code, _, errOut = kb(t, "rename", "print-templates", "druck", "-C", root)
+	code, _, errOut = kard(t, "rename", "print-templates", "druck", "-C", root)
 	if code == ExitOK || !strings.Contains(errOut, "not committed") || !isFile(root, "backlog/print-templates.md") {
 		t.Errorf("dirty reference: code %d, err %q", code, errOut)
 	}
 }
 
 func TestSchemaCommand(t *testing.T) {
-	code, out, errOut := kb(t, "schema", "working_on", "-C", example)
+	code, out, errOut := kard(t, "schema", "working_on", "-C", example)
 	var schema struct {
 		Title    string         `json:"title"`
 		Required []string       `json:"required"`
@@ -991,7 +991,7 @@ func TestSchemaCommand(t *testing.T) {
 	if schema.Title != "Card header, board demo, column working_on" || strings.Join(schema.Required, ",") != "assignee,size" || schema.Props["due"] == nil {
 		t.Errorf("schema = %+v", schema)
 	}
-	if code, _, errOut = kb(t, "schema", "nope", "-C", example); code != ExitUsage || !strings.Contains(errOut, "no column") {
+	if code, _, errOut = kard(t, "schema", "nope", "-C", example); code != ExitUsage || !strings.Contains(errOut, "no column") {
 		t.Errorf("unknown column: code %d, err %q", code, errOut)
 	}
 }
@@ -1001,7 +1001,7 @@ func TestAllBoards(t *testing.T) {
 	t.Chdir(home) // no board here, and no repository with one
 	t.Setenv("KARDBOARD_USER", "alex")
 
-	if code, _, errOut := kb(t, "lint", "--all"); code != ExitUsage || !strings.Contains(errOut, "no boards known") {
+	if code, _, errOut := kard(t, "lint", "--all"); code != ExitUsage || !strings.Contains(errOut, "no boards known") {
 		t.Errorf("no boards: code %d, err %q", code, errOut)
 	}
 
@@ -1017,12 +1017,12 @@ func TestAllBoards(t *testing.T) {
 		}
 	}
 	for _, dir := range []string{alpha, beta} {
-		if code, _, errOut := kb(t, "add", dir); code != ExitOK {
+		if code, _, errOut := kard(t, "add", dir); code != ExitOK {
 			t.Fatalf("add %s: %s", dir, errOut)
 		}
 	}
 
-	code, out, _ := kb(t, "lint", "--all")
+	code, out, _ := kard(t, "lint", "--all")
 	want := "alpha (~/repos/alpha): 1 card, 0 errors, 0 warnings\n\n" +
 		"beta (~/repos/beta): 3 cards, 1 error, 0 warnings\n" +
 		"  done/kaputt.md: E07 first line must be the title `# ...`, found \"no title\"\n\n" +
@@ -1030,27 +1030,27 @@ func TestAllBoards(t *testing.T) {
 	if code != ExitViolation || out != want {
 		t.Errorf("lint --all: code %d, out\n%s\nwant\n%s", code, out, want)
 	}
-	code, out, _ = kb(t, "lint", "--all", "--json")
+	code, out, _ = kard(t, "lint", "--all", "--json")
 	var results []lintResult
 	if code != ExitViolation || json.Unmarshal([]byte(out), &results) != nil || len(results) != 2 || results[1].Errors != 1 {
 		t.Errorf("lint --all --json: code %d, out %s", code, out)
 	}
 
-	code, out, _ = kb(t, "list", "--all", "--mine")
+	code, out, _ = kard(t, "list", "--all", "--mine")
 	want = "== alpha (~/repos/alpha)\ntodo (0)\ndone (0)\n\n" +
 		"== beta (~/repos/beta)\ntodo (1)\n    zwei  Zwei  @alex\ndone (0)\n"
 	if code != ExitOK || out != want {
 		t.Errorf("list --all --mine: code %d, out\n%s\nwant\n%s", code, out, want)
 	}
-	code, out, _ = kb(t, "list", "done", "--all", "--json")
+	code, out, _ = kard(t, "list", "done", "--all", "--json")
 	var lists []listResult
 	if code != ExitOK || json.Unmarshal([]byte(out), &lists) != nil || len(lists) != 2 || len(lists[1].Cards) != 1 {
 		t.Errorf("list done --all --json: code %d, out %s", code, out)
 	}
-	if code, _, errOut := kb(t, "list", "nope", "--all"); code != ExitUsage || !strings.Contains(errOut, `no board has a column "nope"`) {
+	if code, _, errOut := kard(t, "list", "nope", "--all"); code != ExitUsage || !strings.Contains(errOut, `no board has a column "nope"`) {
 		t.Errorf("unknown column: code %d, err %q", code, errOut)
 	}
-	if code, _, errOut := kb(t, "list", "--all", "-C", alpha); code != ExitUsage || !strings.Contains(errOut, "does not go with -C") {
+	if code, _, errOut := kard(t, "list", "--all", "-C", alpha); code != ExitUsage || !strings.Contains(errOut, "does not go with -C") {
 		t.Errorf("--all with -C: code %d, err %q", code, errOut)
 	}
 }
@@ -1063,13 +1063,13 @@ func TestLogCommand(t *testing.T) {
 		{"rename", "druckvorlagen", "print-templates"},
 		{"set", "print-templates", "size=M"},
 	} {
-		if code, _, errOut := kb(t, append(args, "-C", root)...); code != ExitOK {
+		if code, _, errOut := kard(t, append(args, "-C", root)...); code != ExitOK {
 			t.Fatalf("%v: %s", args, errOut)
 		}
 	}
 
 	// Newest first, read from what the commits contain.
-	code, out, errOut := kb(t, "log", "-C", root)
+	code, out, errOut := kard(t, "log", "-C", root)
 	lines := strings.Split(strings.TrimSpace(out), "\n")
 	var what []string
 	for _, line := range lines {
@@ -1086,14 +1086,14 @@ func TestLogCommand(t *testing.T) {
 	}
 
 	// One card, followed through its move and its rename.
-	code, out, _ = kb(t, "log", "print-templates", "-C", root)
+	code, out, _ = kard(t, "log", "print-templates", "-C", root)
 	if n := strings.Count(out, "\n"); code != ExitOK || n != 4 {
 		t.Errorf("log of a card: code %d, %d lines\n%s", code, n, out)
 	}
-	if code, out, _ = kb(t, "log", "-n", "1", "-C", root); code != ExitOK || strings.Count(out, "\n") != 1 {
+	if code, out, _ = kard(t, "log", "-n", "1", "-C", root); code != ExitOK || strings.Count(out, "\n") != 1 {
 		t.Errorf("-n 1: code %d, out %q", code, out)
 	}
-	code, out, _ = kb(t, "log", "--json", "-C", root)
+	code, out, _ = kard(t, "log", "--json", "-C", root)
 	var log struct {
 		Available bool `json:"available"`
 		Entries   []struct {
@@ -1104,16 +1104,16 @@ func TestLogCommand(t *testing.T) {
 		t.Errorf("--json: code %d, out %s", code, out)
 	}
 
-	if code, _, errOut = kb(t, "log", "nope", "-C", root); code != ExitUsage || !strings.Contains(errOut, "no card") {
+	if code, _, errOut = kard(t, "log", "nope", "-C", root); code != ExitUsage || !strings.Contains(errOut, "no card") {
 		t.Errorf("unknown card: code %d, err %q", code, errOut)
 	}
-	if code, _, errOut = kb(t, "log", "-C", copyOfExample(t)); code != ExitUsage || !strings.Contains(errOut, "not in a Git repository") {
+	if code, _, errOut = kard(t, "log", "-C", copyOfExample(t)); code != ExitUsage || !strings.Contains(errOut, "not in a Git repository") {
 		t.Errorf("no repository: code %d, err %q", code, errOut)
 	}
 }
 
-// kbIn runs kb with stdin.
-func kbIn(t *testing.T, stdin string, args ...string) (int, string, string) {
+// kardIn runs kard with stdin.
+func kardIn(t *testing.T, stdin string, args ...string) (int, string, string) {
 	t.Helper()
 	var out, errOut bytes.Buffer
 	code := run(args, strings.NewReader(stdin), &out, &errOut)
@@ -1121,9 +1121,9 @@ func kbIn(t *testing.T, stdin string, args ...string) (int, string, string) {
 }
 
 // words splits an example line like a shell would, for the simple lines
-// the examples have: quotes, a comment at the end, a pipe into kb.
+// the examples have: quotes, a comment at the end, a pipe into kard.
 func words(line string) []string {
-	if i := strings.Index(line, "| kb "); i >= 0 {
+	if i := strings.Index(line, "| kard "); i >= 0 {
 		line = line[i+2:]
 	}
 	var out []string
@@ -1158,32 +1158,32 @@ func words(line string) []string {
 func TestHelpExamplesAreValidCalls(t *testing.T) {
 	n := 0
 	for name := range examples {
-		code, help, _ := kb(t, name, "--help")
+		code, help, _ := kard(t, name, "--help")
 		if code != ExitOK || !strings.Contains(help, "Examples:") {
-			t.Errorf("kb %s --help: code %d, no examples", name, code)
+			t.Errorf("kard %s --help: code %d, no examples", name, code)
 			continue
 		}
 		ex := help[strings.Index(help, "Examples:"):]
 		ex = ex[:strings.Index(ex, "\n\n")]
 		for _, line := range strings.Split(ex, "\n")[1:] {
 			args := words(strings.TrimSpace(line))
-			if len(args) == 0 || args[0] != "kb" {
-				t.Errorf("kb %s: example %q does not call kb", name, line)
+			if len(args) == 0 || args[0] != "kard" {
+				t.Errorf("kard %s: example %q does not call kard", name, line)
 				continue
 			}
 			// --help after the call: cobra checks the flags, runs nothing.
-			if code, _, errOut := kb(t, append(args[1:], "--help")...); code != ExitOK {
+			if code, _, errOut := kard(t, append(args[1:], "--help")...); code != ExitOK {
 				t.Errorf("example %q: code %d, %s", line, code, errOut)
 			}
 			n++
 		}
 	}
 	for _, cmd := range []string{"edit", "new"} {
-		_, help, _ := kb(t, cmd, "--help")
+		_, help, _ := kard(t, cmd, "--help")
 		ex := help[strings.Index(help, "Examples:"):]
 		ex = ex[:strings.Index(ex, "\n\n")]
 		for _, line := range strings.Split(ex, "\n")[1:] {
-			if code, _, errOut := kb(t, append(words(strings.TrimSpace(line))[1:], "--help")...); code != ExitOK {
+			if code, _, errOut := kard(t, append(words(strings.TrimSpace(line))[1:], "--help")...); code != ExitOK {
 				t.Errorf("example %q: code %d, %s", line, code, errOut)
 			}
 			n++
@@ -1199,7 +1199,7 @@ func TestAgentFriendlyCalls(t *testing.T) {
 	root := syncRepo(t, "commit")
 
 	// A card with text, from stdin.
-	code, out, errOut := kbIn(t, "Erste Zeile.\n\n- Punkt\n", "new", "Mit Text", "--text", "-", "-C", root)
+	code, out, errOut := kardIn(t, "Erste Zeile.\n\n- Punkt\n", "new", "Mit Text", "--text", "-", "-C", root)
 	if code != ExitOK || !strings.HasPrefix(out, "planning/mit-text.md  (commit ") {
 		t.Fatalf("new --text: code %d, out %q, err %q", code, out, errOut)
 	}
@@ -1208,7 +1208,7 @@ func TestAgentFriendlyCalls(t *testing.T) {
 	}
 
 	// Read with its sum, change without an editor, one commit.
-	code, out, _ = kb(t, "show", "mit-text", "--json", "-C", root)
+	code, out, _ = kard(t, "show", "mit-text", "--json", "-C", root)
 	var shown struct {
 		Sum string `json:"sum"`
 	}
@@ -1217,7 +1217,7 @@ func TestAgentFriendlyCalls(t *testing.T) {
 	}
 	t.Setenv("VISUAL", "false") // no editor may run
 	changed := strings.Replace(readFile(t, root, "planning/mit-text.md"), "Erste Zeile.", "Neue Zeile.", 1)
-	code, out, errOut = kbIn(t, changed, "edit", "mit-text", "--file", "-", "--base", shown.Sum, "-C", root)
+	code, out, errOut = kardIn(t, changed, "edit", "mit-text", "--file", "-", "--base", shown.Sum, "-C", root)
 	if code != ExitOK || !strings.HasPrefix(out, "mit-text: text changed  (commit ") {
 		t.Fatalf("edit --file: code %d, out %q, err %q", code, out, errOut)
 	}
@@ -1227,7 +1227,7 @@ func TestAgentFriendlyCalls(t *testing.T) {
 
 	// The same old sum again: the card changed since, nothing is saved, and
 	// with --json the error says so as an object on stderr.
-	code, out, errOut = kbIn(t, "# Anders\n", "edit", "mit-text", "--file", "-", "--base", shown.Sum, "--json", "-C", root)
+	code, out, errOut = kardIn(t, "# Anders\n", "edit", "mit-text", "--file", "-", "--base", shown.Sum, "--json", "-C", root)
 	var failure errorJSON
 	if code != ExitViolation || out != "" || json.Unmarshal([]byte(errOut), &failure) != nil || failure.Kind != "stale" {
 		t.Errorf("stale: code %d, out %q, err %q", code, out, errOut)
@@ -1237,16 +1237,16 @@ func TestAgentFriendlyCalls(t *testing.T) {
 	}
 
 	// A refusal says that --force helps.
-	code, _, errOut = kb(t, "done", "export-als-pdf", "--json", "-C", root)
+	code, _, errOut = kard(t, "done", "export-als-pdf", "--json", "-C", root)
 	if code != ExitViolation || json.Unmarshal([]byte(errOut), &failure) != nil || failure.Kind != "refused" || !failure.Force {
 		t.Errorf("refused: code %d, err %q", code, errOut)
 	}
 	failure = errorJSON{}
-	code, _, errOut = kb(t, "show", "nope", "--json", "-C", root)
+	code, _, errOut = kard(t, "show", "nope", "--json", "-C", root)
 	if code != ExitUsage || json.Unmarshal([]byte(errOut), &failure) != nil || failure.Kind != "usage" || failure.Force {
 		t.Errorf("usage: code %d, err %q", code, errOut)
 	}
-	if code, _, errOut = kb(t, "edit", "mit-text", "--base", "abc", "-C", root); code != ExitUsage || !strings.Contains(errOut, "--base goes with --file") {
+	if code, _, errOut = kard(t, "edit", "mit-text", "--base", "abc", "-C", root); code != ExitUsage || !strings.Contains(errOut, "--base goes with --file") {
 		t.Errorf("--base alone: code %d, err %q", code, errOut)
 	}
 }

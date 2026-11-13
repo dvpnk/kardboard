@@ -11,7 +11,7 @@ import (
 
 // The text of a card is what follows its header: the title line and the
 // Markdown below it. Change replaces it in one of two ways. The web UI
-// sends a new title and text and leaves the header to the fields; `kb
+// sends a new title and text and leaves the header to the fields; `kard
 // edit` brings back the whole file from the editor, header included.
 // Either way the file must not have changed since it was read: what
 // someone else wrote in the meantime is not overwritten.
@@ -38,7 +38,7 @@ func Sum(content string) string {
 	return hex.EncodeToString(h[:12])
 }
 
-// canonical brings text into the form kb writes: no byte order mark, line
+// canonical brings text into the form kard writes: no byte order mark, line
 // ends as "\n", one "\n" at the end.
 func canonical(text string) string {
 	text = strings.TrimPrefix(text, "\uFEFF")
@@ -80,7 +80,7 @@ func problemCodes(c *Card) []string {
 
 // readable checks a whole file brought back from the editor before it
 // replaces the card's: it must not have errors the card did not have
-// already. Problems that need the rest of the board are left to `kb lint`.
+// already. Problems that need the rest of the board are left to `kard lint`.
 // It returns the card as the file would make it.
 func (b *Board) readable(old *Card, content string) (*Card, error) {
 	c := &Card{ID: old.ID, Path: old.Path, Column: old.Column}

@@ -2,7 +2,7 @@
 
 The web UI sets headings, column heads and card metadata in JetBrains Mono.
 The two font files here are the unmodified originals from the JetBrains Mono
-project and are built into `kb`, so the page never asks another server for
+project and are built into `kard`, so the page never asks another server for
 them.
 
 - Source: https://github.com/JetBrains/JetBrainsMono, release v2.304,

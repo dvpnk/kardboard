@@ -99,8 +99,8 @@ Schlüssel einer Spalte:
 |---|---|---|
 | `id` | ja | Ordnername, `[a-z0-9][a-z0-9_-]*` |
 | `title` | nein | Anzeigename, sonst die `id` |
-| `doing` | nein | `true`: Hier liegt, woran gearbeitet wird. Ziel von `kb take` |
-| `done` | nein | `true`: Karten hier gelten als erledigt. Ziel von `kb done` |
+| `doing` | nein | `true`: Hier liegt, woran gearbeitet wird. Ziel von `kard take` |
+| `done` | nein | `true`: Karten hier gelten als erledigt. Ziel von `kard done` |
 | `limit` | nein | Höchstzahl Karten in der Spalte. Überschreiten ist eine Warnung |
 
 Unbekannte Schlüssel in der `board.yaml` sind ein Fehler.
@@ -125,7 +125,7 @@ Freier Text in Markdown.
 - **Dateiname:** `<kürzel>.md`, Kürzel aus `[a-z0-9][a-z0-9-]*`, höchstens 80
   Zeichen.
 - **Der Dateiname ist der Schlüssel der Karte.** Er ist im ganzen Board
-  eindeutig, über alle Spalten. Umbenennen heißt neue Karte; `kb rename` zieht
+  eindeutig, über alle Spalten. Umbenennen heißt neue Karte; `kard rename` zieht
   Verweise nach.
 - **Kopf:** YAML zwischen zwei Zeilen `---` ganz am Anfang der Datei. Der Kopf
   darf fehlen, solange die Spalte kein Pflichtfeld verlangt.
@@ -148,7 +148,7 @@ Eingebaut, ohne Erklärung nutzbar:
 | `tags` | `list` | Schlagworte |
 | `due` | `date` | Termin |
 | `depends_on` | `cards` | Karten, die vorher fertig sein müssen |
-| `created` | `date` | Anlagedatum, setzt `kb new` |
+| `created` | `date` | Anlagedatum, setzt `kard new` |
 
 Ein eingebautes Feld darf unter `fields` enger gefasst werden: `tags` mit
 festen `values`, `assignee` als Pflicht in einer Spalte. Der Typ bleibt
@@ -224,7 +224,7 @@ Board auf dem Rechner angemeldet ist, und meldet sonst eine Warnung.
 
 ## Prüfregeln
 
-`kb lint` prüft ein Board und endet mit Code 1, wenn es einen Fehler gibt. Damit
+`kard lint` prüft ein Board und endet mit Code 1, wenn es einen Fehler gibt. Damit
 taugt es für einen Pre-Commit-Hook und für CI.
 
 Fehler:
@@ -252,16 +252,16 @@ Warnungen:
 Eine fehlerhafte Karte wird überall angezeigt und als fehlerhaft markiert, nie
 ausgeblendet.
 
-Aus der `board.yaml` erzeugt `kb schema` ein JSON Schema (Draft 2020-12)
+Aus der `board.yaml` erzeugt `kard schema` ein JSON Schema (Draft 2020-12)
 für den Kartenkopf. Damit prüfen auch Editoren und fremde Werkzeuge, was
-`kb` prüft: welche Felder es gibt (E03, E04), ihre Typen und Werte (E05),
+`kard` prüft: welche Felder es gibt (E03, E04), ihre Typen und Werte (E05),
 mit denselben Mustern für Kürzel, Verweise und Datum. Ob eine Karte, auf
 die verwiesen wird, existiert (E10), steht nicht im Kopf und bleibt
-`kb lint`.
+`kard lint`.
 
 Welche Felder Pflicht sind, hängt von der Spalte ab, und die steht nicht im
-Kopf. `kb schema` verlangt deshalb nur die Felder, die überall Pflicht
-sind. `kb schema <spalte>` verlangt dazu die dieser Spalte (E06); man gibt
+Kopf. `kard schema` verlangt deshalb nur die Felder, die überall Pflicht
+sind. `kard schema <spalte>` verlangt dazu die dieser Spalte (E06); man gibt
 dann jedem Spaltenordner sein eigenes Schema.
 
 ## Git
@@ -276,15 +276,15 @@ dann jedem Spaltenordner sein eigenes Schema.
 
 Für `commit` und `push` muss das Board in einem Git-Repository liegen, für
 `push` braucht der Branch außerdem einen Upstream. Fehlt etwas davon, lehnt
-`kb` jede Änderung ab und sagt, was fehlt.
+`kard` jede Änderung ab und sagt, was fehlt.
 
 **Ein Commit je Aktion.** Er enthält genau die eine Karte, auch wenn im
 Repository anderes geändert oder vorgemerkt ist; das bleibt unberührt. Nur
-`kb rename` nimmt dazu die Karten, deren Verweise es nachzieht. Wo
+`kard rename` nimmt dazu die Karten, deren Verweise es nachzieht. Wo
 nichts zu ändern ist, entsteht kein Commit. Scheitert der Commit, etwa an
 einem Hook, liegt die Karte danach wieder, wie sie war.
 
-**Karten mit Änderungen ohne Commit ändert `kb` nicht.** Sie landeten sonst
+**Karten mit Änderungen ohne Commit ändert `kard` nicht.** Sie landeten sonst
 im Commit der Aktion und gingen bei einem Konflikt mit ihm verloren. Erst
 committen, dann verschieben. Das gilt auch für Karten, die Git noch nicht
 kennt.
@@ -303,7 +303,7 @@ rename druckvorlagen -> print-templates
 
 `edit` steht für jede Änderung an anderen Feldern als `assignee` und am
 Text. Tut eine
-Aktion mehreres, etwa `kb take` (verschieben und zuweisen), steht das Erste
+Aktion mehreres, etwa `kard take` (verschieben und zuweisen), steht das Erste
 in der Betreffzeile und das Weitere darunter.
 
 Bei `push` läuft jede Aktion so ab:
@@ -311,16 +311,16 @@ Bei `push` läuft jede Aktion so ab:
 1. `git pull --rebase --autostash`. Die Aktion sieht also, was die anderen
    inzwischen getan haben. Ist der Remote nicht erreichbar, geschieht nichts.
 2. Regeln prüfen, Karte ändern, ein Commit.
-3. `git push`. Lehnt der Remote ab, weil jemand schneller war, holt `kb` den
+3. `git push`. Lehnt der Remote ab, weil jemand schneller war, holt `kard` den
    neuen Stand und versucht es genau einmal neu.
 4. Hat inzwischen jemand dieselbe Karte bewegt oder dieselbe Zeile geändert,
-   nimmt `kb` den eigenen Commit zurück, übernimmt den fremden Stand und
+   nimmt `kard` den eigenen Commit zurück, übernimmt den fremden Stand und
    meldet, wo die Karte jetzt liegt. Änderungen an verschiedenen Stellen
    derselben Karte, etwa Verschieben hier und Zuweisen dort, führt Git
    zusammen.
 
 Gelingt der Commit, aber der Push nicht, bleibt die Änderung als Commit auf
-dem Rechner. `kb` meldet das und endet mit Code 1; `kb sync` holt den Push
+dem Rechner. `kard` meldet das und endet mit Code 1; `kard sync` holt den Push
 nach.
 
 Git fragt dabei nie nach einem Passwort. Zugangsdaten müssen im Agenten oder
@@ -359,81 +359,81 @@ lässt versteckte Ordner, `node_modules`, `vendor` und das Innere von Boards
 aus. Zwei bekannte Boards mit derselben `id` sind ein Fehler: Das erste behält
 die `id`, die anderen werden als unbrauchbar gemeldet.
 
-`kb add`, `kb remove` und `kb scan` ändern diese Datei. Kommentare und die
+`kard add`, `kard remove` und `kard scan` ändern diese Datei. Kommentare und die
 Reihenfolge der Einträge bleiben erhalten, Leerzeilen nicht.
 
 ## CLI
 
-Der Befehl heißt `kb`. Ohne weitere Angabe wirkt er auf das Board, in dem man
+Der Befehl heißt `kard`. Ohne weitere Angabe wirkt er auf das Board, in dem man
 steht: kardboard sucht vom aktuellen Ordner aufwärts nach einer `board.yaml`
 und danach in den Unterordnern des Git-Repos. Liegen dort mehrere Boards, muss
 man eines wählen. `-C <ordner>` nennt den Board-Ordner direkt, `-b <id>` wählt
-ein angemeldetes Board. `kb lint` und `kb list` nehmen mit `--all` alle
-Boards, die `kb boards` zeigt, dazu das, in dem man steht. Sie zeigen sie
-nacheinander, jedes unter seinem Namen; `kb lint --all` zählt am Ende
+ein angemeldetes Board. `kard lint` und `kard list` nehmen mit `--all` alle
+Boards, die `kard boards` zeigt, dazu das, in dem man steht. Sie zeigen sie
+nacheinander, jedes unter seinem Namen; `kard lint --all` zählt am Ende
 zusammen und endet mit Code 1, wenn irgendwo ein Fehler steckt oder ein
-Board nicht lesbar ist. `kb list <spalte> --all` lässt Boards ohne diese
+Board nicht lesbar ist. `kard list <spalte> --all` lässt Boards ohne diese
 Spalte aus. `--all` geht nicht zusammen mit `-C` oder `-b`.
 
 Board:
 
 | Befehl | Wirkung |
 |---|---|
-| `kb init [ordner] [--id kürzel] [--name name] [--sync modus] [--columns a,b,c] [--no-add]` | macht einen Ordner zum Board, siehe unten |
-| `kb lint [--all]` | prüft das Board, mit `--all` alle bekannten |
-| `kb schema [spalte]` | gibt das JSON Schema für den Kartenkopf aus, mit Spalte samt ihren Pflichtfeldern |
-| `kb ui [--port n] [--no-open]` | startet den lokalen Server und zeigt alle bekannten Boards im Browser, siehe [Oberfläche](#oberfläche) |
+| `kard init [ordner] [--id kürzel] [--name name] [--sync modus] [--columns a,b,c] [--no-add]` | macht einen Ordner zum Board, siehe unten |
+| `kard lint [--all]` | prüft das Board, mit `--all` alle bekannten |
+| `kard schema [spalte]` | gibt das JSON Schema für den Kartenkopf aus, mit Spalte samt ihren Pflichtfeldern |
+| `kard ui [--port n] [--no-open]` | startet den lokalen Server und zeigt alle bekannten Boards im Browser, siehe [Oberfläche](#oberfläche) |
 
 Karten lesen:
 
 | Befehl | Wirkung |
 |---|---|
-| `kb list [spalte] [--mine] [--all]` | listet Karten, mit `--mine` nur die eigenen, aus jeder Spalte, mit `--all` aus allen bekannten Boards |
-| `kb show <karte>` | zeigt eine Karte |
-| `kb log [karte] [-n anzahl]` | zeigt, welche Commits das Board oder eine Karte geändert haben, die neuesten zuerst, in der Vorgabe 20 |
+| `kard list [spalte] [--mine] [--all]` | listet Karten, mit `--mine` nur die eigenen, aus jeder Spalte, mit `--all` aus allen bekannten Boards |
+| `kard show <karte>` | zeigt eine Karte |
+| `kard log [karte] [-n anzahl]` | zeigt, welche Commits das Board oder eine Karte geändert haben, die neuesten zuerst, in der Vorgabe 20 |
 
 Karten ändern:
 
 | Befehl | Spalte | Person | Wirkung |
 |---|---|---|---|
-| `kb new "<titel>" [-c spalte] [--set feld=wert] [--id kürzel] [--text datei]` | | | legt eine Karte an, mit `--text` samt Text |
-| `kb move <karte> <spalte>` | wechselt | bleibt | verschiebt die Karte |
-| `kb take <karte> [--add]` | geht in die erste Spalte mit `doing` | wird man selbst, mit `--add` kommt man dazu | nimmt die Karte in Arbeit |
-| `kb done <karte>` | geht in die erste Spalte mit `done` | bleibt | schließt die Karte ab |
-| `kb assign <karte> <person>… [--add]` | bleibt | wird ersetzt, mit `--add` ergänzt | weist die Karte zu. `kb give` ist dasselbe |
-| `kb unassign <karte> [person…]` | bleibt | entfällt, mit Namen nur diese | gibt die Karte frei |
-| `kb set <karte> feld=wert …` | bleibt | bleibt | ändert Felder im Kopf, `feld=` entfernt eines |
-| `kb edit <karte> [--file datei] [--base sum]` | bleibt | wie im Editor geändert | öffnet die Karte im Editor, mit `--file` ohne, und speichert sie als eine Änderung, siehe unten |
-| `kb rename <karte> <neu>` | bleibt | bleibt | benennt um und zieht Verweise nach, siehe unten |
+| `kard new "<titel>" [-c spalte] [--set feld=wert] [--id kürzel] [--text datei]` | | | legt eine Karte an, mit `--text` samt Text |
+| `kard move <karte> <spalte>` | wechselt | bleibt | verschiebt die Karte |
+| `kard take <karte> [--add]` | geht in die erste Spalte mit `doing` | wird man selbst, mit `--add` kommt man dazu | nimmt die Karte in Arbeit |
+| `kard done <karte>` | geht in die erste Spalte mit `done` | bleibt | schließt die Karte ab |
+| `kard assign <karte> <person>… [--add]` | bleibt | wird ersetzt, mit `--add` ergänzt | weist die Karte zu. `kard give` ist dasselbe |
+| `kard unassign <karte> [person…]` | bleibt | entfällt, mit Namen nur diese | gibt die Karte frei |
+| `kard set <karte> feld=wert …` | bleibt | bleibt | ändert Felder im Kopf, `feld=` entfernt eines |
+| `kard edit <karte> [--file datei] [--base sum]` | bleibt | wie im Editor geändert | öffnet die Karte im Editor, mit `--file` ohne, und speichert sie als eine Änderung, siehe unten |
+| `kard rename <karte> <neu>` | bleibt | bleibt | benennt um und zieht Verweise nach, siehe unten |
 
 Rechner:
 
 | Befehl | Wirkung |
 |---|---|
-| `kb boards` | listet angemeldete und gefundene Boards |
-| `kb add [ordner]` | meldet ein Board an. Der Ordner ist das Board oder liegt in seinem Projekt; ohne Angabe gilt der aktuelle |
-| `kb remove <id\|ordner>` | meldet ein Board ab, löscht nichts |
-| `kb scan <ordner>` | nimmt einen Ordner in die Suche auf, `--remove` nimmt ihn wieder heraus |
-| `kb sync` | holt, was auf dem Remote neu ist, und pusht, was hier wartet. Nur für Boards mit `sync: push` |
+| `kard boards` | listet angemeldete und gefundene Boards |
+| `kard add [ordner]` | meldet ein Board an. Der Ordner ist das Board oder liegt in seinem Projekt; ohne Angabe gilt der aktuelle |
+| `kard remove <id\|ordner>` | meldet ein Board ab, löscht nichts |
+| `kard scan <ordner>` | nimmt einen Ordner in die Suche auf, `--remove` nimmt ihn wieder heraus |
+| `kard sync` | holt, was auf dem Remote neu ist, und pusht, was hier wartet. Nur für Boards mit `sync: push` |
 
-Zu `kb edit`:
+Zu `kard edit`:
 
-- **Der Editor bekommt eine Kopie.** `kb edit` nimmt `$VISUAL`, sonst
+- **Der Editor bekommt eine Kopie.** `kard edit` nimmt `$VISUAL`, sonst
   `$EDITOR`, sonst `vi`. Erst wenn der Editor geschlossen ist, ersetzt die
   Kopie die Karte, in einem Schritt. Bleibt sie unverändert, geschieht
   nichts.
-- **Dieselben Regeln wie `kb set`.** Was im Kopf anders ist, gilt als
+- **Dieselben Regeln wie `kard set`.** Was im Kopf anders ist, gilt als
   gesetzt oder entfernt: Eine fremde Karte braucht `--force`, ein
   Pflichtfeld darf nicht wegfallen. Auf Boards mit `sync: commit` oder
   `push` entsteht ein Commit, `edit <karte>` oder `assign …`, wenn sich
-  `assignee` geändert hat. Bei `push` holt `kb` vorher den Stand der
+  `assignee` geändert hat. Bei `push` holt `kard` vorher den Stand der
   anderen.
 - **Nichts geht verloren.** Eine Karte mit Änderungen ohne Commit öffnet
-  `kb edit` gar nicht erst. Hätte die Kopie Fehler, die die Karte nicht
+  `kard edit` gar nicht erst. Hätte die Kopie Fehler, die die Karte nicht
   hatte (E02 bis E05, E07), oder hat sich die Karte inzwischen geändert,
-  bleibt die Karte, wie sie war, und `kb` nennt den Ort der Kopie.
+  bleibt die Karte, wie sie war, und `kard` nennt den Ort der Kopie.
 
-Zu `kb rename`:
+Zu `kard rename`:
 
 - **Nur der Dateiname ändert sich.** Die Karte bleibt in ihrer Spalte, ihr
   Inhalt bleibt, wie er war. Der neue Name muss ein gültiges Kürzel sein,
@@ -443,13 +443,13 @@ Zu `kb rename`:
   nennt danach den neuen Namen. Geändert wird nur diese Zeile des Kopfes.
   Das gilt auch für Karten anderer Personen, denn ihr Inhalt ändert sich
   nicht. Verweise aus anderen Boards und Erwähnungen im Text bleiben, wie
-  sie sind; `kb lint` zeigt, was danach ins Leere zeigt.
+  sie sind; `kard lint` zeigt, was danach ins Leere zeigt.
 - **Eine fremde Karte braucht `--force`,** wie bei jeder anderen Änderung.
 - **Ein Commit.** Auf Boards mit `sync: commit` oder `push` enthält er die
   Karte und jede Karte, deren Verweis nachgezogen wurde. Keine davon darf
   Änderungen ohne Commit haben.
 
-Zu `kb init`:
+Zu `kard init`:
 
 - **Es schreibt die `board.yaml` und sonst nichts um.** Keine vorhandene
   Datei wird geändert oder verschoben. Eine vorhandene `board.yaml` wird nie
@@ -468,21 +468,21 @@ Zu `kb init`:
 - **Die `id`** kommt aus dem Ordnernamen, gebildet wie ein Kartenkürzel.
   Heißt der Ordner `board`, `kanban` oder `cards`, gilt der Name des Ordners
   darüber.
-- **`--sync`** setzt den Git-Modus, Vorgabe `none`. `kb init` selbst
+- **`--sync`** setzt den Git-Modus, Vorgabe `none`. `kard init` selbst
   committet nichts.
-- **Das Board wird auf dem Rechner angemeldet**, wie mit `kb add`.
+- **Das Board wird auf dem Rechner angemeldet**, wie mit `kard add`.
   `--no-add` lässt das weg. Trägt schon ein anderes Board dieselbe `id`,
-  entsteht das Board trotzdem, bleibt aber unangemeldet, und `kb` sagt das.
+  entsteht das Board trotzdem, bleibt aber unangemeldet, und `kard` sagt das.
 - **Am Ende steht, was vorgefunden wurde:** die Spalten, die Zahl der Karten
   und wie viele davon eine Regel verletzen.
 
 Zum Anlegen:
 
-- `kb new` legt die Karte in die erste Spalte, wenn `-c` fehlt, und setzt
+- `kard new` legt die Karte in die erste Spalte, wenn `-c` fehlt, und setzt
   `created` auf das heutige Datum.
 - Der Dateiname entsteht aus dem Titel: klein geschrieben, Umlaute
   ausgeschrieben (`ä` wird `ae`), alles andere als `a–z` und `0–9` wird zu
-  einem Bindestrich. Gibt es das Kürzel schon, lehnt `kb new` ab und verlangt
+  einem Bindestrich. Gibt es das Kürzel schon, lehnt `kard new` ab und verlangt
   `--id`.
 - `--set` darf mehrfach stehen. Listen gehen als `tags=bug,ui` oder
   `tags=[bug, ui]`. Die Person kommt mit `--set assignee=sam`.
@@ -494,41 +494,41 @@ Zum Ändern:
   Kommentare, die Reihenfolge im Kopf und der Text bleiben, wie sie sind. Ein
   neues Feld kommt ans Ende des Kopfes. Entfällt das letzte Feld, entfällt der
   Kopf.
-- **Ein Schritt geschieht ganz oder gar nicht.** `kb take` weist zu und
+- **Ein Schritt geschieht ganz oder gar nicht.** `kard take` weist zu und
   verschiebt; lehnt eine Regel eines von beidem ab, bleibt die Karte, wie sie
   war.
 - **Eine Karte, die anderen gehört, ändert kein Befehl ohne `--force`**, in
   keiner Spalte. Wer selbst unter `assignee` steht, darf sie ändern, auch wenn
   dort weitere Namen stehen. Eine Karte, die niemandem gehört, darf jeder
   nehmen, verschieben und zuweisen.
-- **Dazukommen ist auch eine Änderung.** `kb take --add` auf der Karte anderer
+- **Dazukommen ist auch eine Änderung.** `kard take --add` auf der Karte anderer
   braucht `--force`. Ohne das holt einen jemand dazu, der schon auf der Karte
-  steht: `kb assign <karte> <person> --add`.
-- **Ohne `--add` ersetzen `kb take` und `kb assign` alle Namen.** Verlässt die
+  steht: `kard assign <karte> <person> --add`.
+- **Ohne `--add` ersetzen `kard take` und `kard assign` alle Namen.** Verlässt die
   letzte Person die Karte, entfällt das Feld.
 - **Pflichtfelder gelten beim Ändern.** Eine Karte kommt nicht in eine Spalte,
   deren Pflichtfeld ihr fehlt, und verliert kein Pflichtfeld ihrer Spalte.
-  `kb new` legt keine Karte an, der eines fehlt. Mit `--force` geht es
-  trotzdem, und `kb lint` meldet die Karte danach. Was einer Karte schon
+  `kard new` legt keine Karte an, der eines fehlt. Mit `--force` geht es
+  trotzdem, und `kard lint` meldet die Karte danach. Was einer Karte schon
   vorher fehlte, hindert andere Änderungen an ihr nicht.
-- **Ohne Spalte mit `doing`** weist `kb take` nur zu.
+- **Ohne Spalte mit `doing`** weist `kard take` nur zu.
 - **Wer man ist, muss kardboard nur wissen, wenn es darauf ankommt:** bei
-  `kb take`, bei `--mine` und bei Karten, die jemandem gehören.
+  `kard take`, bei `--mine` und bei Karten, die jemandem gehören.
 
 Für alle Befehle gilt:
 
 - Lesende Befehle kennen `--json`, für Skripte und Agenten. Ein Feld vom Typ
   `person` ist dort immer eine Liste, auch bei einem einzelnen Namen.
-  `kb show --json` nennt auch den Fingerabdruck der Datei (`sum`).
+  `kard show --json` nennt auch den Fingerabdruck der Datei (`sum`).
 - Mit `--json` steht ein Fehler als ein Objekt auf stderr: `error` (der
   Grund), `kind` (`refused`, `conflict`, `not_pushed`, `stale` oder `usage`)
   und `force`, wenn `--force` es trotzdem täte. stdout trägt nur, was der
   Befehl ausgibt.
 - Nichts braucht ein Gegenüber. Text, den sonst der Editor liefert, nimmt
-  `kb new --text` und `kb edit --file` aus einer Datei oder mit `-` von
-  stdin. `kb edit --file … --base <sum>` speichert nur, wenn die Karte seit
+  `kard new --text` und `kard edit --file` aus einer Datei oder mit `-` von
+  stdin. `kard edit --file … --base <sum>` speichert nur, wenn die Karte seit
   dem Lesen unverändert ist.
-- Jeder Befehl hat `--help` (oder `-h`, `kb help <befehl>`) mit Beispielen.
+- Jeder Befehl hat `--help` (oder `-h`, `kard help <befehl>`) mit Beispielen.
 - Rückgabecode `0` bei Erfolg, `1` bei einem Regelverstoß, bei einer
   Änderung, die wegen eines Konflikts zurückgenommen wurde, und bei einem
   Commit, der nicht gepusht werden konnte. `2` bei falschem Aufruf oder wenn
@@ -539,7 +539,7 @@ Für alle Befehle gilt:
 
 ## Oberfläche
 
-`kb ui` startet einen Webserver auf dem eigenen Rechner und zeigt alle
+`kard ui` startet einen Webserver auf dem eigenen Rechner und zeigt alle
 bekannten Boards. Steht man in einem Board, gehört es dazu, auch wenn es nicht
 angemeldet ist.
 
@@ -557,7 +557,7 @@ angemeldet ist.
   geändert wird, geht erst mit „Speichern“ als eine Änderung an die Karte,
   also als ein Commit `edit <karte>`. Der Kopf bleibt dabei bis auf die
   geänderten Felder, wie er war. Ein geleertes Feld entfällt wie bei
-  `kb set <karte> feld=`. Abbrechen verwirft alles.
+  `kard set <karte> feld=`. Abbrechen verwirft alles.
 - **Kein Überschreiben.** Titel und Text werden beim Öffnen festgehalten,
   zusammen mit einem Fingerabdruck der Datei. Hat sich die Datei bis zum
   Speichern geändert, speichert die Seite den Text nicht, sagt das und
@@ -583,7 +583,7 @@ angemeldet ist.
 - **Abgleich mit dem Remote.** Für Boards mit `sync: push` fragt der Server
   jede Minute den Remote (`git fetch`). Das Menü nennt je Board den Stand:
   aktuell, wie viele Commits zu holen oder zu senden sind, oder dass der
-  Remote nicht erreichbar ist. Ein Klick darauf ist `kb sync`. Solange etwas
+  Remote nicht erreichbar ist. Ein Klick darauf ist `kard sync`. Solange etwas
   wartet, trägt der Menüknopf einen Punkt.
 - **Sie folgt den Dateien.** Der Server prüft die Boards jede Sekunde auf
   Änderungen und meldet sie der offenen Seite. Nach neuen Boards unter `scan`
@@ -608,7 +608,7 @@ angemeldet ist.
   `done/` umbenannt führt, ist eine verschobene Karte, gleich wer sie wie
   committet hat. Das gilt für jedes Board, auch mit `sync: none`. Ein Board
   ohne Repository hat keinen Verlauf, und die Seite sagt das. Denselben
-  Verlauf zeigt `kb log` im Terminal, eine Zeile je Commit.
+  Verlauf zeigt `kard log` im Terminal, eine Zeile je Commit.
 - **Fehler bleiben sichtbar.** Eine fehlerhafte Karte ist markiert und zeigt
   ihre Verstöße, ein unbrauchbares Board zeigt den Grund.
 - **Keine Anfrage nach außen.** Alles, was die Seite braucht, steckt im
@@ -623,7 +623,7 @@ angemeldet ist.
 - **Titel in der Überschrift statt im Kopf.** Gewählt, weil die Datei so in
   jedem Markdown-Betrachter richtig aussieht. Andere Werkzeuge führen den Titel
   im Kopf.
-- **Dazukommen ohne `--force`.** Wer sich mit `kb take --add` einer Karte
+- **Dazukommen ohne `--force`.** Wer sich mit `kard take --add` einer Karte
   anschließt, nimmt niemandem etwas weg. Heute verlangt es trotzdem `--force`,
   damit die Regel für fremde Karten keine Ausnahme hat.
 - **Grenze je Person.** `limit` zählt die Karten der Spalte, nicht die einer

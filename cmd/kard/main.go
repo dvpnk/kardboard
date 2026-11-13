@@ -1,4 +1,4 @@
-// Command kb is the command line of kardboard.
+// Command kard is the command line of kardboard.
 package main
 
 import (

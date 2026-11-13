@@ -42,7 +42,7 @@ func (a *app) here() string {
 	return ""
 }
 
-// ── kb boards ───────────────────────────────────────────────────────────────
+// ── kard boards ───────────────────────────────────────────────────────────────
 
 type boardRow struct {
 	ID     string `json:"id"`
@@ -71,7 +71,7 @@ func row(l *registry.Loaded) boardRow {
 			r.Name = cfg.ID
 		}
 	} else if r.Error == "" {
-		r.Error = "board.yaml is missing or invalid, see `kb lint -C " + r.Path + "`"
+		r.Error = "board.yaml is missing or invalid, see `kard lint -C " + r.Path + "`"
 	}
 	return r
 }
@@ -94,7 +94,7 @@ func (a *app) boardsCmd() *cobra.Command {
 				return a.printJSON(rows)
 			}
 			if len(rows) == 0 {
-				fmt.Fprintln(a.out, "No boards yet. Add one with `kb add <dir>` or a whole directory of projects with `kb scan <dir>`.")
+				fmt.Fprintln(a.out, "No boards yet. Add one with `kard add <dir>` or a whole directory of projects with `kard scan <dir>`.")
 				return nil
 			}
 			width := 2
@@ -120,7 +120,7 @@ func (a *app) boardsCmd() *cobra.Command {
 	}
 }
 
-// ── kb init ─────────────────────────────────────────────────────────────────
+// ── kard init ─────────────────────────────────────────────────────────────────
 
 type initResult struct {
 	*board.InitResult
@@ -137,7 +137,7 @@ func (a *app) initCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init [dir]",
 		Short: "Turn a directory into a board",
-		Long:  "Write a board.yaml into a directory. Directories in it that already hold Markdown files become the columns, and no file is changed or moved. An empty directory gets the columns backlog, working_on and done. The board is then made known on this machine, like `kb add`.",
+		Long:  "Write a board.yaml into a directory. Directories in it that already hold Markdown files become the columns, and no file is changed or moved. An empty directory gets the columns backlog, working_on and done. The board is then made known on this machine, like `kard add`.",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			dir := "."
@@ -169,7 +169,7 @@ func (a *app) initCmd() *cobra.Command {
 			}
 
 			// Not being able to add the board is no reason to fail: the
-			// board exists, and `kb add` can be repeated.
+			// board exists, and `kard add` can be repeated.
 			var addErr error
 			if !noAdd {
 				addErr = a.addKnown(made.Root, made.ID)
@@ -187,15 +187,15 @@ func (a *app) initCmd() *cobra.Command {
 			if res.Cards > 0 {
 				fmt.Fprintf(a.out, "  %s", plural(res.Cards, "card"))
 				if res.Errors > 0 {
-					fmt.Fprintf(a.out, ", %s; see `kb lint -C %s`", plural(res.Errors, "error"), userconfig.Abbrev(made.Root))
+					fmt.Fprintf(a.out, ", %s; see `kard lint -C %s`", plural(res.Errors, "error"), userconfig.Abbrev(made.Root))
 				}
 				fmt.Fprintln(a.out)
 			}
 			switch {
 			case addErr != nil:
-				fmt.Fprintf(a.errOut, "kb: the board is not added to this machine: %s\n", addErr)
+				fmt.Fprintf(a.errOut, "kard: the board is not added to this machine: %s\n", addErr)
 			case res.Added:
-				fmt.Fprintln(a.out, "  added to this machine, `kb ui` shows it")
+				fmt.Fprintln(a.out, "  added to this machine, `kard ui` shows it")
 			}
 			return nil
 		},
@@ -224,7 +224,7 @@ func (a *app) addKnown(root, id string) error {
 	return err
 }
 
-// ── kb add, remove, scan ────────────────────────────────────────────────────
+// ── kard add, remove, scan ────────────────────────────────────────────────────
 
 func (a *app) addCmd() *cobra.Command {
 	return &cobra.Command{
@@ -301,9 +301,9 @@ func (a *app) removeCmd() *cobra.Command {
 				fmt.Fprintf(a.out, "removed %s; the files are untouched\n", userconfig.Abbrev(root))
 				return nil
 			case viaScan:
-				return fmt.Errorf("%s was not added by itself, it is found through a directory under `scan`; hide it in the UI or stop scanning that directory with `kb scan --remove <dir>`", userconfig.Abbrev(root))
+				return fmt.Errorf("%s was not added by itself, it is found through a directory under `scan`; hide it in the UI or stop scanning that directory with `kard scan --remove <dir>`", userconfig.Abbrev(root))
 			default:
-				return fmt.Errorf("no added board %q, see `kb boards`", args[0])
+				return fmt.Errorf("no added board %q, see `kard boards`", args[0])
 			}
 		},
 	}
@@ -351,7 +351,7 @@ func (a *app) scanCmd() *cobra.Command {
 	return cmd
 }
 
-// ── kb sync ─────────────────────────────────────────────────────────────────
+// ── kard sync ─────────────────────────────────────────────────────────────────
 
 func (a *app) syncCmd() *cobra.Command {
 	return &cobra.Command{
@@ -380,9 +380,9 @@ func (a *app) syncCmd() *cobra.Command {
 	}
 }
 
-// ── kb ui ───────────────────────────────────────────────────────────────────
+// ── kard ui ───────────────────────────────────────────────────────────────────
 
-// DefaultPort is where `kb ui` listens unless told otherwise.
+// DefaultPort is where `kard ui` listens unless told otherwise.
 const DefaultPort = 4712
 
 func (a *app) uiCmd() *cobra.Command {
@@ -400,7 +400,7 @@ func (a *app) uiCmd() *cobra.Command {
 				fmt.Fprintf(a.out, "kardboard is at %s  (Ctrl+C stops it)\n", url)
 				if !noOpen {
 					if err := openBrowser(url); err != nil {
-						fmt.Fprintf(a.errOut, "kb: could not open the browser: %s\n", err)
+						fmt.Fprintf(a.errOut, "kard: could not open the browser: %s\n", err)
 					}
 				}
 			})

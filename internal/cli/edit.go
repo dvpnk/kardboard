@@ -18,7 +18,7 @@ import (
 )
 
 // editCmd opens a card in the user's editor and saves what comes back as
-// one change: the same rules as `kb set`, and on boards that commit one
+// one change: the same rules as `kard set`, and on boards that commit one
 // commit "edit <card>". The editor works on a copy, so a text that cannot
 // be saved is not lost and the card is never half written.
 //
@@ -33,18 +33,18 @@ func (a *app) editCmd() *cobra.Command {
 		Long: `Open a card in your editor ($VISUAL or $EDITOR) and save it as one change.
 
 The editor gets a copy. When it is closed, the copy replaces the card with
-the same rules as kb set: a card assigned to someone else needs --force, a
+the same rules as kard set: a card assigned to someone else needs --force, a
 required field must not go away, and on boards with sync: commit or push it
 is one commit. If the copy has new errors or the card changed meanwhile,
-nothing is saved and kb says where the copy is.
+nothing is saved and kard says where the copy is.
 
 With --file the new content, header included, comes from a file or, with
 "-", from stdin, without an editor. --base gives the card's sum as read
-before (kb show --json prints it): if the card changed since, nothing is
+before (kard show --json prints it): if the card changed since, nothing is
 saved.`,
-		Example: `  kb edit export-als-pdf
-  kb edit export-als-pdf --file new.md
-  cat new.md | kb edit export-als-pdf --file - --base 3f9c0a1b2c3d4e5f60718293`,
+		Example: `  kard edit export-als-pdf
+  kard edit export-als-pdf --file new.md
+  cat new.md | kard edit export-als-pdf --file - --base 3f9c0a1b2c3d4e5f60718293`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			ctx := context.Background()
@@ -85,7 +85,7 @@ saved.`,
 				return errors.New("--base goes with --file")
 			}
 
-			dir, err := os.MkdirTemp("", "kb-edit-")
+			dir, err := os.MkdirTemp("", "kard-edit-")
 			if err != nil {
 				return err
 			}
@@ -117,7 +117,7 @@ saved.`,
 				return err
 			}
 			// Whatever went wrong, what was written stays.
-			fmt.Fprintf(a.errOut, "kb: your text is in %s\n", copyPath)
+			fmt.Fprintf(a.errOut, "kard: your text is in %s\n", copyPath)
 			return err
 		},
 	}
@@ -151,7 +151,7 @@ func runEditor(path string) error {
 }
 
 // readInput reads the text a flag names: a file, or with "-" what is piped
-// into kb. It is how programs and agents hand kb a text without an editor.
+// into kard. It is how programs and agents hand kard a text without an editor.
 func (a *app) readInput(source string) (string, error) {
 	if source == "-" {
 		data, err := io.ReadAll(a.in)
