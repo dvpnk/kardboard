@@ -17,8 +17,8 @@ import (
 
 	"kardboard/internal/board"
 	"kardboard/internal/gitsync"
+	"kardboard/internal/people"
 	"kardboard/internal/registry"
-	"kardboard/internal/userconfig"
 )
 
 // Exit codes of kard.
@@ -68,7 +68,7 @@ func run(args []string, in io.Reader, out, errOut io.Writer) int {
 	root.MarkFlagsMutuallyExclusive("dir", "board")
 	root.AddCommand(a.initCmd(), a.lintCmd(), a.schemaCmd(), a.listCmd(), a.showCmd(), a.logCmd())
 	root.AddCommand(a.newCmd(), a.moveCmd(), a.takeCmd(), a.doneCmd(), a.assignCmd(), a.unassignCmd(), a.setCmd(), a.editCmd(), a.renameCmd())
-	root.AddCommand(a.boardsCmd(), a.addCmd(), a.removeCmd(), a.scanCmd(), a.syncCmd(), a.uiCmd())
+	root.AddCommand(a.boardsCmd(), a.addCmd(), a.removeCmd(), a.scanCmd(), a.syncCmd(), a.uiCmd(), a.whoamiCmd())
 
 	addExamples(root)
 	err := root.Execute()
@@ -85,7 +85,12 @@ func run(args []string, in io.Reader, out, errOut io.Writer) int {
 		// error goes to stderr, as an object a program can read.
 		enc := json.NewEncoder(errOut)
 		enc.SetEscapeHTML(false)
-		_ = enc.Encode(errorJSON{Error: err.Error(), Kind: kind, Force: kind == "refused"})
+		out := errorJSON{Error: err.Error(), Kind: kind, Force: kind == "refused"}
+		var ambiguous *people.AmbiguousError
+		if errors.As(err, &ambiguous) {
+			out.Candidates = ambiguous.Candidates
+		}
+		_ = enc.Encode(out)
 	case kind == "refused":
 		fmt.Fprintf(errOut, "kard: %s (--force does it anyway)\n", err)
 	default:
@@ -99,11 +104,14 @@ type errorJSON struct {
 	Error string `json:"error"`
 	// Kind is refused (a rule of the board forbids it), conflict (someone
 	// changed the card at the same time), not_pushed (committed here, not
-	// on the remote), stale (the card changed since it was read) or usage
-	// (anything else: a wrong call, nothing to work on).
+	// on the remote), stale (the card changed since it was read),
+	// ambiguous (a name fits several people) or usage (anything else: a
+	// wrong call, nothing to work on).
 	Kind string `json:"kind"`
 	// Force is true if --force would do it anyway.
 	Force bool `json:"force,omitempty"`
+	// Candidates are the people an ambiguous name fits.
+	Candidates []people.Person `json:"candidates,omitempty"`
 }
 
 // classify names the kind of an error and the exit code that goes with it.
@@ -112,7 +120,10 @@ func classify(err error) (kind string, code int) {
 	var conflict *gitsync.ConflictError
 	var notPushed *gitsync.PushError
 	var stale *board.StaleError
+	var ambiguous *people.AmbiguousError
 	switch {
+	case errors.As(err, &ambiguous):
+		return "ambiguous", ExitUsage
 	case errors.As(err, &refused):
 		return "refused", ExitViolation
 	case errors.As(err, &conflict):
@@ -198,6 +209,7 @@ type lintResult struct {
 // lint checks one board.
 func lint(b *board.Board) lintResult {
 	res := lintResult{Board: b.Root, Cards: len(b.Cards), Problems: b.Problems()}
+	res.Problems = append(res.Problems, people.TrackedProject(context.Background(), b)...)
 	if res.Problems == nil {
 		res.Problems = []board.Problem{}
 	}
@@ -311,7 +323,7 @@ func listed(b *board.Board, columns []board.Column, me string) []*board.Card {
 	cards := []*board.Card{}
 	for _, col := range columns {
 		for _, c := range b.Cards {
-			if c.Column == col.ID && (me == "" || slices.Contains(c.Assignees(), me)) {
+			if c.Column == col.ID && (me == "" || b.HasPerson(c.Assignees(), me)) {
 				cards = append(cards, c)
 			}
 		}
@@ -330,19 +342,20 @@ func (a *app) listCmd() *cobra.Command {
 			if len(args) == 1 {
 				column = args[0]
 			}
-			me := ""
-			if mine {
-				var err error
-				if me, err = userconfig.User(); err != nil {
-					return err
-				}
-			}
 			if all {
-				return a.listAll(column, me)
+				return a.listAll(column, mine)
 			}
 			b, err := a.loadValid()
 			if err != nil {
 				return err
+			}
+			me := ""
+			if mine {
+				id, err := people.Me(b.Root)
+				if err != nil {
+					return err
+				}
+				me = id.Name
 			}
 			columns := b.Config.Columns
 			if column != "" {
@@ -480,6 +493,9 @@ func (a *app) newCmd() *cobra.Command {
 			if b, err = gitsync.Prepare(ctx, b); err != nil {
 				return err
 			}
+			if opt.Set, err = people.ResolveSet(b.Config, opt.Set, people.Known(ctx, b)); err != nil {
+				return err
+			}
 			opt.Today = time.Now().Format("2006-01-02")
 			c, done, err := gitsync.New(ctx, b, args[0], opt)
 			if c == nil {
@@ -516,7 +532,9 @@ const forceHelp = "also change a card assigned to someone else, or leave a requi
 func (a *app) change(b *board.Board, id string, ch board.Change) error {
 	var userErr error
 	if ch.User == "" {
-		ch.User, userErr = userconfig.User()
+		var id people.Identity
+		id, userErr = people.Me(b.Root)
+		ch.User = id.Name
 	}
 	res, err := gitsync.Change(context.Background(), b, id, ch)
 	if res == nil {
@@ -606,11 +624,11 @@ func (a *app) takeCmd() *cobra.Command {
 	var add bool
 	cmd := a.changeCmd("take <card>", "Start working on a card: assign it to you and move it to the doing column", cobra.ExactArgs(1),
 		func(b *board.Board, args []string) (board.Change, error) {
-			me, err := userconfig.User()
+			me, err := people.Me(b.Root)
 			if err != nil {
 				return board.Change{}, err
 			}
-			return b.TakeChange(args[0], me, add), nil
+			return b.TakeChange(args[0], me.Name, add), nil
 		})
 	cmd.Flags().BoolVar(&add, "add", false, "join the people already on the card instead of replacing them")
 	return cmd
@@ -627,7 +645,11 @@ func (a *app) assignCmd() *cobra.Command {
 	var add bool
 	cmd := a.changeCmd("assign <card> <person>...", "Say whose card it is, without moving it", cobra.MinimumNArgs(2),
 		func(b *board.Board, args []string) (board.Change, error) {
-			return b.AssignChange(args[0], args[1:], add)
+			names, err := people.ResolveAll(args[1:], people.Known(context.Background(), b))
+			if err != nil {
+				return board.Change{}, err
+			}
+			return b.AssignChange(args[0], names, add)
 		})
 	cmd.Aliases = []string{"give"}
 	cmd.Flags().BoolVar(&add, "add", false, "add to the people already on the card instead of replacing them")
@@ -637,13 +659,21 @@ func (a *app) assignCmd() *cobra.Command {
 func (a *app) unassignCmd() *cobra.Command {
 	return a.changeCmd("unassign <card> [person]...", "Make a card nobody's, or take single people off it", cobra.MinimumNArgs(1),
 		func(b *board.Board, args []string) (board.Change, error) {
-			return b.UnassignChange(args[0], args[1:]), nil
+			names, err := people.ResolveAll(args[1:], people.Known(context.Background(), b))
+			if err != nil {
+				return board.Change{}, err
+			}
+			return b.UnassignChange(args[0], names), nil
 		})
 }
 
 func (a *app) setCmd() *cobra.Command {
 	return a.changeCmd("set <card> <field=value>...", "Change header fields; an empty value removes the field", cobra.MinimumNArgs(2),
-		func(_ *board.Board, args []string) (board.Change, error) {
-			return board.Change{Set: args[1:]}, nil
+		func(b *board.Board, args []string) (board.Change, error) {
+			set, err := people.ResolveSet(b.Config, args[1:], people.Known(context.Background(), b))
+			if err != nil {
+				return board.Change{}, err
+			}
+			return board.Change{Set: set}, nil
 		})
 }

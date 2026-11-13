@@ -46,6 +46,8 @@ type Board struct {
 	Cards  []*Card
 	// problems that belong to the board rather than to a single card.
 	problems []Problem
+	// mailmap is read on first use, see Canonical.
+	mailmap mailmap
 }
 
 // Load reads the board in root. It returns an error only if the directory

@@ -27,10 +27,11 @@ func (b *Board) assigneesOf(id string) []string {
 }
 
 // with returns people followed by those of more that are not in it yet.
-func with(people []string, more ...string) []string {
+// Two addresses the .mailmap joins count as one person.
+func (b *Board) with(people []string, more ...string) []string {
 	out := slices.Clone(people)
 	for _, p := range more {
-		if !slices.Contains(out, p) {
+		if !b.HasPerson(out, p) {
 			out = append(out, p)
 		}
 	}
@@ -43,7 +44,7 @@ func with(people []string, more ...string) []string {
 func (b *Board) TakeChange(id, user string, add bool) Change {
 	people := []string{user}
 	if add {
-		people = with(b.assigneesOf(id), user)
+		people = b.with(b.assigneesOf(id), user)
 	}
 	ch := Change{User: user, Set: []string{assignment(people)}}
 	if col, ok := b.Config.FirstDoing(); ok {
@@ -69,7 +70,7 @@ func (b *Board) AssignChange(id string, names []string, add bool) (Change, error
 	for _, arg := range names {
 		for _, name := range strings.Split(arg, ",") {
 			if name = strings.TrimSpace(name); name != "" {
-				people = with(people, name)
+				people = b.with(people, name)
 			}
 		}
 	}
@@ -77,7 +78,7 @@ func (b *Board) AssignChange(id string, names []string, add bool) (Change, error
 		return Change{}, errors.New("no person named; unassign makes the card nobody's")
 	}
 	if add {
-		people = with(b.assigneesOf(id), people...)
+		people = b.with(b.assigneesOf(id), people...)
 	}
 	return Change{Set: []string{assignment(people)}}, nil
 }
@@ -89,7 +90,7 @@ func (b *Board) UnassignChange(id string, names []string) Change {
 		return Change{Set: []string{assignment(nil)}}
 	}
 	people := slices.DeleteFunc(slices.Clone(b.assigneesOf(id)), func(p string) bool {
-		return slices.Contains(names, p)
+		return slices.ContainsFunc(names, func(n string) bool { return b.SamePerson(n, p) })
 	})
 	return Change{Set: []string{assignment(people)}}
 }

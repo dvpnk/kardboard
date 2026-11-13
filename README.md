@@ -56,12 +56,19 @@ Karten anlegen und ändern, am besten in einer Kopie des Beispiels. Dafür muss
 cp -R examples/board /tmp/kard-demo && cd /tmp/kard-demo
 ```
 
-Wer man selbst ist, steht als `user: <name>` in
-`~/.config/kardboard/config.yaml` oder in der Variable `KARDBOARD_USER`:
+Wer man selbst ist, weiß `kard` meist schon: die Adresse aus
+`git config user.email`, in jedem Repository die dort gültige. Die Karten
+des Beispiels tragen Kürzel, also setzt man den Namen für die Demo selbst:
 
 ```bash
 export KARDBOARD_USER=alex
 ```
+
+`kard whoami` zeigt den Namen und woher er kommt. Einen eigenen Namen für
+ein Projekt legt `kard whoami --set <name>` in `.kard/config.yaml` ab; der
+Ordner ignoriert sich selbst und wird nie committet. Beim Zuweisen reicht
+der Anfang eines Namens oder einer Adresse, die das Board kennt, aus seinen
+Commits oder seinen Karten: `kard assign <karte> sam`.
 
 ```bash
 kard new "Dunkles Design" -c backlog --set size=M --set tags=feature,ui
@@ -233,7 +240,9 @@ kard edit login-pruefen --file neu.md --base <sum>
 ```
 
 Welche Felder und Werte erlaubt sind, beschreibt `kard schema` als JSON
-Schema. Wer man selbst ist, steht in `KARDBOARD_USER`.
+Schema. Wer man selbst ist, sagt `kard whoami --json`; `KARDBOARD_USER`
+setzt es für einen Aufruf. Passt ein Name auf mehrere Personen, ist der
+Fehler `ambiguous` und nennt sie unter `candidates`.
 
 ## Lizenz
 

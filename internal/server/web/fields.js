@@ -16,9 +16,9 @@
 
 import { html, cls, useState } from "./preact.js";
 import { t, day, fromToday } from "./texts.js";
-import { state, refresh, isLate } from "./state.js";
+import { state, refresh, isLate, isMe, personOf } from "./state.js";
 import { act, openCard } from "./api.js";
-import { Icon } from "./parts.js";
+import { Icon, Who } from "./parts.js";
 import { render as markdown } from "./md.js";
 
 // Enums with up to this many values show them side by side; longer ones
@@ -173,7 +173,7 @@ function Value({ board, card, field, value }) {
           : html`<span key=${id} class="field-missing">${id}</span>`;
       })}</span>`;
     case "person":
-      return html`<span class="field-list">${list.map((name) => html`<span key=${name} class=${cls("field-who", name === state.data.user && "is-me")}>${"@" + name}</span>`)}</span>`;
+      return html`<span class="field-list">${list.map((id) => html`<${Who} key=${id} person=${personOf(board, id)} mine=${isMe(board, id)} named />`)}</span>`;
     case "bool":
       return value ? "✓" : "–";
     case "list":

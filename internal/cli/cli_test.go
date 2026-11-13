@@ -3,12 +3,16 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"kardboard/internal/people"
 )
 
 var example = filepath.Join("..", "..", "examples", "board")
@@ -22,11 +26,25 @@ func kard(t *testing.T, args ...string) (int, string, string) {
 }
 
 // asUser makes kard see the given user and no settings file. An empty name
-// means: nobody has told kard who they are.
+// means: nobody has told kard who they are, and neither Git nor the
+// operating system can say it.
 func asUser(t *testing.T, name string) {
 	t.Helper()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("KARDBOARD_USER", name)
+	if name == "" {
+		nobody(t)
+	}
+}
+
+// nobody hides the user's Git address and account name from kard.
+func nobody(t *testing.T) {
+	t.Helper()
+	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
+	t.Setenv("GIT_CONFIG_SYSTEM", "/dev/null")
+	lookup := people.LookupAccount
+	people.LookupAccount = func() (*user.User, error) { return nil, errors.New("no account") }
+	t.Cleanup(func() { people.LookupAccount = lookup })
 }
 
 // copyOfExample is a board the test may change.
@@ -171,7 +189,7 @@ func TestListMine(t *testing.T) {
 
 	asUser(t, "")
 	code, _, errOut := kard(t, "list", "--mine", "-C", example)
-	if code != ExitUsage || !strings.Contains(errOut, "no user set") {
+	if code != ExitUsage || !strings.Contains(errOut, "does not know who you are") {
 		t.Errorf("code %d, stderr %q", code, errOut)
 	}
 }
@@ -367,7 +385,7 @@ func TestSeveralPeople(t *testing.T) {
 		{[]string{"assign", card, "alex,laura"}, ExitOK, "druckvorlagen: assignee = alex, laura\n", "assignee: [alex, laura]"},
 		{[]string{"take", card, "--force"}, ExitOK, "druckvorlagen: assignee = sam\n", "assignee: sam"},
 		{[]string{"set", card, "assignee=sam,alex"}, ExitOK, "druckvorlagen: assignee = sam, alex\n", "assignee: [sam, alex]"},
-		{[]string{"assign", card, "Sam Smith"}, ExitUsage, "is not a person's short name", "assignee: [sam, alex]"},
+		{[]string{"assign", card, "Sam Smith"}, ExitUsage, "is neither a short name", "assignee: [sam, alex]"},
 		{[]string{"assign", card, ""}, ExitUsage, "no person named", "assignee: [sam, alex]"},
 	}
 	for _, s := range steps {
@@ -423,11 +441,11 @@ func TestWhoYouAreMattersOnlyForAssignedCards(t *testing.T) {
 	}
 	// An assigned card and `take` need to know who is asking.
 	code, _, errOut := kard(t, "done", "login-fehler-bei-umlauten", "-C", root)
-	if code != ExitUsage || !strings.Contains(errOut, "must know who you are") || !strings.Contains(errOut, "no user set") {
+	if code != ExitUsage || !strings.Contains(errOut, "must know who you are") || !strings.Contains(errOut, "does not know who you are") {
 		t.Errorf("done: code %d, stderr %q", code, errOut)
 	}
 	code, _, errOut = kard(t, "take", "projekt-aufsetzen", "-C", root)
-	if code != ExitUsage || !strings.Contains(errOut, "no user set") {
+	if code != ExitUsage || !strings.Contains(errOut, "does not know who you are") {
 		t.Errorf("take: code %d, stderr %q", code, errOut)
 	}
 }
@@ -1248,5 +1266,63 @@ func TestAgentFriendlyCalls(t *testing.T) {
 	}
 	if code, _, errOut = kard(t, "edit", "mit-text", "--base", "abc", "-C", root); code != ExitUsage || !strings.Contains(errOut, "--base goes with --file") {
 		t.Errorf("--base alone: code %d, err %q", code, errOut)
+	}
+}
+
+func TestAssignFindsPeopleByTheBeginningOfTheirName(t *testing.T) {
+	asUser(t, "alex")
+	root := copyOfExample(t)
+
+	// sam is on a card already, so "sa" means sam.
+	if code, _, errOut := kard(t, "assign", "druckvorlagen", "sa", "-C", root); code != ExitOK {
+		t.Fatalf("assign sa: code %d, %s", code, errOut)
+	}
+	if got := readFile(t, root, "backlog/druckvorlagen.md"); !strings.Contains(got, "assignee: sam\n") {
+		t.Errorf("card = %q", got)
+	}
+	// A new person is taken as given; now "sa" fits two.
+	if code, _, errOut := kard(t, "assign", "offline-modus", "Sabine@Example.org", "-C", root); code != ExitOK {
+		t.Fatalf("assign sabine: code %d, %s", code, errOut)
+	}
+	if got := readFile(t, root, "planning/offline-modus.md"); !strings.Contains(got, "assignee: sabine@example.org\n") {
+		t.Errorf("addresses are written in lower case: %q", got)
+	}
+	code, _, errOut := kard(t, "assign", "druckvorlagen", "sa", "--json", "-C", root)
+	var res struct {
+		Kind       string
+		Candidates []struct{ ID string }
+	}
+	if err := json.Unmarshal([]byte(errOut), &res); err != nil {
+		t.Fatalf("%v: %s", err, errOut)
+	}
+	if code != ExitUsage || res.Kind != "ambiguous" || len(res.Candidates) != 2 {
+		t.Errorf("code %d, error %+v", code, res)
+	}
+}
+
+func TestWhoami(t *testing.T) {
+	asUser(t, "")
+	root := copyOfExample(t)
+
+	if code, _, errOut := kard(t, "whoami", "-C", root); code != ExitUsage || !strings.Contains(errOut, "does not know who you are") {
+		t.Errorf("nobody: code %d, %s", code, errOut)
+	}
+	if code, out, errOut := kard(t, "whoami", "--set", "angelique-l", "-C", root); code != ExitOK || !strings.Contains(out, "angelique-l  (from `user` in ") {
+		t.Errorf("--set: code %d, out %q, err %q", code, out, errOut)
+	}
+	code, out, _ := kard(t, "whoami", "--json", "-C", root)
+	var id struct{ Name, Source, Where string }
+	if err := json.Unmarshal([]byte(out), &id); err != nil {
+		t.Fatal(err)
+	}
+	if code != ExitOK || id.Name != "angelique-l" || id.Source != "project" || id.Where != filepath.Join(root, ".kard", "config.yaml") {
+		t.Errorf("code %d, %+v", code, id)
+	}
+	// The name is now the user's on this board: their card can be taken.
+	if code, _, errOut := kard(t, "take", "offline-modus", "--force", "-C", root); code != ExitOK {
+		t.Errorf("take: code %d, %s", code, errOut)
+	}
+	if code, out, _ := kard(t, "list", "--mine", "-C", root); code != ExitOK || !strings.Contains(out, "offline-modus") {
+		t.Errorf("--mine: code %d\n%s", code, out)
 	}
 }

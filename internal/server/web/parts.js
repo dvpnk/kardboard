@@ -1,7 +1,8 @@
 // Small pieces used all over the page: icons, the coloured dot of a
 // project, the name in the top bar, and code in texts.
 
-import { html } from "./preact.js";
+import { html, cls } from "./preact.js";
+import { monogram, personName, personTitle } from "./state.js";
 
 // The line icons. The shapes are drawn here, so the page needs no icon font
 // and no image files. Each is a function, so every use gets its own nodes.
@@ -46,6 +47,14 @@ export function Icon({ name, label = "" }) {
     ? html`<span class=${"ic ic-" + name} title=${label} role="img" aria-label=${label}>${svg}</span>`
     : html`<span class=${"ic ic-" + name} aria-hidden="true">${svg}</span>`;
 }
+
+// Who draws a person as a monogram: two letters in a square, in ink for the
+// user. Name and address show when the pointer rests on it. With named, the
+// name follows the square.
+export const Who = ({ person, mine = false, named = false }) => html`<span class=${cls("who", mine && "is-me")} title=${personTitle(person)}>
+  <span class="who-mono" role=${named ? undefined : "img"} aria-label=${named ? undefined : personName(person)} aria-hidden=${named ? "true" : undefined}>${monogram(person)}</span>
+  ${named && html`<span class="who-name">${personName(person)}</span>`}
+</span>`;
 
 // Dot is the colour of a project.
 export const Dot = ({ colour }) => html`<span class="dot" aria-hidden="true" style=${{ background: colour }}></span>`;

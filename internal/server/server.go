@@ -24,6 +24,7 @@ import (
 	"kardboard/internal/board"
 	"kardboard/internal/gitlog"
 	"kardboard/internal/gitsync"
+	"kardboard/internal/people"
 	"kardboard/internal/registry"
 	"kardboard/internal/userconfig"
 )
@@ -41,6 +42,9 @@ const (
 	// fetchEvery is how often boards with sync: push ask their remote what
 	// is new.
 	fetchEvery = time.Minute
+	// authorsFor is how long the authors read from a board's history are
+	// kept before Git is asked again.
+	authorsFor = 30 * time.Second
 )
 
 // Server serves the boards known on this machine.
@@ -63,12 +67,43 @@ type Server struct {
 	// unreachable holds, per board directory, why the last fetch failed.
 	remoteMu    sync.Mutex
 	unreachable map[string]string
+
+	// authors holds, per board directory, who committed to it, see
+	// authorsFor.
+	authorsMu sync.Mutex
+	authors   map[string]authorsEntry
+}
+
+type authorsEntry struct {
+	at   time.Time
+	list []people.Person
+}
+
+// authorsOf returns who committed to the board in dir, read again from
+// Git when the last reading is old.
+func (s *Server) authorsOf(ctx context.Context, dir string) []people.Person {
+	s.authorsMu.Lock()
+	e, ok := s.authors[dir]
+	s.authorsMu.Unlock()
+	if ok && time.Since(e.at) < authorsFor {
+		return e.list
+	}
+	list := people.Authors(ctx, dir)
+	s.authorsMu.Lock()
+	s.authors[dir] = authorsEntry{at: time.Now(), list: list}
+	s.authorsMu.Unlock()
+	return list
+}
+
+// knownPeople returns the people of a board, see people.Known.
+func (s *Server) knownPeople(ctx context.Context, b *board.Board) []people.Person {
+	return people.With(b, s.authorsOf(ctx, b.Root))
 }
 
 // New creates a server. here, if not empty, is a board directory that is
 // shown even if the user never added it.
 func New(here string) *Server {
-	return &Server{here: here, subs: map[chan struct{}]struct{}{}, unreachable: map[string]string{}}
+	return &Server{here: here, subs: map[chan struct{}]struct{}{}, unreachable: map[string]string{}, authors: map[string]authorsEntry{}}
 }
 
 // known returns the board directories, searching the scan directories again
@@ -100,8 +135,6 @@ func (s *Server) known(force bool) []registry.Entry {
 // ── JSON ────────────────────────────────────────────────────────────────────
 
 type stateJSON struct {
-	// User is the user's own name, or "" if kard does not know it.
-	User string `json:"user"`
 	// Hidden lists the ids of boards the settings hide by default.
 	Hidden []string    `json:"hidden"`
 	Boards []boardJSON `json:"boards"`
@@ -122,7 +155,16 @@ type boardJSON struct {
 	// Git commits but is not in a repository cannot; Git.Error says why.
 	Writable bool `json:"writable"`
 	// Git is set for boards with sync: commit or push.
-	Git      *gitJSON        `json:"git,omitempty"`
+	Git *gitJSON `json:"git,omitempty"`
+	// User is who the user is on this board, or nil if kard does not know.
+	// UserError then says why.
+	User      *people.Identity `json:"user"`
+	UserError string           `json:"userError,omitempty"`
+	// Me lists every name that means the user on this board: their own and
+	// the addresses the .mailmap joins with it.
+	Me []string `json:"me"`
+	// People are the people the board knows, for choosing whom to assign.
+	People   []people.Person `json:"people"`
 	Columns  []columnJSON    `json:"columns"`
 	Fields   []fieldJSON     `json:"fields"`
 	Cards    []*board.Card   `json:"cards"`
@@ -172,6 +214,13 @@ func (s *Server) describe(ctx context.Context, l *registry.Loaded) boardJSON {
 		Fields:   []fieldJSON{},
 		Cards:    []*board.Card{},
 		Problems: []board.Problem{},
+		Me:       []string{},
+		People:   []people.Person{},
+	}
+	if id, err := people.Me(l.Root); err != nil {
+		out.UserError = err.Error()
+	} else {
+		out.User = &id
 	}
 	if l.Board == nil {
 		out.Error = l.Err
@@ -214,8 +263,14 @@ func (s *Server) describe(ctx context.Context, l *registry.Loaded) boardJSON {
 		out.Fields = append(out.Fields, fieldJSON{Name: f.Name, Title: f.Label(), Type: string(f.Type), Values: f.Values})
 	}
 	out.Cards = append(out.Cards, b.Cards...)
+	out.People = s.knownPeople(ctx, b)
+	if out.User != nil {
+		out.Me = b.Aliases(out.User.Name)
+	}
+	tracked := people.TrackedProject(ctx, b)
 	out.Problems = append(out.Problems, b.BoardProblems()...)
-	for _, p := range b.Problems() {
+	out.Problems = append(out.Problems, tracked...)
+	for _, p := range append(b.Problems(), tracked...) {
 		if p.Severity == board.SeverityError {
 			out.Errors++
 		} else {
@@ -305,7 +360,6 @@ func writeJSON(w http.ResponseWriter, v any) {
 
 func (s *Server) handleState(w http.ResponseWriter, r *http.Request) {
 	state := stateJSON{Hidden: []string{}, Boards: []boardJSON{}}
-	state.User, _ = userconfig.User()
 	if cfg, err := userconfig.Load(); err == nil && cfg.Hidden != nil {
 		state.Hidden = cfg.Hidden
 	}
@@ -425,7 +479,8 @@ func (s *Server) handleAction(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusBadRequest, err, false)
 		return
 	}
-	user, userErr := userconfig.User()
+	me, userErr := people.Me(b.Root)
+	user := me.Name
 
 	var ch board.Change
 	switch req.Action {
@@ -443,14 +498,24 @@ func (s *Server) handleAction(w http.ResponseWriter, r *http.Request) {
 	case "done":
 		ch, err = b.DoneChange()
 	case "assign":
-		ch, err = b.AssignChange(req.Card, req.People, req.Add)
+		var names []string
+		if names, err = people.ResolveAll(req.People, s.knownPeople(r.Context(), b)); err == nil {
+			ch, err = b.AssignChange(req.Card, names, req.Add)
+		}
 	case "unassign":
-		ch = b.UnassignChange(req.Card, req.People)
+		var names []string
+		if names, err = people.ResolveAll(req.People, s.knownPeople(r.Context(), b)); err == nil {
+			ch = b.UnassignChange(req.Card, names)
+		}
 	case "set":
 		if len(req.Set) == 0 && req.Text == nil {
 			err = errors.New("set needs at least one field=value or a text")
 		}
-		ch = board.Change{Set: req.Set, Text: req.Text, Base: req.Base}
+		set := req.Set
+		if err == nil {
+			set, err = people.ResolveSet(b.Config, req.Set, s.knownPeople(r.Context(), b))
+		}
+		ch = board.Change{Set: set, Text: req.Text, Base: req.Base}
 	default:
 		err = fmt.Errorf("unknown action %q", req.Action)
 	}

@@ -63,6 +63,37 @@ export const isHidden = (board) => {
 export const visibleBoards = () => state.data.boards.filter((b) => !isHidden(b));
 export const people = (card) => card.fields.assignee ?? [];
 
+// Who the user is depends on the board: Git may know them by another
+// address in each repository (see kard whoami).
+//
+// me is the user's name on a board, or "" if kard does not know it.
+export const me = (board) => board.user?.name ?? "";
+// isMe says whether a name on a card means the user on that board: their
+// own, or an address the repository's .mailmap joins with it.
+export const isMe = (board, name) => board.me.includes(name);
+export const isMine = (card, board) => people(card).some((name) => isMe(board, name));
+// knowsMe says whether kard knows who the user is on any visible board.
+export const knowsMe = () => visibleBoards().some((b) => b.user);
+
+// personOf returns what a board knows about a person: the name in Git of
+// whoever committed under that address.
+export const personOf = (board, id) => board.people.find((p) => p.id === id) ?? { id };
+export const personName = (person) => person.name || person.id;
+export const personTitle = (person) => (person.name ? `${person.name} · ${person.id}` : person.id);
+
+// monogram gives a person two letters: the first of the first and the last
+// word of the name, else of the address before the @ or of the short name
+// (Angélique Lambert → AL, anna.lang@… → AL, sam → SA).
+const LETTER = /[\p{L}\p{N}]/u;
+export function monogram(person) {
+  const words = (person.name || person.id.split("@")[0]).split(/[\s._+-]+/).filter(Boolean);
+  const letters = (w) => [...w].filter((c) => LETTER.test(c));
+  const two = words.length > 1
+    ? (letters(words[0])[0] ?? "") + (letters(words[words.length - 1])[0] ?? "")
+    : letters(words[0] ?? "").slice(0, 2).join("");
+  return two.toUpperCase() || "?";
+}
+
 const today = () => new Date().toISOString().slice(0, 10);
 
 // isLate says whether a card is past its due date and not done.
@@ -73,17 +104,18 @@ export function isLate(card, board) {
 
 // activeFilters counts the filters that are on, the search aside.
 export function activeFilters() {
-  return (state.mine && state.data.user ? 1 : 0) + (state.overdue ? 1 : 0) + state.tags.length;
+  return (state.mine && knowsMe() ? 1 : 0) + (state.overdue ? 1 : 0) + state.tags.length;
 }
 
 // matches says whether a card passes the filters and the search.
 export function matches(card, board) {
-  if (state.mine && state.data.user && !people(card).includes(state.data.user)) return false;
+  if (state.mine && knowsMe() && !isMine(card, board)) return false;
   if (state.overdue && !isLate(card, board)) return false;
   if (state.tags.length && !state.tags.some((tag) => (card.fields.tags ?? []).includes(tag))) return false;
   const q = state.filter.trim().toLowerCase();
   if (!q) return true;
-  const hay = [card.id, card.title, board.name, ...people(card), ...(card.fields.tags ?? [])].join(" ").toLowerCase();
+  const who = people(card).flatMap((id) => [id, personOf(board, id).name ?? ""]);
+  const hay = [card.id, card.title, board.name, ...who, ...(card.fields.tags ?? [])].join(" ").toLowerCase();
   return q.split(/\s+/).every((word) => hay.includes(word));
 }
 

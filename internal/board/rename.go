@@ -71,7 +71,7 @@ func (b *Board) Rename(id, newID string, opt RenameOptions) (*RenameResult, erro
 			if opt.User == "" {
 				return nil, ErrNeedUser
 			}
-			if !slices.Contains(owners, opt.User) {
+			if !b.HasPerson(owners, opt.User) {
 				return nil, &RefusedError{fmt.Sprintf("card %s is assigned to %s", c.ID, strings.Join(owners, ", "))}
 			}
 		}

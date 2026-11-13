@@ -160,7 +160,8 @@ dieselbe Angabe laufen auseinander.
 
 ### Wem eine Karte gehört
 
-`assignee` nennt eine Person mit ihrem Kürzel, oder mehrere als Liste:
+`assignee` nennt eine Person mit ihrem Kürzel oder ihrer E-Mail-Adresse,
+oder mehrere als Liste (siehe [Personen](#personen)):
 
 ```yaml
 assignee: sam
@@ -201,7 +202,7 @@ Namen ist dann ein Fehler.
 | `date` | `JJJJ-MM-TT` | `due: 2026-12-01` |
 | `number` | Zahl | `estimate: 3` |
 | `bool` | `true` oder `false` | `blocked: true` |
-| `person` | Kürzel einer Person, `[a-z0-9][a-z0-9-]*`, oder eine Liste davon; mit `values` nur diese | `reviewer: sam` |
+| `person` | Kürzel einer Person, `[a-z0-9][a-z0-9-]*`, oder ihre E-Mail-Adresse, oder eine Liste davon; mit `values` nur diese | `reviewer: sam` |
 | `cards` | Liste von Kartenverweisen | `depends_on: [druckvorlagen]` |
 
 Schlüssel einer Felderklärung:
@@ -241,6 +242,7 @@ Fehler:
 | E08 | Dateiname ist kein gültiges Kürzel |
 | E09 | Derselbe Dateiname kommt mehrfach im Board vor |
 | E10 | Verweis auf eine Karte, die es im Board nicht gibt |
+| E11 | Git verfolgt eine Datei aus `.kard/`, siehe [Personen](#personen) |
 
 Warnungen:
 
@@ -346,14 +348,13 @@ hidden:
 
 | Schlüssel | Bedeutung |
 |---|---|
-| `user` | eigenes Kürzel, `[a-z0-9][a-z0-9-]*`. Der Wert, der bei den eigenen Karten unter `assignee` steht |
+| `user` | eigenes Kürzel oder eigene Adresse für alle Boards. Ohne Eintrag kommt der Name aus Git, siehe [Personen](#personen) |
 | `boards` | einzeln angemeldete Boards |
 | `scan` | Ordner, in denen kardboard nach `board.yaml` sucht |
 | `hidden` | Boards, die in der Gesamtansicht ausgeblendet sind |
 
-Die Variable `KARDBOARD_USER` geht dem Eintrag `user` vor. Wie der Name ohne
-Eintrag aus Git kommen könnte, beschreibt der
-[Vorschlag: Personen aus Git](#vorschlag-personen-aus-git).
+`KARDBOARD_USER` und eine `.kard/config.yaml` im Projekt gehen dem Eintrag
+`user` vor, siehe [Personen](#personen).
 
 Ein Board ist auf dem Rechner bekannt, wenn es unter `boards` steht oder unter
 einem Ordner aus `scan` liegt. Die Suche geht höchstens sechs Ebenen tief und
@@ -417,6 +418,7 @@ Rechner:
 | `kard remove <id\|ordner>` | meldet ein Board ab, löscht nichts |
 | `kard scan <ordner>` | nimmt einen Ordner in die Suche auf, `--remove` nimmt ihn wieder heraus |
 | `kard sync` | holt, was auf dem Remote neu ist, und pusht, was hier wartet. Nur für Boards mit `sync: push` |
+| `kard whoami [--all] [--set name]` | sagt, wer man im Board ist und woher der Name kommt, mit `--set` setzt es ihn für das Projekt, siehe [Personen](#personen) |
 
 Zu `kard edit`:
 
@@ -523,8 +525,9 @@ Für alle Befehle gilt:
   `person` ist dort immer eine Liste, auch bei einem einzelnen Namen.
   `kard show --json` nennt auch den Fingerabdruck der Datei (`sum`).
 - Mit `--json` steht ein Fehler als ein Objekt auf stderr: `error` (der
-  Grund), `kind` (`refused`, `conflict`, `not_pushed`, `stale` oder `usage`)
-  und `force`, wenn `--force` es trotzdem täte. stdout trägt nur, was der
+  Grund), `kind` (`refused`, `conflict`, `not_pushed`, `stale`, `ambiguous`
+  oder `usage`) und `force`, wenn `--force` es trotzdem täte. Bei
+  `ambiguous` nennt `candidates` die Personen, auf die ein Name passt. stdout trägt nur, was der
   Befehl ausgibt.
 - Nichts braucht ein Gegenüber. Text, den sonst der Editor liefert, nimmt
   `kard new --text` und `kard edit --file` aus einer Datei oder mit `-` von
@@ -616,16 +619,12 @@ angemeldet ist.
 - **Keine Anfrage nach außen.** Alles, was die Seite braucht, steckt im
   Programm.
 
-## Vorschlag: Personen aus Git
+## Personen
 
-**Stand:** Vorschlag, noch nicht umgesetzt. Wo er den Kapiteln oben
-widerspricht, gelten bis zur Umsetzung die Kapitel oben.
-
-Heute muss jeder einmal `user: <name>` eintragen, und der Name gilt für alle
-Boards gleich. Dabei hat Git schon eine Identität, oft je Repository eine
-andere, und die Commits von `kard` tragen sie ohnehin. Der Vorschlag nimmt
-diese Identität, ohne dass jemand etwas einrichtet, und lässt sie
-überschreiben, wo man das will.
+Git hat schon eine Identität, oft je Repository eine andere, und die
+Commits von `kard` tragen sie ohnehin. kardboard nimmt diese Identität,
+ohne dass jemand etwas einrichtet, und lässt sie überschreiben, wo man das
+will.
 
 ### Wer man ist
 
@@ -752,16 +751,16 @@ Person so:
   Board den Namen, den kardboard für dieses Board bestimmt. Kommt er dort
   nur aus dem Kontonamen, sagt das Menü es.
 
-### Was dafür noch zu klären ist
-
-- **Umstellen bestehender Karten.** Ob es einen Befehl braucht, der ein
-  Kürzel in allen Karten eines Boards durch eine Adresse ersetzt, oder ob
-  ein eingetragenes `user` dafür reicht.
-- **Kartenverweise auf Personen anderer Boards.** Eine Adresse ist über
-  Boards hinweg dieselbe, ein Kürzel nicht unbedingt. „Nur meine“ über
-  mehrere Boards hängt davon ab, wie man dort heißt.
-
 ## Offene Punkte
+
+- **Kürzel in bestehenden Karten umstellen.** Wer bisher `user: alex`
+  eingetragen hatte und es entfernt, heißt danach wie seine Git-Adresse,
+  und seine alten Karten sind nicht mehr seine. Ob es dafür einen Befehl
+  braucht, der ein Kürzel in allen Karten eines Boards durch eine Adresse
+  ersetzt, oder ob ein eingetragenes `user` reicht.
+- **Personen über Boards hinweg.** Eine Adresse ist über Boards hinweg
+  dieselbe, ein Kürzel nicht unbedingt. „Nur meine“ über mehrere Boards
+  hängt davon ab, wie man dort jeweils heißt.
 
 - **Reihenfolge in einer Spalte.** Der Ordner kennt keine. Entweder sortiert das
   Board nach einem Feld, oder die Reihenfolge braucht einen eigenen Ort.

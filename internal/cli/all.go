@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"kardboard/internal/board"
+	"kardboard/internal/people"
 	"kardboard/internal/registry"
 	"kardboard/internal/userconfig"
 )
@@ -106,7 +107,7 @@ func (a *app) lintAll() error {
 // listAll lists the cards of every known board, board by board. A column
 // narrows each board to the column of that name; boards without one are
 // left out. Boards that cannot be read are named on stderr.
-func (a *app) listAll(column, me string) error {
+func (a *app) listAll(column string, mine bool) error {
 	loaded, err := a.everyBoard()
 	if err != nil {
 		return err
@@ -132,6 +133,15 @@ func (a *app) listAll(column, me string) error {
 			columns = []board.Column{col}
 		}
 		found = true
+		me := ""
+		if mine {
+			id, err := people.Me(b.Root)
+			if err != nil {
+				fmt.Fprintf(a.errOut, "kard: %s left out: %s\n", userconfig.Abbrev(l.Root), err)
+				continue
+			}
+			me = id.Name
+		}
 		cards := listed(b, columns, me)
 		if a.asJSON {
 			results = append(results, listResult{Board: info(b), Cards: cards})

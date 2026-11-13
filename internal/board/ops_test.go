@@ -192,7 +192,7 @@ func TestChangeRules(t *testing.T) {
 		{"unknown field", "sized", Change{Set: []string{"prio=1"}}, false, `unknown field "prio"`},
 		{"reserved field", "sized", Change{Set: []string{"status=done"}}, false, "cannot be set"},
 		{"wrong value", "sized", Change{Set: []string{"size=XXL"}}, false, "size: must be one of"},
-		{"invalid person", "sized", Change{Set: []string{"assignee=Sam Smith"}}, false, `assignee: "Sam Smith" is not a person's short name`},
+		{"invalid person", "sized", Change{Set: []string{"assignee=Sam Smith"}}, false, `assignee: "Sam Smith" is neither a short name`},
 		{"field twice", "sized", Change{Set: []string{"size=S", "size=M"}}, false, "given twice"},
 
 		{"required field missing in target", "unsized", Change{Column: "backlog"}, true, "would lack size, required in backlog"},

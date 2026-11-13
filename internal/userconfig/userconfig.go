@@ -10,18 +10,17 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"regexp"
 
 	"go.yaml.in/yaml/v3"
 )
 
-// EnvUser overrides the `user` setting.
+// EnvUser overrides the `user` setting, see package people.
 const EnvUser = "KARDBOARD_USER"
-
-var userRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 
 // Config is the content of the user's config.yaml.
 type Config struct {
+	// User is the user's name in every board, unless a project says
+	// otherwise; see people.Me.
 	User   string   `yaml:"user"`
 	Boards []string `yaml:"boards"`
 	Scan   []string `yaml:"scan"`
@@ -61,25 +60,4 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
 	return cfg, nil
-}
-
-// User returns the user's own short name, from KARDBOARD_USER or the
-// settings file. It is the name of their directory in a per-person column.
-func User() (string, error) {
-	name := os.Getenv(EnvUser)
-	if name == "" {
-		cfg, err := Load()
-		if err != nil {
-			return "", err
-		}
-		name = cfg.User
-	}
-	if name == "" {
-		path, _ := Path()
-		return "", fmt.Errorf("no user set: add `user: <name>` to %s or set %s", path, EnvUser)
-	}
-	if !userRe.MatchString(name) {
-		return "", fmt.Errorf("user %q is not a valid name (a-z, 0-9, -)", name)
-	}
-	return name, nil
 }

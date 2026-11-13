@@ -38,15 +38,12 @@ func read(t *testing.T, path string) string {
 	return string(data)
 }
 
-func TestLoadAndUser(t *testing.T) {
+func TestLoad(t *testing.T) {
 	_, file := home(t)
 
 	cfg, err := Load()
 	if err != nil || cfg.User != "" || len(cfg.Boards) != 0 {
 		t.Fatalf("missing file: cfg %+v, err %v", cfg, err)
-	}
-	if _, err := User(); err == nil || !strings.Contains(err.Error(), "no user set") {
-		t.Errorf("User without settings: err = %v", err)
 	}
 
 	write(t, file, "user: alex\nboards:\n  - ~/a\nscan:\n  - ~/Repos\nhidden: [atlas]\n")
@@ -57,20 +54,7 @@ func TestLoadAndUser(t *testing.T) {
 	if cfg.User != "alex" || !slices.Equal(cfg.Boards, []string{"~/a"}) || !slices.Equal(cfg.Scan, []string{"~/Repos"}) || !slices.Equal(cfg.Hidden, []string{"atlas"}) {
 		t.Errorf("cfg = %+v", cfg)
 	}
-	if name, err := User(); err != nil || name != "alex" {
-		t.Errorf("User = %q, %v", name, err)
-	}
 
-	t.Setenv(EnvUser, "sam")
-	if name, _ := User(); name != "sam" {
-		t.Errorf("the environment must win, got %q", name)
-	}
-	t.Setenv(EnvUser, "Sam Smith")
-	if _, err := User(); err == nil || !strings.Contains(err.Error(), "not a valid name") {
-		t.Errorf("invalid name: err = %v", err)
-	}
-
-	t.Setenv(EnvUser, "")
 	write(t, file, "user: alex\ncolour: red\n")
 	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "colour") {
 		t.Errorf("unknown key: err = %v", err)

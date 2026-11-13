@@ -4,9 +4,9 @@
 
 import { html, cls, useState, useEffect } from "./preact.js";
 import { t, day } from "./texts.js";
-import { state, refresh, visibleBoards, people, isLate, matches, activeFilters, colourOf, COLLAPSE_AFTER } from "./state.js";
+import { state, refresh, visibleBoards, people, me, isMe, personOf, isLate, matches, activeFilters, colourOf, COLLAPSE_AFTER } from "./state.js";
 import { act, openCard } from "./api.js";
-import { Icon, Dot, code } from "./parts.js";
+import { Icon, Dot, Who, code } from "./parts.js";
 
 export function Main() {
   if (state.error) return html`<main class="shell-main"><div class="main-error">${state.error}</div></main>`;
@@ -65,7 +65,7 @@ function dropAction(target) {
   const drag = state.drag;
   if (!drag || !target || drag.card.column === target.id) return null;
   const firstDoing = drag.board.columns.find((c) => c.doing);
-  if (target.id === firstDoing?.id && people(drag.card).length === 0 && state.data.user) return { action: "take" };
+  if (target.id === firstDoing?.id && people(drag.card).length === 0 && me(drag.board)) return { action: "take" };
   return { action: "move", extra: { column: target.id } };
 }
 
@@ -137,8 +137,8 @@ function Card({ card, board, done = false, project = false }) {
     else if (field.name === "tags") facts.push(...value.map((tag) => html`<span class="card-tag">${tag}</span>`));
   }
   const who = people(card);
-  const names = who.slice(0, MAX_NAMES).map((name) =>
-    html`<span class=${cls("card-who", name === state.data.user && "is-me")}>${"@" + name}</span>`);
+  const names = who.slice(0, MAX_NAMES).map((id) =>
+    html`<${Who} key=${id} person=${personOf(board, id)} mine=${isMe(board, id)} />`);
   if (who.length > MAX_NAMES) names.push(html`<span class="card-who">${"+" + (who.length - MAX_NAMES)}</span>`);
 
   const menuOpen = state.cardMenu?.board === board && state.cardMenu?.card.id === card.id;
@@ -186,7 +186,7 @@ function Card({ card, board, done = false, project = false }) {
       ${project
         ? html`<span class="card-project"><${Dot} colour=${colourOf(board)} /><span class="card-project-name">${board.name}</span></span>`
         : html`<span></span>`}
-      ${who.length > 0 && html`<span class="card-people" title=${who.map((n) => "@" + n).join(" ")}>${names}</span>`}
+      ${who.length > 0 && html`<span class="card-people">${names}</span>`}
     </span>`}
   </div>`;
 }
@@ -198,16 +198,15 @@ function Card({ card, board, done = false, project = false }) {
 export function CardMenu() {
   const { board, card, top, right } = state.cardMenu;
   const who = people(card);
-  const me = state.data.user;
   const doing = board.columns.find((c) => c.doing);
   const done = board.columns.find((c) => c.done);
-  const mineAlone = who.length === 1 && who[0] === me;
+  const mineAlone = who.length === 1 && isMe(board, who[0]);
   const run = (action, extra) => { state.cardMenu = null; act(board, card.id, action, extra); };
   const handOver = () => { state.cardMenu = null; state.focusPerson = true; openCard(board, card); };
   const item = (label, onClick) => html`<button type="button" role="menuitem" onClick=${onClick}>${label}</button>`;
 
   return html`<div class="menu-panel cmenu" role="menu" aria-label=${t.cardMenu} style=${{ top: top + "px", right: right + "px" }}>
-    ${me && !(mineAlone && (!doing || card.column === doing.id)) && item(t.take, () => run("take"))}
+    ${me(board) && !(mineAlone && (!doing || card.column === doing.id)) && item(t.take, () => run("take"))}
     ${item(t.handOver, handOver)}
     ${done && card.column !== done.id && item(t.finish, () => run("done"))}
     <hr class="cmenu-rule" />

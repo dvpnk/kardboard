@@ -48,7 +48,7 @@ func (o object) MarshalJSON() ([]byte, error) {
 // The patterns are the very ones kard checks with; they are written so that
 // JSON Schema reads them the same.
 var (
-	slugPattern    = slugRe.String()
+	personPattern  = "^(?:" + strings.Trim(slugRe.String(), "^$") + "|" + strings.Trim(addressRe.String(), "^$") + ")$"
 	cardRefPattern = cardRefRe.String()
 	datePattern    = dateRe.String()
 )
@@ -78,7 +78,7 @@ func fieldSchema(f Field) object {
 	case TypeBool:
 		s = append(s, member{"type", "boolean"})
 	case TypePerson:
-		name := object{{"type", "string"}, {"pattern", slugPattern}}
+		name := object{{"type", "string"}, {"pattern", personPattern}}
 		if len(f.Values) > 0 {
 			name = append(name, enum(f.Values))
 		}

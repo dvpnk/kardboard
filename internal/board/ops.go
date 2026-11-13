@@ -250,7 +250,7 @@ func (b *Board) Change(id string, ch Change) (*ChangeResult, error) {
 			if ch.User == "" {
 				return nil, ErrNeedUser
 			}
-			if !slices.Contains(owners, ch.User) {
+			if !b.HasPerson(owners, ch.User) {
 				return nil, &RefusedError{fmt.Sprintf("card %s is assigned to %s", c.ID, strings.Join(owners, ", "))}
 			}
 		}
@@ -473,6 +473,11 @@ func valueNode(f Field, raw string) *yaml.Node {
 			seq := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq", Style: yaml.FlowStyle}
 			for _, part := range strings.Split(raw, ",") {
 				if p := strings.TrimSpace(part); p != "" {
+					if f.Type == TypePerson {
+						if name, ok := NormalizePerson(p); ok {
+							p = name // addresses are written in lower case
+						}
+					}
 					seq.Content = append(seq.Content, str(p))
 				}
 			}

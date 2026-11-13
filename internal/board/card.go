@@ -253,11 +253,14 @@ func checkValue(f Field, n *yaml.Node) (any, string) {
 		} else {
 			return nil, "must name one person or a list of people"
 		}
-		for i, name := range names {
+		names = slices.Clone(names)
+		for i, raw := range names {
+			name, ok := NormalizePerson(raw)
+			names[i] = name
 			switch {
-			case !slugRe.MatchString(name):
-				return nil, fmt.Sprintf("%q is not a person's short name (a-z, 0-9, -)", name)
-			case len(f.Values) > 0 && !slices.Contains(f.Values, name):
+			case !ok:
+				return nil, fmt.Sprintf("%q is neither a short name (a-z, 0-9, -) nor an e-mail address", raw)
+			case len(f.Values) > 0 && !slices.ContainsFunc(f.Values, func(v string) bool { return strings.EqualFold(v, name) }):
 				return nil, fmt.Sprintf("%q is not one of %s", name, strings.Join(f.Values, ", "))
 			case slices.Contains(names[:i], name):
 				return nil, fmt.Sprintf("%q is named twice", name)

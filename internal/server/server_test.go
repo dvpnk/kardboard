@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -12,12 +13,15 @@ import (
 	"net/http/httptest"
 	"os"
 	"os/exec"
+	"os/user"
 	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
+
+	"kardboard/internal/people"
 )
 
 var example = filepath.Join("..", "..", "examples", "board")
@@ -30,6 +34,12 @@ func settings(t *testing.T, content string) {
 	t.Setenv("USERPROFILE", dir)
 	t.Setenv("XDG_CONFIG_HOME", dir)
 	t.Setenv("KARDBOARD_USER", "")
+	// Neither Git nor the operating system tells kard who the user is.
+	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
+	t.Setenv("GIT_CONFIG_SYSTEM", "/dev/null")
+	lookup := people.LookupAccount
+	people.LookupAccount = func() (*user.User, error) { return nil, errors.New("no account") }
+	t.Cleanup(func() { people.LookupAccount = lookup })
 	if content == "" {
 		return
 	}
@@ -75,10 +85,13 @@ func get(t *testing.T, s *Server, target string) *httptest.ResponseRecorder {
 }
 
 type state struct {
-	User   string
 	Hidden []string
 	Boards []struct {
 		Key, ID, Name, Root, Source, Error, Sync string
+		User                                     *struct{ Name, Source string }
+		UserError                                string
+		Me                                       []string
+		People                                   []struct{ ID, Name string }
 		Columns                                  []struct {
 			ID, Title   string
 			Doing, Done bool
@@ -124,8 +137,11 @@ func TestStateOfOneBoard(t *testing.T) {
 	root := copyOfExample(t)
 	st := getState(t, New(root), "")
 
-	if st.User != "sam" || len(st.Hidden) != 1 || st.Hidden[0] != "atlas" {
-		t.Errorf("user %q, hidden %v", st.User, st.Hidden)
+	if len(st.Hidden) != 1 || st.Hidden[0] != "atlas" {
+		t.Errorf("hidden %v", st.Hidden)
+	}
+	if b := st.Boards[0]; b.User == nil || b.User.Name != "sam" || b.User.Source != "user" || fmt.Sprint(b.Me) != "[sam]" {
+		t.Errorf("user %+v, me %v", b.User, b.Me)
 	}
 	if len(st.Boards) != 1 {
 		t.Fatalf("got %d boards", len(st.Boards))
@@ -205,7 +221,7 @@ func TestStateShowsBrokenBoardsAndCards(t *testing.T) {
 func TestStateWithoutBoards(t *testing.T) {
 	settings(t, "")
 	rec := get(t, New(""), "/api/state")
-	if got := strings.TrimSpace(rec.Body.String()); got != `{"user":"","hidden":[],"boards":[]}` {
+	if got := strings.TrimSpace(rec.Body.String()); got != `{"hidden":[],"boards":[]}` {
 		t.Errorf("body = %s", got)
 	}
 }
@@ -537,7 +553,7 @@ func TestActionsNeedTheUserOnlyWhenItMatters(t *testing.T) {
 		t.Errorf("move: status %d, %s", rec.Code, rec.Body)
 	}
 	for body, want := range map[string]string{
-		`{"board":"demo","card":"offline-modus","action":"take"}`:             "no user set",
+		`{"board":"demo","card":"offline-modus","action":"take"}`:             "does not know who you are",
 		`{"board":"demo","card":"login-fehler-bei-umlauten","action":"done"}`: "must know who you are",
 	} {
 		rec := post(t, s, body, nil)

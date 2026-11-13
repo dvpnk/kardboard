@@ -560,8 +560,20 @@ button { cursor: pointer; }
 }
 .card-project .dot { width: 7px; height: 7px; }
 .card-project-name { overflow: hidden; text-overflow: ellipsis; }
-.card-people { display: flex; gap: 8px; }
-.card-who.is-me { color: var(--text); font-weight: 500; }
+.card-people { display: flex; align-items: center; gap: 3px; }
+/* A person is a monogram: two letters in a square, in the tool's voice.
+   The user's own is filled with ink ("filled ink means on"), the others
+   are a film of ink like the other marks. Name and address are its title. */
+.who { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.who-mono {
+  display: inline-grid; place-items: center; flex: none;
+  min-width: 18px; height: 18px; padding: 0 3px;
+  font: 500 9.5px/1 var(--mono); letter-spacing: 0.04em; color: var(--dim);
+  background: var(--badge); border: 1px solid var(--badge-line); border-radius: 0;
+}
+.who.is-me .who-mono { background: var(--text); border-color: var(--text); color: var(--bg); }
+.who-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.who.is-me .who-name { font-weight: 500; }
 
 .card[draggable="true"] { cursor: grab; }
 /* A card being dragged: the picture under the pointer is the card with a

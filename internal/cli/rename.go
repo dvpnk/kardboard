@@ -10,7 +10,7 @@ import (
 
 	"kardboard/internal/board"
 	"kardboard/internal/gitsync"
-	"kardboard/internal/userconfig"
+	"kardboard/internal/people"
 )
 
 // renameCmd gives a card a new name and makes the references to it on the
@@ -31,8 +31,8 @@ func (a *app) renameCmd() *cobra.Command {
 				return err
 			}
 			// Who one is matters only for a card that belongs to someone.
-			user, userErr := userconfig.User()
-			res, out, err := gitsync.Rename(ctx, b, args[0], args[1], board.RenameOptions{User: user, Force: force})
+			me, userErr := people.Me(b.Root)
+			res, out, err := gitsync.Rename(ctx, b, args[0], args[1], board.RenameOptions{User: me.Name, Force: force})
 			if res == nil {
 				if errors.Is(err, board.ErrNeedUser) && userErr != nil {
 					return fmt.Errorf("card %s is assigned to someone, so kard must know who you are: %w", args[0], userErr)

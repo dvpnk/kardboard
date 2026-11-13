@@ -4,9 +4,9 @@
 import { html, cls, useEffect, useRef, useState } from "./preact.js";
 import { t, ago, LOCALE } from "./texts.js";
 import { render as markdown } from "./md.js";
-import { state, refresh, visibleBoards, people, colourOf } from "./state.js";
+import { state, refresh, visibleBoards, people, me, isMe, personOf, personName, colourOf } from "./state.js";
 import { act, openCard } from "./api.js";
-import { Icon, Dot, code } from "./parts.js";
+import { Icon, Dot, Who, code } from "./parts.js";
 import { Fields, isEditing, startEditing, textOf, TitleInput, FormButtons } from "./fields.js";
 
 // Panel is the frame the three share: a bar along the top that says where
@@ -173,11 +173,10 @@ function Actions({ board, card, column }) {
   // kard on a board that commits: say so before the action is refused.
   const unsaved = board.git?.dirty?.includes(card.id);
   const who = people(card);
-  const me = state.data.user;
   const doing = board.columns.find((c) => c.doing);
   const done = board.columns.find((c) => c.done);
-  const mineAlone = who.length === 1 && who[0] === me;
-  const canTake = me && !(mineAlone && (!doing || card.column === doing.id));
+  const mineAlone = who.length === 1 && isMe(board, who[0]);
+  const canTake = me(board) && !(mineAlone && (!doing || card.column === doing.id));
   // The picker always shows "…": it is a list of actions, not a value.
   const move = (e) => { if (e.target.value) act(board, card.id, "move", { column: e.target.value }); };
 
@@ -209,12 +208,16 @@ function People({ board, card }) {
     if (state.focusPerson) { state.focusPerson = false; setAdding(true); }
   });
   useEffect(() => { if (adding) person.current?.focus(); }, [adding]);
-  const me = state.data.user;
+  // The browser offers the people the board knows while one types; kard
+  // also takes the beginning of a name or an address, like the command.
+  const list = "people-" + state.data.boards.indexOf(board);
+  const on = people(card);
+  const offered = board.people.filter((p) => !on.some((id) => id === p.id));
 
   const add = async (e) => {
     e.preventDefault();
     const input = person.current;
-    const names = input.value.split(",").map((n) => n.trim().toLowerCase()).filter(Boolean);
+    const names = input.value.split(",").map((n) => n.trim()).filter(Boolean);
     if (!names.length) return;
     await act(board, card.id, "assign", { people: names, add: true });
     input.value = "";
@@ -225,12 +228,16 @@ function People({ board, card }) {
   const keyDown = (e) => { if (e.key === "Escape") { e.stopPropagation(); e.target.value = ""; setAdding(false); } };
 
   return html`<form class="act-people" onSubmit=${add}>
-    ${people(card).map((name) => html`<span key=${name} class=${cls("act-person", name === me && "is-me")}>${"@" + name}<button
-      type="button" class="act-remove" aria-label=${t.removePerson(name)} title=${t.removePerson(name)}
-      onClick=${() => act(board, card.id, "unassign", { people: [name] })}>×</button></span>`)}
+    ${on.map((id) => {
+      const who = personOf(board, id);
+      return html`<span key=${id} class="act-person"><${Who} person=${who} mine=${isMe(board, id)} named /><button
+        type="button" class="act-remove" aria-label=${t.removePerson(personName(who))} title=${t.removePerson(personName(who))}
+        onClick=${() => act(board, card.id, "unassign", { people: [id] })}>×</button></span>`;
+    })}
     ${adding
       ? html`<input ref=${person} class="act-input" name="person" type="text" placeholder=${t.addPerson} aria-label=${t.addPerson}
-          autocomplete="off" onBlur=${leave} onKeyDown=${keyDown} />`
+          list=${list} autocomplete="off" onBlur=${leave} onKeyDown=${keyDown} />
+        <datalist id=${list}>${offered.map((p) => html`<option key=${p.id} value=${p.id} label=${p.name || undefined}></option>`)}</datalist>`
       : html`<button type="button" class="act-button act-add" aria-label=${t.addPerson} title=${t.addPerson} onClick=${() => setAdding(true)}>+</button>`}
   </form>`;
 }

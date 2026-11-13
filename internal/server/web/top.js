@@ -5,7 +5,7 @@ import { html, cls, useEffect, useRef } from "./preact.js";
 import { t } from "./texts.js";
 import {
   state, refresh, store, applyTheme, visibleBoards, isHidden, colourOf, people, isLate,
-  matches, activeFilters, countProblems, remoteState, setMine, openFilters,
+  matches, activeFilters, countProblems, remoteState, setMine, openFilters, knowsMe, isMine,
 } from "./state.js";
 import { load, openHistory, syncBoard } from "./api.js";
 import { Icon, Dot, Brand, code } from "./parts.js";
@@ -49,7 +49,7 @@ const SEARCH_KEYS = IS_MAC ? ["⌘", "K"] : ["Ctrl", "K"];
 // something narrows the view, and says what: the search text and how many
 // filters.
 function FilterMenu() {
-  const me = state.data.user;
+  const known = knowsMe();
   const on = activeFilters();
   const text = state.filter.trim();
   const all = visibleBoards().flatMap((board) => board.cards.map((card) => ({ card, board })));
@@ -77,12 +77,12 @@ function FilterMenu() {
     ${open && html`<div class="menu-panel filter-panel">
       <${SearchBox} />
       <div class="filter-rows">
-        <${FilterRow} icon="person" label=${t.mine} n=${me ? count(({ card }) => people(card).includes(me)) : 0}
-          checked=${state.mine && !!me} disabled=${!me} onChange=${(e) => setMine(e.target.checked)} />
+        <${FilterRow} icon="person" label=${t.mine} n=${known ? count(({ card, board }) => isMine(card, board)) : 0}
+          checked=${state.mine && known} disabled=${!known} onChange=${(e) => setMine(e.target.checked)} />
         <${FilterRow} icon="clock" label=${t.overdueOnly} n=${count(({ card, board }) => isLate(card, board))}
           checked=${state.overdue} onChange=${(e) => { state.overdue = e.target.checked; refresh(); }} />
       </div>
-      ${!me && html`<p class="menu-hint">${code(t.mineHint)}</p>`}
+      ${!known && html`<p class="menu-hint">${code(t.mineHint)}</p>`}
       ${tags.length > 0 && html`
         <h2 class="menu-heading">${t.tags}</h2>
         <div class="filter-tags">${tags.map((tag) => html`
@@ -169,7 +169,11 @@ function ProjectMenu() {
 // whether the page is connected. Its button carries a small mark while
 // something is wrong or waiting.
 function SettingsMenu() {
-  const me = state.data.user;
+  // Who the user is, once for all boards where it is the same.
+  const names = [...new Set(visibleBoards().filter((b) => b.user).map((b) => b.user.name))];
+  const fromAccount = visibleBoards().some((b) => b.user?.source === "account");
+  const you = names.length === 1 ? [t.you(names[0])]
+    : visibleBoards().filter((b) => b.user).map((b) => t.youOn(b.user.name, b.name));
   const { errors, warnings } = countProblems();
   const setTheme = (theme) => { state.theme = theme; store("theme", theme); applyTheme(); refresh(); };
   const go = (fn) => () => { state.menu = null; fn(); };
@@ -203,5 +207,6 @@ function SettingsMenu() {
     </div>
     <hr class="menu-rule" />
     <p class="menu-hint settings-status"><span class=${cls("settings-live", state.live && "is-on")}></span><span>${code(state.live ? t.liveOn : t.liveOff)}</span></p>
-    ${me && html`<p class="menu-hint">${t.you(me)}</p>`}`} />`;
+    ${you.map((line) => html`<p class="menu-hint">${line}</p>`)}
+    ${fromAccount && html`<p class="menu-hint">${code(t.fromAccount)}</p>`}`} />`;
 }
