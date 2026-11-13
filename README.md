@@ -11,6 +11,7 @@ nehmen und zuweisen. Mit `sync: commit` oder `sync: push` in der `board.yaml`
 macht `kard` aus jeder Änderung einen Commit und gleicht das Board mit seinem
 Remote ab.
 
+- [Übersicht in Bildern](docs/overview.html), zum Öffnen im Browser
 - [Format und CLI](docs/spec.md)
 - [Beispiel-Board](examples/board)
 
