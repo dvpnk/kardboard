@@ -90,6 +90,13 @@ section .sub { color: var(--dim); margin: 0; }
 .card .t { font-size: 13.5px; line-height: 1.35; }
 .meta { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; font-family: var(--mono); font-size: 10.5px; }
 .b { background: var(--badge); border: 1px solid var(--badge-line); padding: 0 5px; color: var(--dim); }
+/* As in kard ui: a value from a fixed list is a frame in capitals, a tag a
+   typed word with #, a person a monogram, filled for oneself. */
+.b.v { color: var(--text); font-weight: 500; letter-spacing: .06em; text-transform: uppercase; }
+.tg { color: var(--dim); }
+.mg { display: inline-grid; place-items: center; min-width: 17px; height: 17px; padding: 0 2px; font-size: 9px; font-weight: 500; letter-spacing: .04em; color: var(--dim); background: var(--badge); border: 1px solid var(--badge-line); }
+.mg.me { background: var(--text); color: var(--bg); border-color: var(--text); }
+.meta > :not(.mg) + .mg, .meta > .mg:first-child { margin-left: auto; }
 .who { color: var(--dim); }
 .sq { display: inline-block; width: 8px; height: 8px; margin-right: 6px; vertical-align: 1px; }
 
@@ -298,7 +305,7 @@ section { scroll-margin-top: 12px; }
       <a class="go" href="#loslegen">Loslegen</a><a href="#einstellen">Einstellen</a><a href="#personen">Personen</a><a href="#prinzip">Prinzip</a><a href="#karte">Karte</a><a href="#ablauf">Ablauf</a><a href="#git">Git</a><a href="#boards">Boards</a><a href="#offen">Offen</a>
     </nav>
   </div>
-  <div class="label">Systemübersicht · Stand 8af013d · 13.11.2026</div>
+  <div class="label">Systemübersicht · Stand 1a128aa · 13.11.2026</div>
 </header>
 
 <!-- Loslegen -->
@@ -493,17 +500,17 @@ kard assign export-als-pdf an
     <div class="eq" aria-hidden="true">⇄</div>
     <div class="board">
       <div class="col"><h4>Planung <span class="n">1</span></h4><span class="path">planning/</span>
-        <div class="card"><div class="t">Offline-Modus</div><div class="meta"><span class="b">feature</span></div></div>
+        <div class="card"><div class="t">Offline-Modus</div><div class="meta"><span class="tg">#feature</span></div></div>
       </div>
       <div class="col"><h4>Backlog <span class="n">2</span></h4><span class="path">backlog/</span>
-        <div class="card"><div class="t">Export als PDF</div><div class="meta"><span class="b">M</span><span class="b">release</span><span class="who">sam</span></div></div>
-        <div class="card"><div class="t">Druckvorlagen</div><div class="meta"><span class="b">S</span></div></div>
+        <div class="card"><div class="t">Export als PDF</div><div class="meta"><span class="b v">M</span><span class="b v">release</span><span class="mg" title="sam">SA</span></div></div>
+        <div class="card"><div class="t">Druckvorlagen</div><div class="meta"><span class="b v">S</span></div></div>
       </div>
       <div class="col doing"><h4>In Arbeit <span class="n">1/3</span></h4><span class="path">working_on/</span>
-        <div class="card"><div class="t">Login-Fehler bei Umlauten</div><div class="meta"><span class="b">S</span><span class="b">bug</span><span class="who">alex</span></div></div>
+        <div class="card"><div class="t">Login-Fehler bei Umlauten</div><div class="meta"><span class="b v">S</span><span class="tg">#bug</span><span class="mg me" title="alex">AL</span></div></div>
       </div>
       <div class="col"><h4>Erledigt <span class="n">1</span></h4><span class="path">done/</span>
-        <div class="card"><div class="t">Projekt aufsetzen</div><div class="meta"><span class="who">alex</span></div></div>
+        <div class="card"><div class="t">Projekt aufsetzen</div><div class="meta"><span class="mg me" title="alex">AL</span></div></div>
       </div>
     </div>
   </div>
@@ -531,7 +538,7 @@ verschicken können …</pre>
     </div>
     <div class="notes">
       <div class="note"><span class="pin">1</span><div><b>Pfad → Spalte und Kürzel</b><span>Ordner <code>backlog</code> ist die Spalte, der Dateiname das Kürzel.</span></div></div>
-      <div class="note"><span class="pin">2</span><div><b>Kopf → Felder</b><span>Nur was <code>board.yaml</code> erlaubt, mit Typ und Pflicht je Spalte.</span></div></div>
+      <div class="note"><span class="pin">2</span><div><b>Kopf → Felder</b><span>Nur was <code>board.yaml</code> erlaubt, mit Typ und Pflicht je Spalte. Auf dem Board: <span class="b v">M</span> <span class="b v">release</span> für Werte aus fester Liste, <span class="tg">#feature</span> für Tags.</span></div></div>
       <div class="note"><span class="pin">3</span><div><b>Überschrift → Titel</b><span>Liest sich in jedem Markdown-Betrachter richtig.</span></div></div>
       <div class="note"><span class="pin">4</span><div><b>Rest → freier Text</b><span>Gehört den Menschen, wird nicht geprüft.</span></div></div>
     </div>
@@ -578,25 +585,25 @@ verschicken können …</pre>
     <div class="step">
       <div class="cmd">kard new "Export als PDF"</div>
       <div class="where">→ <span class="col-chip">backlog</span></div>
-      <div class="mini"><div class="t">Export als PDF</div><div class="meta"><span class="b">M</span></div></div>
+      <div class="mini"><div class="t">Export als PDF</div><div class="meta"><span class="b v">M</span></div></div>
       <div class="commit">new export-als-pdf</div>
     </div>
     <div class="step now">
       <div class="cmd">kard take export-als-pdf</div>
       <div class="where">→ <span class="col-chip">working_on</span></div>
-      <div class="mini"><div class="t">Export als PDF</div><div class="meta"><span class="b">M</span><span class="who">alex</span></div></div>
+      <div class="mini"><div class="t">Export als PDF</div><div class="meta"><span class="b v">M</span><span class="mg me" title="alex">AL</span></div></div>
       <div class="commit">move export-als-pdf: backlog -&gt; working_on<br>assign export-als-pdf: alex</div>
     </div>
     <div class="step">
       <div class="cmd">kard assign … sam --add</div>
       <div class="where">bleibt <span class="col-chip">working_on</span></div>
-      <div class="mini"><div class="t">Export als PDF</div><div class="meta"><span class="b">M</span><span class="who">alex, sam</span></div></div>
+      <div class="mini"><div class="t">Export als PDF</div><div class="meta"><span class="b v">M</span><span class="mg me" title="alex">AL</span><span class="mg" title="sam">SA</span></div></div>
       <div class="commit">assign export-als-pdf: alex, sam</div>
     </div>
     <div class="step">
       <div class="cmd">kard done export-als-pdf</div>
       <div class="where">→ <span class="col-chip">done</span></div>
-      <div class="mini"><div class="t">Export als PDF</div><div class="meta"><span class="b">M</span><span class="who">alex, sam</span></div></div>
+      <div class="mini"><div class="t">Export als PDF</div><div class="meta"><span class="b v">M</span><span class="mg me" title="alex">AL</span><span class="mg" title="sam">SA</span></div></div>
       <div class="commit">move export-als-pdf: working_on -&gt; done</div>
     </div>
   </div>
@@ -697,13 +704,14 @@ scan:    ← kard scan ~/Repos</div>
       <div class="card"><div class="t">Sprache der Spec</div><div class="why">Vor einer Veröffentlichung.</div><div class="meta"><span class="b decide">Doku</span></div></div>
     </div>
     <div class="col doing"><h4>Wartet <span class="n">1</span></h4><span class="path">bewusst noch offen</span>
-      <div class="card"><div class="t">Logo in Arbeit</div><div class="why"><code>output/branding/kardboard-kb-test.svg</code> ist ein Versuch und bleibt ungetrackt, bis das Logo steht.</div><div class="meta"><span class="b">Branding</span></div></div>
+      <div class="card"><div class="t">Logo in Arbeit</div><div class="why">Die Versuche sind verworfen; die Wortmarke bleibt, bis ein neues Zeichen steht.</div><div class="meta"><span class="b">Branding</span></div></div>
     </div>
     <div class="col ok"><h4>Grün <span class="n">✓</span></h4><span class="path">jetzt geprüft</span>
       <div class="card"><div class="t"><span class="check">✓</span><code>go build</code></div></div>
       <div class="card"><div class="t"><span class="check">✓</span><code>go test ./...</code> · 8 Pakete</div></div>
       <div class="card"><div class="t"><span class="check">✓</span><code>go vet</code> · <code>gofmt</code> sauber</div></div>
       <div class="card"><div class="t"><span class="check">✓</span>Umbenennung <code>kb → kard</code> vollständig</div><div class="why">Nur die <code>kb.</code>-Schlüssel im Browser-Speicher bleiben, mit Absicht.</div></div>
+      <div class="card"><div class="t"><span class="check">✓</span>Marken unterscheidbar</div><div class="why">Tags als <span class="tg">#abo</span>, Werte als Kasten, Filter nach Größe und Dringlichkeit. Commit <code>1a128aa</code>.</div></div>
       <div class="card"><div class="t"><span class="check">✓</span>Personen aus Git</div><div class="why">Name je Board, Adressen auf Karten, <code>kard whoami</code>, E11, Monogramme. Commit <code>8af013d</code>.</div></div>
       <div class="card"><div class="t"><span class="check">✓</span>MIT-Lizenz</div><div class="why"><code>LICENSE</code> liegt im Repo, das README nennt sie.</div></div>
       <div class="card"><div class="t"><span class="check">✓</span>Vorschau <code>kard-ui</code></div><div class="why">Baut <code>kard</code> und startet die Oberfläche auf einer frischen Kopie des Beispiel-Boards.</div></div>
