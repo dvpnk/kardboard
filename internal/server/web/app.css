@@ -572,6 +572,9 @@ button { cursor: pointer; }
   background: var(--badge); border: 1px solid var(--badge-line); border-radius: 0;
 }
 .who.is-me .who-mono { background: var(--text); border-color: var(--text); color: var(--bg); }
+/* Who the user is, in the menu: the name, and below it where kard got it. */
+.menu-you { display: flex; flex-direction: column; gap: 2px; }
+.menu-source { color: var(--faint); overflow-wrap: anywhere; }
 .who-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .who.is-me .who-name { font-weight: 500; }
 

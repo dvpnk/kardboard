@@ -8,6 +8,10 @@ const TEXTS = {
     pickHint: "Tick to show or hide. Click a name to see that project alone.",
     settings: "Settings", theme: "Appearance", system: "System", light: "Light", dark: "Dark",
     you: (name) => `You are ${name}`, youOn: (name, board) => `${board}: you are ${name}`,
+    source: {
+      env: "from `KARDBOARD_USER`", project: "from `.kard/config.yaml`", user: "from `~/.config/kardboard/config.yaml`",
+      git: "from `git config user.email`", account: "from the account name of this computer",
+    },
     fromAccount: "The name comes from the account name of this computer. `git config user.email` or `kard whoami --set <name>` gives a better one.",
     mineOff: "show everyone's cards again",
     overdue: (date) => `Overdue since ${date}`,
@@ -46,6 +50,10 @@ const TEXTS = {
     pickHint: "Haken blendet ein oder aus. Ein Klick auf den Namen zeigt das Projekt allein.",
     settings: "Einstellungen", theme: "Darstellung", system: "System", light: "Hell", dark: "Dunkel",
     you: (name) => `Du bist ${name}`, youOn: (name, board) => `${board}: du bist ${name}`,
+    source: {
+      env: "aus `KARDBOARD_USER`", project: "aus `.kard/config.yaml`", user: "aus `~/.config/kardboard/config.yaml`",
+      git: "aus `git config user.email`", account: "vom Kontonamen dieses Rechners",
+    },
     fromAccount: "Der Name kommt vom Kontonamen dieses Rechners. `git config user.email` oder `kard whoami --set <name>` gibt einen besseren.",
     mineOff: "wieder die Karten aller zeigen",
     overdue: (date) => `Überfällig seit ${date}`,

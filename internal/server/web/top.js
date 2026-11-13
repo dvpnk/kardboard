@@ -169,11 +169,16 @@ function ProjectMenu() {
 // whether the page is connected. Its button carries a small mark while
 // something is wrong or waiting.
 function SettingsMenu() {
-  // Who the user is, once for all boards where it is the same.
-  const names = [...new Set(visibleBoards().filter((b) => b.user).map((b) => b.user.name))];
-  const fromAccount = visibleBoards().some((b) => b.user?.source === "account");
-  const you = names.length === 1 ? [t.you(names[0])]
-    : visibleBoards().filter((b) => b.user).map((b) => t.youOn(b.user.name, b.name));
+  // Who the user is and where kard got the name from, like kard whoami:
+  // once if it is the same on every board, else board by board. The path
+  // of the file or the board shows in the title.
+  const known = visibleBoards().filter((b) => b.user);
+  const same = new Set(known.map((b) => b.user.name + "\n" + b.user.source)).size === 1;
+  const you = (same ? known.slice(0, 1) : known).map((b) => ({
+    key: b.key, line: same ? t.you(b.user.name) : t.youOn(b.user.name, b.name),
+    source: t.source[b.user.source] ?? "", where: b.user.where ?? "",
+  }));
+  const fromAccount = known.some((b) => b.user.source === "account");
   const { errors, warnings } = countProblems();
   const setTheme = (theme) => { state.theme = theme; store("theme", theme); applyTheme(); refresh(); };
   const go = (fn) => () => { state.menu = null; fn(); };
@@ -207,6 +212,7 @@ function SettingsMenu() {
     </div>
     <hr class="menu-rule" />
     <p class="menu-hint settings-status"><span class=${cls("settings-live", state.live && "is-on")}></span><span>${code(state.live ? t.liveOn : t.liveOff)}</span></p>
-    ${you.map((line) => html`<p class="menu-hint">${line}</p>`)}
+    ${you.map((y) => html`<p key=${y.key} class="menu-hint menu-you">
+      <span>${y.line}</span><span class="menu-source" title=${y.where || undefined}>${code(y.source)}</span></p>`)}
     ${fromAccount && html`<p class="menu-hint">${code(t.fromAccount)}</p>`}`} />`;
 }
