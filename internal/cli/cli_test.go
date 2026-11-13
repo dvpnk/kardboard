@@ -995,3 +995,62 @@ func TestSchemaCommand(t *testing.T) {
 		t.Errorf("unknown column: code %d, err %q", code, errOut)
 	}
 }
+
+func TestAllBoards(t *testing.T) {
+	home, _ := machine(t)
+	t.Chdir(home) // no board here, and no repository with one
+	t.Setenv("KARDBOARD_USER", "alex")
+
+	if code, _, errOut := kb(t, "lint", "--all"); code != ExitUsage || !strings.Contains(errOut, "no boards known") {
+		t.Errorf("no boards: code %d, err %q", code, errOut)
+	}
+
+	alpha := makeBoard(t, filepath.Join(home, "repos", "alpha"), "alpha")
+	beta := makeBoard(t, filepath.Join(home, "repos", "beta"), "beta")
+	for rel, text := range map[string]string{"todo/zwei.md": "---\nassignee: alex\n---\n\n# Zwei\n", "done/kaputt.md": "no title\n"} {
+		path := filepath.Join(beta, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, dir := range []string{alpha, beta} {
+		if code, _, errOut := kb(t, "add", dir); code != ExitOK {
+			t.Fatalf("add %s: %s", dir, errOut)
+		}
+	}
+
+	code, out, _ := kb(t, "lint", "--all")
+	want := "alpha (~/repos/alpha): 1 card, 0 errors, 0 warnings\n\n" +
+		"beta (~/repos/beta): 3 cards, 1 error, 0 warnings\n" +
+		"  done/kaputt.md: E07 first line must be the title `# ...`, found \"no title\"\n\n" +
+		"2 boards, 4 cards, 1 error, 0 warnings\n"
+	if code != ExitViolation || out != want {
+		t.Errorf("lint --all: code %d, out\n%s\nwant\n%s", code, out, want)
+	}
+	code, out, _ = kb(t, "lint", "--all", "--json")
+	var results []lintResult
+	if code != ExitViolation || json.Unmarshal([]byte(out), &results) != nil || len(results) != 2 || results[1].Errors != 1 {
+		t.Errorf("lint --all --json: code %d, out %s", code, out)
+	}
+
+	code, out, _ = kb(t, "list", "--all", "--mine")
+	want = "== alpha (~/repos/alpha)\ntodo (0)\ndone (0)\n\n" +
+		"== beta (~/repos/beta)\ntodo (1)\n    zwei  Zwei  @alex\ndone (0)\n"
+	if code != ExitOK || out != want {
+		t.Errorf("list --all --mine: code %d, out\n%s\nwant\n%s", code, out, want)
+	}
+	code, out, _ = kb(t, "list", "done", "--all", "--json")
+	var lists []listResult
+	if code != ExitOK || json.Unmarshal([]byte(out), &lists) != nil || len(lists) != 2 || len(lists[1].Cards) != 1 {
+		t.Errorf("list done --all --json: code %d, out %s", code, out)
+	}
+	if code, _, errOut := kb(t, "list", "nope", "--all"); code != ExitUsage || !strings.Contains(errOut, `no board has a column "nope"`) {
+		t.Errorf("unknown column: code %d, err %q", code, errOut)
+	}
+	if code, _, errOut := kb(t, "list", "--all", "-C", alpha); code != ExitUsage || !strings.Contains(errOut, "does not go with -C") {
+		t.Errorf("--all with -C: code %d, err %q", code, errOut)
+	}
+}

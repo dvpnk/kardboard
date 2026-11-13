@@ -151,30 +151,42 @@ type lintResult struct {
 	Errors   int             `json:"errors"`
 	Warnings int             `json:"warnings"`
 	Problems []board.Problem `json:"problems"`
+	// Error says why a board could not be checked at all; only with --all.
+	Error string `json:"error,omitempty"`
+}
+
+// lint checks one board.
+func lint(b *board.Board) lintResult {
+	res := lintResult{Board: b.Root, Cards: len(b.Cards), Problems: b.Problems()}
+	if res.Problems == nil {
+		res.Problems = []board.Problem{}
+	}
+	for _, p := range res.Problems {
+		if p.Severity == board.SeverityError {
+			res.Errors++
+		} else {
+			res.Warnings++
+		}
+	}
+	return res
 }
 
 func (a *app) lintCmd() *cobra.Command {
-	return &cobra.Command{
+	var all bool
+	cmd := &cobra.Command{
 		Use:   "lint",
 		Short: "Check the board against the format",
 		Args:  cobra.NoArgs,
 		RunE: func(*cobra.Command, []string) error {
+			if all {
+				return a.lintAll()
+			}
 			b, err := a.load()
 			if err != nil {
 				return err
 			}
-			res := lintResult{Board: b.Root, Cards: len(b.Cards), Problems: b.Problems()}
-			for _, p := range res.Problems {
-				if p.Severity == board.SeverityError {
-					res.Errors++
-				} else {
-					res.Warnings++
-				}
-			}
+			res := lint(b)
 			if a.asJSON {
-				if res.Problems == nil {
-					res.Problems = []board.Problem{}
-				}
 				if err := a.printJSON(res); err != nil {
 					return err
 				}
@@ -191,6 +203,8 @@ func (a *app) lintCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().BoolVar(&all, "all", false, allHelp)
+	return cmd
 }
 
 func (a *app) schemaCmd() *cobra.Command {
@@ -251,40 +265,54 @@ func info(b *board.Board) boardInfo {
 	return boardInfo{ID: b.Config.ID, Name: name, Root: b.Root}
 }
 
+// listed picks the cards of a board to list: of one column or all, and
+// with mine only those assigned to me.
+func listed(b *board.Board, columns []board.Column, me string) []*board.Card {
+	cards := []*board.Card{}
+	for _, col := range columns {
+		for _, c := range b.Cards {
+			if c.Column == col.ID && (me == "" || slices.Contains(c.Assignees(), me)) {
+				cards = append(cards, c)
+			}
+		}
+	}
+	return cards
+}
+
 func (a *app) listCmd() *cobra.Command {
-	var mine bool
+	var mine, all bool
 	cmd := &cobra.Command{
 		Use:   "list [column]",
 		Short: "List the cards of the board",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
+			column := ""
+			if len(args) == 1 {
+				column = args[0]
+			}
+			me := ""
+			if mine {
+				var err error
+				if me, err = userconfig.User(); err != nil {
+					return err
+				}
+			}
+			if all {
+				return a.listAll(column, me)
+			}
 			b, err := a.loadValid()
 			if err != nil {
 				return err
 			}
 			columns := b.Config.Columns
-			if len(args) == 1 {
-				col, ok := b.Config.Column(args[0])
+			if column != "" {
+				col, ok := b.Config.Column(column)
 				if !ok {
-					return fmt.Errorf("no column %q, the board has %s", args[0], columnIDs(b.Config))
+					return fmt.Errorf("no column %q, the board has %s", column, columnIDs(b.Config))
 				}
 				columns = []board.Column{col}
 			}
-			me := ""
-			if mine {
-				if me, err = userconfig.User(); err != nil {
-					return err
-				}
-			}
-
-			cards := []*board.Card{}
-			for _, col := range columns {
-				for _, c := range b.Cards {
-					if c.Column == col.ID && (!mine || slices.Contains(c.Assignees(), me)) {
-						cards = append(cards, c)
-					}
-				}
-			}
+			cards := listed(b, columns, me)
 			if a.asJSON {
 				return a.printJSON(listResult{Board: info(b), Cards: cards})
 			}
@@ -293,6 +321,7 @@ func (a *app) listCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&mine, "mine", false, "only cards assigned to you")
+	cmd.Flags().BoolVar(&all, "all", false, allHelp)
 	return cmd
 }
 

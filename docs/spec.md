@@ -368,14 +368,19 @@ Der Befehl heißt `kb`. Ohne weitere Angabe wirkt er auf das Board, in dem man
 steht: kardboard sucht vom aktuellen Ordner aufwärts nach einer `board.yaml`
 und danach in den Unterordnern des Git-Repos. Liegen dort mehrere Boards, muss
 man eines wählen. `-C <ordner>` nennt den Board-Ordner direkt, `-b <id>` wählt
-ein angemeldetes Board, `--all` alle.
+ein angemeldetes Board. `kb lint` und `kb list` nehmen mit `--all` alle
+Boards, die `kb boards` zeigt, dazu das, in dem man steht. Sie zeigen sie
+nacheinander, jedes unter seinem Namen; `kb lint --all` zählt am Ende
+zusammen und endet mit Code 1, wenn irgendwo ein Fehler steckt oder ein
+Board nicht lesbar ist. `kb list <spalte> --all` lässt Boards ohne diese
+Spalte aus. `--all` geht nicht zusammen mit `-C` oder `-b`.
 
 Board:
 
 | Befehl | Wirkung |
 |---|---|
 | `kb init [ordner] [--id kürzel] [--name name] [--sync modus] [--columns a,b,c] [--no-add]` | macht einen Ordner zum Board, siehe unten |
-| `kb lint` | prüft das Board |
+| `kb lint [--all]` | prüft das Board, mit `--all` alle bekannten |
 | `kb schema [spalte]` | gibt das JSON Schema für den Kartenkopf aus, mit Spalte samt ihren Pflichtfeldern |
 | `kb ui [--port n] [--no-open]` | startet den lokalen Server und zeigt alle bekannten Boards im Browser, siehe [Oberfläche](#oberfläche) |
 
@@ -383,7 +388,7 @@ Karten lesen:
 
 | Befehl | Wirkung |
 |---|---|
-| `kb list [spalte] [--mine]` | listet Karten, mit `--mine` nur die eigenen, aus jeder Spalte |
+| `kb list [spalte] [--mine] [--all]` | listet Karten, mit `--mine` nur die eigenen, aus jeder Spalte, mit `--all` aus allen bekannten Boards |
 | `kb show <karte>` | zeigt eine Karte |
 
 Karten ändern:
@@ -613,6 +618,4 @@ angemeldet ist.
   Person.
 - **Verlauf im CLI.** Den Verlauf gibt es nur in der Oberfläche, einen
   Befehl wie `kb log` noch nicht.
-- **`--all` für lesende Befehle.** `kb list --all` und `kb lint --all` über
-  alle bekannten Boards gibt es noch nicht.
 - **Sprache dieses Dokuments** vor einer Veröffentlichung.

@@ -134,6 +134,17 @@ kb scan ~/Repos
 kb boards
 ```
 
+`--all` prüft oder listet alle diese Boards auf einmal, etwa die eigenen
+Karten über alle Projekte:
+
+```bash
+kb lint --all
+```
+
+```bash
+kb list --mine --all
+```
+
 Dann die Oberfläche starten. Sie öffnet sich im Browser, folgt Änderungen an
 den Dateien und läuft, bis man sie mit Strg+C beendet:
 
