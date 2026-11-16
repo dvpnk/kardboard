@@ -2,7 +2,8 @@
 # Build kard for every system it is handed out for, into dist/.
 #
 #   scripts/dist            all systems
-#   scripts/dist darwin     only those whose name contains "darwin"
+#   scripts/dist darwin     only those whose name contains "darwin",
+#                           such as darwin-arm64
 #
 # Each file is a single program with the web interface inside; it needs no
 # Go and nothing else on the target machine. The version comes from Git:
@@ -18,9 +19,9 @@ rm -rf dist
 mkdir -p dist
 
 for t in $targets; do
-	case $t in *"$only"*) ;; *) continue ;; esac
 	os=${t%/*}
 	arch=${t#*/}
+	case $os-$arch in *"$only"*) ;; *) continue ;; esac
 	out=dist/kard-$version-$os-$arch
 	[ "$os" = windows ] && out=$out.exe
 	echo "build $out"
@@ -33,6 +34,10 @@ if [ -f "dist/kard-$version-darwin-arm64" ] && [ -f "dist/kard-$version-darwin-a
 	lipo -create -output "dist/kard-$version-macos" "dist/kard-$version-darwin-arm64" "dist/kard-$version-darwin-amd64"
 fi
 
+if ! ls dist/kard-* >/dev/null 2>&1; then
+	echo "no system matches $only: $targets" >&2
+	exit 2
+fi
 (cd dist && shasum -a 256 kard-* > SHA256SUMS)
 echo
 ls -lh dist
