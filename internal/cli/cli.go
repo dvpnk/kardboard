@@ -58,7 +58,9 @@ func run(args []string, in io.Reader, out, errOut io.Writer) int {
 		Short:         "Boards made of Markdown cards that live in your projects",
 		SilenceUsage:  true,
 		SilenceErrors: true,
+		Version:       buildVersion().String(),
 	}
+	root.SetVersionTemplate("{{.Version}}\n")
 	root.SetOut(out)
 	root.SetErr(errOut)
 	root.SetArgs(args)
@@ -68,7 +70,7 @@ func run(args []string, in io.Reader, out, errOut io.Writer) int {
 	root.MarkFlagsMutuallyExclusive("dir", "board")
 	root.AddCommand(a.initCmd(), a.lintCmd(), a.schemaCmd(), a.listCmd(), a.showCmd(), a.logCmd())
 	root.AddCommand(a.newCmd(), a.moveCmd(), a.takeCmd(), a.doneCmd(), a.assignCmd(), a.unassignCmd(), a.setCmd(), a.editCmd(), a.renameCmd())
-	root.AddCommand(a.boardsCmd(), a.addCmd(), a.removeCmd(), a.scanCmd(), a.syncCmd(), a.uiCmd(), a.whoamiCmd())
+	root.AddCommand(a.boardsCmd(), a.addCmd(), a.removeCmd(), a.scanCmd(), a.syncCmd(), a.uiCmd(), a.whoamiCmd(), a.versionCmd())
 
 	addExamples(root)
 	err := root.Execute()

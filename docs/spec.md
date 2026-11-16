@@ -419,6 +419,7 @@ Rechner:
 | `kard scan <ordner>` | nimmt einen Ordner in die Suche auf, `--remove` nimmt ihn wieder heraus |
 | `kard sync` | holt, was auf dem Remote neu ist, und pusht, was hier wartet. Nur für Boards mit `sync: push` |
 | `kard whoami [--all] [--set name]` | sagt, wer man im Board ist und woher der Name kommt, mit `--set` setzt es ihn für das Projekt, siehe [Personen](#personen) |
+| `kard version` | sagt, welche Version das ist: der Git-Tag, aus dem `kard` gebaut wurde, sonst Commit und Datum, dazu das System. `kard --version` ist dasselbe |
 
 Zu `kard edit`:
 

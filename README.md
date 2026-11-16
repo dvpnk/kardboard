@@ -23,6 +23,32 @@ Braucht Go 1.27 oder neuer.
 go build -o bin/kard ./cmd/kard
 ```
 
+Für andere Rechner baut `scripts/dist` alle Systeme auf einmal nach
+`dist/`: macOS (Apple-Chip, Intel und eine Datei für beide), Linux und
+Windows, dazu `SHA256SUMS`. Jede Datei ist das ganze Programm samt
+Oberfläche; auf dem Zielrechner braucht es kein Go und keine Installation,
+nur einen Platz im Pfad, etwa `~/.local/bin`. Git braucht `kard` nur für
+Verlauf, `sync` und den Namen aus `git config`.
+
+```bash
+scripts/dist
+```
+
+Die Version kommt aus Git. Wer einen Stand weitergibt, setzt vorher einen
+Tag, dann sagt `kard version` bei allen dasselbe:
+
+```bash
+git tag v0.1.0 && scripts/dist
+```
+
+Die Dateien sind nicht signiert. Kommt eine über Browser oder Chat auf einen
+Mac, hält Gatekeeper sie beim ersten Start an; einmal freigeben genügt.
+Windows warnt einmal über SmartScreen.
+
+```bash
+xattr -d com.apple.quarantine ~/.local/bin/kard
+```
+
 Der Befehl heißt `kard`. Wer es kürzer mag, legt sich selbst einen Alias an,
 etwa `alias kb=kard`. Eingebaut ist kein Kurzname, weil kurze Namen leicht
 mit anderen Werkzeugen zusammenstoßen.

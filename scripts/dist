@@ -1,0 +1,38 @@
+#!/bin/sh
+# Build kard for every system it is handed out for, into dist/.
+#
+#   scripts/dist            all systems
+#   scripts/dist darwin     only those whose name contains "darwin"
+#
+# Each file is a single program with the web interface inside; it needs no
+# Go and nothing else on the target machine. The version comes from Git:
+# tag a commit (git tag v0.1.0) to give the build a version number.
+set -eu
+cd "$(dirname "$0")/.."
+
+targets="darwin/arm64 darwin/amd64 linux/amd64 linux/arm64 windows/amd64"
+only=${1:-}
+
+version=$(git describe --tags --always --dirty 2>/dev/null || echo devel)
+rm -rf dist
+mkdir -p dist
+
+for t in $targets; do
+	case $t in *"$only"*) ;; *) continue ;; esac
+	os=${t%/*}
+	arch=${t#*/}
+	out=dist/kard-$version-$os-$arch
+	[ "$os" = windows ] && out=$out.exe
+	echo "build $out"
+	CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -trimpath -ldflags "-s -w" -o "$out" ./cmd/kard
+done
+
+# One file for both kinds of Mac, if lipo is there (it comes with Xcode).
+if [ -f "dist/kard-$version-darwin-arm64" ] && [ -f "dist/kard-$version-darwin-amd64" ] && command -v lipo >/dev/null; then
+	echo "build dist/kard-$version-macos"
+	lipo -create -output "dist/kard-$version-macos" "dist/kard-$version-darwin-arm64" "dist/kard-$version-darwin-amd64"
+fi
+
+(cd dist && shasum -a 256 kard-* > SHA256SUMS)
+echo
+ls -lh dist
