@@ -9,9 +9,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// version is set when building a release, by scripts/dist from
+// scripts/calculate_version.sh:
+//
+//	go build -ldflags "-X kardboard/internal/cli.version=v0.2.0"
+var version string
+
 // versionInfo is what kard knows about its own build. go build writes it
 // into the program from the Git repository it was built in: the tag, or
-// else the commit and its time.
+// else the commit and its time. A version given at build time wins.
 type versionInfo struct {
 	Version  string `json:"version"`
 	Commit   string `json:"commit,omitempty"`
@@ -26,7 +32,7 @@ func buildVersion() versionInfo {
 	v := versionInfo{Version: "devel", OS: runtime.GOOS, Arch: runtime.GOARCH, Go: runtime.Version()}
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
-		return v
+		info = &debug.BuildInfo{}
 	}
 	for _, s := range info.Settings {
 		switch s.Key {
@@ -42,6 +48,9 @@ func buildVersion() versionInfo {
 	// says less than commit and time do on their own.
 	if m := strings.TrimSuffix(info.Main.Version, "+dirty"); m != "" && m != "(devel)" && !isPseudo(m) {
 		v.Version = m
+	}
+	if version != "" {
+		v.Version = version
 	}
 	return v
 }

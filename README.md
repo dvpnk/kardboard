@@ -41,11 +41,15 @@ Nur einige Systeme: Jedes Wort wählt die Systeme, deren Name es enthält,
 scripts/dist mac windows
 ```
 
-Die Version kommt aus Git. Wer einen Stand weitergibt, setzt vorher einen
-Tag, dann sagt `kard version` bei allen dasselbe:
+Die Version rechnet `scripts/calculate_version.sh` aus den Commits seit dem
+letzten Tag `vX.Y.Z` aus, nach Conventional Commits: `feat:` hebt die
+zweite Stelle, `fix:`, `refactor:` und `build:` die dritte, `feat!:` die
+erste; `docs:` und `chore:` zählen nicht. `scripts/dist` gibt sie dem
+Programm mit, `kard version` nennt sie. Wer einen Stand weitergibt, legt sie
+als Tag fest:
 
 ```bash
-git tag v0.1.0 && scripts/dist
+git tag "v$(scripts/calculate_version.sh)" && scripts/dist
 ```
 
 Die Dateien sind nicht signiert. Kommt eine über Browser oder Chat auf einen
