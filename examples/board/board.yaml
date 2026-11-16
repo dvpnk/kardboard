@@ -1,19 +1,19 @@
 kardboard: 1
 id: demo
-name: Demo-Projekt
+name: Demo project
 sync: none
 
 columns:
   - id: planning
-    title: Planung
+    title: Planning
   - id: backlog
     title: Backlog
   - id: working_on
-    title: In Arbeit
+    title: In progress
     doing: true
     limit: 3
   - id: done
-    title: Erledigt
+    title: Done
     done: true
 
 fields:
@@ -21,12 +21,12 @@ fields:
     type: person
     required: [working_on]
   size:
-    title: Größe
+    title: Size
     type: enum
     values: [XS, S, M, L, XL]
     required: [backlog, working_on]
   milestone:
-    title: Meilenstein
+    title: Milestone
     type: enum
     values: [pilot, release, later]
   tags:

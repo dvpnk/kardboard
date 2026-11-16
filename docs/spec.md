@@ -29,11 +29,11 @@ commands exist. How the program is built is not described here.
 board/                         any name
   board.yaml                   makes the directory a board
   planning/                    column
-    offline-modus.md           card
+    offline-mode.md           card
   backlog/
-    export-als-pdf.md
+    export-as-pdf.md
   working_on/
-    login-fehler-bei-umlauten.md
+    login-fails-with-umlauts.md
   done/
   reference/                   not a column: ignored
 ```
@@ -52,20 +52,20 @@ board/                         any name
 ```yaml
 kardboard: 1
 id: demo
-name: Demo-Projekt
+name: Demo project
 sync: none
 
 columns:
   - id: planning
-    title: Planung
+    title: Planning
   - id: backlog
     title: Backlog
   - id: working_on
-    title: In Arbeit
+    title: In progress
     doing: true
     limit: 3
   - id: done
-    title: Erledigt
+    title: Done
     done: true
 
 fields:
@@ -73,12 +73,12 @@ fields:
     type: person
     required: [working_on]
   size:
-    title: Größe
+    title: Size
     type: enum
     values: [XS, S, M, L, XL]
     required: [backlog, working_on]
   milestone:
-    title: Meilenstein
+    title: Milestone
     type: enum
     values: [pilot, release, later]
   tags:
@@ -116,10 +116,10 @@ size: M
 milestone: release
 tags: [feature]
 due: 2026-12-01
-depends_on: [druckvorlagen]
+depends_on: [print-templates]
 ---
 
-# Export als PDF
+# Export as PDF
 
 Free text in Markdown.
 ```
@@ -203,7 +203,7 @@ fields:
 | `number` | number | `estimate: 3` |
 | `bool` | `true` or `false` | `blocked: true` |
 | `person` | short name of a person, `[a-z0-9][a-z0-9-]*`, or their email address, or a list of these; with `values` only those | `reviewer: sam` |
-| `cards` | list of card references | `depends_on: [druckvorlagen]` |
+| `cards` | list of card references | `depends_on: [print-templates]` |
 
 Keys of a field declaration:
 
@@ -218,7 +218,7 @@ Field names consist of `[a-z][a-z0-9_]*`.
 
 ### Card references
 
-`druckvorlagen` means a card in the same board. `atlas/druckvorlagen` means a
+`print-templates` means a card in the same board. `atlas/print-templates` means a
 card in the board with the `id` `atlas`. References in the same board must
 resolve. kardboard checks references into another board only if that board is
 registered on the machine, and reports a warning otherwise.
@@ -291,12 +291,12 @@ first, then move. This also applies to cards that Git does not know yet.
 Commit messages have a fixed form, so that `git log` is the board's record:
 
 ```
-move export-als-pdf: backlog -> working_on
-assign export-als-pdf: alex, sam
-unassign export-als-pdf
-edit export-als-pdf
-new export-als-pdf
-rename druckvorlagen -> print-templates
+move export-as-pdf: backlog -> working_on
+assign export-as-pdf: alex, sam
+unassign export-as-pdf
+edit export-as-pdf
+new export-as-pdf
+rename print-templates -> pdf-templates
 ```
 
 `edit` stands for any change to fields other than `assignee` and to the text. If
@@ -436,7 +436,7 @@ On `kard rename`:
   stays as it was. The new name must be a valid short name that does not yet
   exist in the board.
 - **References follow.** Every field of type `cards` in the same board that
-  names the card, whether as `druckvorlagen` or as `<board>/druckvorlagen`,
+  names the card, whether as `print-templates` or as `<board>/print-templates`,
   names the new name afterwards. Only that line of the header is changed. This
   also applies to cards of other people, because their content does not
   change. References from other boards and mentions in the text stay as they

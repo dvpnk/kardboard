@@ -42,9 +42,9 @@ With --file the new content, header included, comes from a file or, with
 "-", from stdin, without an editor. --base gives the card's sum as read
 before (kard show --json prints it): if the card changed since, nothing is
 saved.`,
-		Example: `  kard edit export-als-pdf
-  kard edit export-als-pdf --file new.md
-  cat new.md | kard edit export-als-pdf --file - --base 3f9c0a1b2c3d4e5f60718293`,
+		Example: `  kard edit export-as-pdf
+  kard edit export-as-pdf --file new.md
+  cat new.md | kard edit export-as-pdf --file - --base 3f9c0a1b2c3d4e5f60718293`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			ctx := context.Background()

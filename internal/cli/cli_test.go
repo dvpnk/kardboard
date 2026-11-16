@@ -148,22 +148,22 @@ func TestLintBrokenConfig(t *testing.T) {
 
 func TestList(t *testing.T) {
 	code, out, _ := kard(t, "list", "-C", example)
-	want := `Planung (1)
-    offline-modus              Offline-Modus
+	want := `Planning (1)
+    offline-mode              Offline mode
 Backlog (2)
-    druckvorlagen              Druckvorlagen
-    export-als-pdf             Export als PDF  @sam
-In Arbeit (1)
-    login-fehler-bei-umlauten  Login-Fehler bei Umlauten im Passwort  @alex
-Erledigt (1)
-    projekt-aufsetzen          Projekt aufsetzen
+    export-as-pdf             Export as PDF  @sam
+    print-templates           Print templates
+In progress (1)
+    login-fails-with-umlauts  Login fails with umlauts in the password  @alex
+Done (1)
+    set-up-project            Set up the project
 `
 	if code != ExitOK || out != want {
 		t.Errorf("code %d, out:\n%s", code, out)
 	}
 
 	code, out, _ = kard(t, "list", "backlog", "-C", brokenBoard(t))
-	if code != ExitOK || !strings.Contains(out, "  ! kaputt") || strings.Contains(out, "Planung") {
+	if code != ExitOK || !strings.Contains(out, "  ! kaputt") || strings.Contains(out, "Planning") {
 		t.Errorf("code %d, out:\n%s", code, out)
 	}
 }
@@ -183,7 +183,7 @@ func TestListMine(t *testing.T) {
 		t.Fatalf("%v\n%s", err, out)
 	}
 	if code != ExitOK || res.Board.ID != "demo" || len(res.Cards) != 1 ||
-		res.Cards[0].ID != "export-als-pdf" || res.Cards[0].Column != "backlog" || fmt.Sprint(res.Cards[0].Fields["assignee"]) != "[sam]" {
+		res.Cards[0].ID != "export-as-pdf" || res.Cards[0].Column != "backlog" || fmt.Sprint(res.Cards[0].Fields["assignee"]) != "[sam]" {
 		t.Errorf("code %d, result %+v", code, res)
 	}
 
@@ -195,13 +195,13 @@ func TestListMine(t *testing.T) {
 }
 
 func TestShow(t *testing.T) {
-	code, out, _ := kard(t, "show", "login-fehler-bei-umlauten.md", "-C", example)
+	code, out, _ := kard(t, "show", "login-fails-with-umlauts.md", "-C", example)
 	for _, want := range []string{
-		"path:      working_on/login-fehler-bei-umlauten.md",
-		"column:    In Arbeit",
+		"path:      working_on/login-fails-with-umlauts.md",
+		"column:    In progress",
 		"assignee:  alex",
 		"tags:      bug",
-		"# Login-Fehler bei Umlauten im Passwort",
+		"# Login fails with umlauts in the password",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output lacks %q:\n%s", want, out)
@@ -211,7 +211,7 @@ func TestShow(t *testing.T) {
 		t.Errorf("code %d", code)
 	}
 
-	_, out, _ = kard(t, "show", "export-als-pdf", "--json", "-C", example)
+	_, out, _ = kard(t, "show", "export-as-pdf", "--json", "-C", example)
 	var res struct {
 		ID, Title, Body string
 		Fields          map[string]any
@@ -219,7 +219,7 @@ func TestShow(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &res); err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}
-	if res.ID != "export-als-pdf" || res.Fields["size"] != "M" || !strings.Contains(res.Body, "## Fertig, wenn") {
+	if res.ID != "export-as-pdf" || res.Fields["size"] != "M" || !strings.Contains(res.Body, "## Done when") {
 		t.Errorf("result = %+v", res)
 	}
 }
@@ -231,9 +231,9 @@ func TestUsageErrors(t *testing.T) {
 		{"show", "gibt-es-nicht", "-C", example},
 		{"list", "nope", "-C", example},
 		{"lint", "extra", "-C", example},
-		{"move", "druckvorlagen", "-C", example},
-		{"assign", "druckvorlagen", "-C", example},
-		{"set", "druckvorlagen", "-C", example},
+		{"move", "print-templates", "-C", example},
+		{"assign", "print-templates", "-C", example},
+		{"set", "print-templates", "-C", example},
 	}
 	for _, args := range tests {
 		code, _, errOut := kard(t, args...)
@@ -295,31 +295,31 @@ func TestChangeCommands(t *testing.T) {
 		wantFile string
 	}{
 		// take assigns and moves in one step
-		{[]string{"take", "druckvorlagen"}, ExitOK, "druckvorlagen: backlog -> working_on, assignee = sam\n", "working_on/druckvorlagen.md"},
-		{[]string{"take", "druckvorlagen"}, ExitOK, "druckvorlagen: nothing to change\n", "working_on/druckvorlagen.md"},
+		{[]string{"take", "print-templates"}, ExitOK, "print-templates: backlog -> working_on, assignee = sam\n", "working_on/print-templates.md"},
+		{[]string{"take", "print-templates"}, ExitOK, "print-templates: nothing to change\n", "working_on/print-templates.md"},
 		// planning cards have no size, which working_on requires
-		{[]string{"take", "offline-modus"}, ExitViolation, "would lack size", "planning/offline-modus.md"},
-		{[]string{"take", "offline-modus", "--force"}, ExitOK, "offline-modus: planning -> working_on, assignee = sam\n", "working_on/offline-modus.md"},
-		{[]string{"set", "offline-modus", "size=S", "tags=feature,ui"}, ExitOK, "offline-modus: size = S, tags = feature, ui\n", ""},
+		{[]string{"take", "offline-mode"}, ExitViolation, "would lack size", "planning/offline-mode.md"},
+		{[]string{"take", "offline-mode", "--force"}, ExitOK, "offline-mode: planning -> working_on, assignee = sam\n", "working_on/offline-mode.md"},
+		{[]string{"set", "offline-mode", "size=S", "tags=feature,ui"}, ExitOK, "offline-mode: size = S, tags = feature, ui\n", ""},
 		// sam's own card from the backlog: only the column changes
-		{[]string{"take", "export-als-pdf"}, ExitOK, "export-als-pdf: backlog -> working_on\n", "working_on/export-als-pdf.md"},
+		{[]string{"take", "export-as-pdf"}, ExitOK, "export-as-pdf: backlog -> working_on\n", "working_on/export-as-pdf.md"},
 		// alex's card is protected
-		{[]string{"done", "login-fehler-bei-umlauten"}, ExitViolation, "is assigned to alex", "working_on/login-fehler-bei-umlauten.md"},
-		{[]string{"take", "login-fehler-bei-umlauten"}, ExitViolation, "is assigned to alex", ""},
-		{[]string{"take", "login-fehler-bei-umlauten", "--force"}, ExitOK, "login-fehler-bei-umlauten: assignee = sam\n", ""},
-		{[]string{"done", "login-fehler-bei-umlauten"}, ExitOK, "login-fehler-bei-umlauten: working_on -> done\n", "done/login-fehler-bei-umlauten.md"},
+		{[]string{"done", "login-fails-with-umlauts"}, ExitViolation, "is assigned to alex", "working_on/login-fails-with-umlauts.md"},
+		{[]string{"take", "login-fails-with-umlauts"}, ExitViolation, "is assigned to alex", ""},
+		{[]string{"take", "login-fails-with-umlauts", "--force"}, ExitOK, "login-fails-with-umlauts: assignee = sam\n", ""},
+		{[]string{"done", "login-fails-with-umlauts"}, ExitOK, "login-fails-with-umlauts: working_on -> done\n", "done/login-fails-with-umlauts.md"},
 		// assigning does not move; give is the same command
-		{[]string{"assign", "druckvorlagen", "alex"}, ExitOK, "druckvorlagen: assignee = alex\n", "working_on/druckvorlagen.md"},
-		{[]string{"give", "druckvorlagen", "sam"}, ExitViolation, "is assigned to alex", ""},
-		{[]string{"give", "export-als-pdf", "alex"}, ExitOK, "export-als-pdf: assignee = alex\n", "working_on/export-als-pdf.md"},
+		{[]string{"assign", "print-templates", "alex"}, ExitOK, "print-templates: assignee = alex\n", "working_on/print-templates.md"},
+		{[]string{"give", "print-templates", "sam"}, ExitViolation, "is assigned to alex", ""},
+		{[]string{"give", "export-as-pdf", "alex"}, ExitOK, "export-as-pdf: assignee = alex\n", "working_on/export-as-pdf.md"},
 		// a card in progress needs someone
-		{[]string{"unassign", "offline-modus"}, ExitViolation, "would lack assignee", ""},
-		{[]string{"move", "offline-modus", "backlog"}, ExitOK, "offline-modus: working_on -> backlog\n", "backlog/offline-modus.md"},
-		{[]string{"unassign", "offline-modus"}, ExitOK, "offline-modus: assignee removed\n", ""},
-		{[]string{"unassign", "offline-modus"}, ExitOK, "offline-modus: nothing to change\n", ""},
-		{[]string{"set", "offline-modus", "tags="}, ExitOK, "offline-modus: tags removed\n", ""},
-		{[]string{"set", "offline-modus", "size=XXL"}, ExitUsage, "size: must be one of", ""},
-		{[]string{"move", "offline-modus", "nirgends"}, ExitUsage, `no column "nirgends"`, "backlog/offline-modus.md"},
+		{[]string{"unassign", "offline-mode"}, ExitViolation, "would lack assignee", ""},
+		{[]string{"move", "offline-mode", "backlog"}, ExitOK, "offline-mode: working_on -> backlog\n", "backlog/offline-mode.md"},
+		{[]string{"unassign", "offline-mode"}, ExitOK, "offline-mode: assignee removed\n", ""},
+		{[]string{"unassign", "offline-mode"}, ExitOK, "offline-mode: nothing to change\n", ""},
+		{[]string{"set", "offline-mode", "tags="}, ExitOK, "offline-mode: tags removed\n", ""},
+		{[]string{"set", "offline-mode", "size=XXL"}, ExitUsage, "size: must be one of", ""},
+		{[]string{"move", "offline-mode", "nirgends"}, ExitUsage, `no column "nirgends"`, "backlog/offline-mode.md"},
 		{[]string{"move", "gibt-es-nicht", "done"}, ExitUsage, `no card "gibt-es-nicht"`, ""},
 	}
 	for _, s := range steps {
@@ -338,14 +338,14 @@ func TestChangeCommands(t *testing.T) {
 		}
 	}
 
-	if got, want := readFile(t, root, "backlog/offline-modus.md"), "---\nsize: S\n---\n\n# Offline-Modus\n"; !strings.HasPrefix(got, want) {
-		t.Errorf("offline-modus = %q, want it to start with %q", got, want)
+	if got, want := readFile(t, root, "backlog/offline-mode.md"), "---\nsize: S\n---\n\n# Offline mode\n"; !strings.HasPrefix(got, want) {
+		t.Errorf("offline-mode = %q, want it to start with %q", got, want)
 	}
 	if code, out, _ := kard(t, "lint", "-C", root); code != ExitOK {
 		t.Errorf("board is invalid after the changes:\n%s", out)
 	}
 
-	_, out, _ := kard(t, "move", "druckvorlagen", "done", "--force", "--json", "-C", root)
+	_, out, _ := kard(t, "move", "print-templates", "done", "--force", "--json", "-C", root)
 	var res struct {
 		ID, From, To, Path string
 		Moved              bool
@@ -353,7 +353,7 @@ func TestChangeCommands(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &res); err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}
-	if res.From != "working_on" || res.To != "done" || res.Path != "done/druckvorlagen.md" || !res.Moved {
+	if res.From != "working_on" || res.To != "done" || res.Path != "done/print-templates.md" || !res.Moved {
 		t.Errorf("result = %+v", res)
 	}
 }
@@ -361,7 +361,7 @@ func TestChangeCommands(t *testing.T) {
 func TestSeveralPeople(t *testing.T) {
 	asUser(t, "sam")
 	root := copyOfExample(t)
-	const card = "druckvorlagen"
+	const card = "print-templates"
 
 	steps := []struct {
 		args []string
@@ -369,22 +369,22 @@ func TestSeveralPeople(t *testing.T) {
 		out  string // expected stdout, or part of stderr on failure
 		file string // expected header line, "" for no assignee
 	}{
-		{[]string{"assign", card, "alex", "laura"}, ExitOK, "druckvorlagen: assignee = alex, laura\n", "assignee: [alex, laura]"},
+		{[]string{"assign", card, "alex", "laura"}, ExitOK, "print-templates: assignee = alex, laura\n", "assignee: [alex, laura]"},
 		// sam is not on the card: joining it is a change to someone else's card
 		{[]string{"take", card, "--add"}, ExitViolation, "is assigned to alex, laura", "assignee: [alex, laura]"},
-		{[]string{"take", card, "--add", "--force"}, ExitOK, "druckvorlagen: backlog -> working_on, assignee = alex, laura, sam\n", "assignee: [alex, laura, sam]"},
+		{[]string{"take", card, "--add", "--force"}, ExitOK, "print-templates: backlog -> working_on, assignee = alex, laura, sam\n", "assignee: [alex, laura, sam]"},
 		// now it is sam's card too
-		{[]string{"take", card, "--add"}, ExitOK, "druckvorlagen: nothing to change\n", "assignee: [alex, laura, sam]"},
-		{[]string{"unassign", card, "laura"}, ExitOK, "druckvorlagen: assignee = alex, sam\n", "assignee: [alex, sam]"},
-		{[]string{"unassign", card, "laura"}, ExitOK, "druckvorlagen: nothing to change\n", "assignee: [alex, sam]"},
-		{[]string{"assign", card, "--add", "laura", "sam"}, ExitOK, "druckvorlagen: assignee = alex, sam, laura\n", "assignee: [alex, sam, laura]"},
-		{[]string{"unassign", card, "alex", "laura"}, ExitOK, "druckvorlagen: assignee = sam\n", "assignee: sam"},
+		{[]string{"take", card, "--add"}, ExitOK, "print-templates: nothing to change\n", "assignee: [alex, laura, sam]"},
+		{[]string{"unassign", card, "laura"}, ExitOK, "print-templates: assignee = alex, sam\n", "assignee: [alex, sam]"},
+		{[]string{"unassign", card, "laura"}, ExitOK, "print-templates: nothing to change\n", "assignee: [alex, sam]"},
+		{[]string{"assign", card, "--add", "laura", "sam"}, ExitOK, "print-templates: assignee = alex, sam, laura\n", "assignee: [alex, sam, laura]"},
+		{[]string{"unassign", card, "alex", "laura"}, ExitOK, "print-templates: assignee = sam\n", "assignee: sam"},
 		// in progress, the last person cannot leave
 		{[]string{"unassign", card, "sam"}, ExitViolation, "would lack assignee", "assignee: sam"},
 		// without --add, take and assign replace everyone
-		{[]string{"assign", card, "alex,laura"}, ExitOK, "druckvorlagen: assignee = alex, laura\n", "assignee: [alex, laura]"},
-		{[]string{"take", card, "--force"}, ExitOK, "druckvorlagen: assignee = sam\n", "assignee: sam"},
-		{[]string{"set", card, "assignee=sam,alex"}, ExitOK, "druckvorlagen: assignee = sam, alex\n", "assignee: [sam, alex]"},
+		{[]string{"assign", card, "alex,laura"}, ExitOK, "print-templates: assignee = alex, laura\n", "assignee: [alex, laura]"},
+		{[]string{"take", card, "--force"}, ExitOK, "print-templates: assignee = sam\n", "assignee: sam"},
+		{[]string{"set", card, "assignee=sam,alex"}, ExitOK, "print-templates: assignee = sam, alex\n", "assignee: [sam, alex]"},
 		{[]string{"assign", card, "Sam Smith"}, ExitUsage, "is neither a short name", "assignee: [sam, alex]"},
 		{[]string{"assign", card, ""}, ExitUsage, "no person named", "assignee: [sam, alex]"},
 	}
@@ -399,9 +399,9 @@ func TestSeveralPeople(t *testing.T) {
 		if code != ExitOK && !strings.Contains(errOut, s.out) {
 			t.Errorf("kard %v: stderr %q lacks %q", s.args, errOut, s.out)
 		}
-		path := "backlog/druckvorlagen.md"
+		path := "backlog/print-templates.md"
 		if !isFile(root, path) {
-			path = "working_on/druckvorlagen.md"
+			path = "working_on/print-templates.md"
 		}
 		if text := readFile(t, root, path); !strings.Contains(text, "\n"+s.file+"\n") {
 			t.Errorf("kard %v: file lacks %q:\n%s", s.args, s.file, text)
@@ -410,17 +410,17 @@ func TestSeveralPeople(t *testing.T) {
 
 	// Both people see the card as theirs.
 	_, out, _ := kard(t, "list", "working_on", "-C", root)
-	if !strings.Contains(out, "Druckvorlagen  @sam @alex\n") {
+	if !strings.Contains(out, "Print templates  @sam @alex\n") {
 		t.Errorf("list:\n%s", out)
 	}
 	for _, name := range []string{"sam", "alex"} {
 		asUser(t, name)
-		if _, out, _ := kard(t, "list", "working_on", "--mine", "-C", root); !strings.Contains(out, "druckvorlagen") {
+		if _, out, _ := kard(t, "list", "working_on", "--mine", "-C", root); !strings.Contains(out, "print-templates") {
 			t.Errorf("--mine for %s:\n%s", name, out)
 		}
 	}
 	asUser(t, "laura")
-	if _, out, _ := kard(t, "list", "working_on", "--mine", "-C", root); strings.Contains(out, "druckvorlagen") {
+	if _, out, _ := kard(t, "list", "working_on", "--mine", "-C", root); strings.Contains(out, "print-templates") {
 		t.Errorf("--mine for laura:\n%s", out)
 	}
 	if code, out, _ := kard(t, "lint", "-C", root); code != ExitOK {
@@ -433,18 +433,18 @@ func TestWhoYouAreMattersOnlyForAssignedCards(t *testing.T) {
 	root := copyOfExample(t)
 
 	// Nobody's cards can be moved and assigned without any setup.
-	if code, _, errOut := kard(t, "move", "druckvorlagen", "done", "-C", root); code != ExitOK {
+	if code, _, errOut := kard(t, "move", "print-templates", "done", "-C", root); code != ExitOK {
 		t.Errorf("move: code %d, stderr %q", code, errOut)
 	}
-	if code, _, errOut := kard(t, "assign", "offline-modus", "laura", "-C", root); code != ExitOK {
+	if code, _, errOut := kard(t, "assign", "offline-mode", "laura", "-C", root); code != ExitOK {
 		t.Errorf("assign: code %d, stderr %q", code, errOut)
 	}
 	// An assigned card and `take` need to know who is asking.
-	code, _, errOut := kard(t, "done", "login-fehler-bei-umlauten", "-C", root)
+	code, _, errOut := kard(t, "done", "login-fails-with-umlauts", "-C", root)
 	if code != ExitUsage || !strings.Contains(errOut, "must know who you are") || !strings.Contains(errOut, "does not know who you are") {
 		t.Errorf("done: code %d, stderr %q", code, errOut)
 	}
-	code, _, errOut = kard(t, "take", "projekt-aufsetzen", "-C", root)
+	code, _, errOut = kard(t, "take", "set-up-project", "-C", root)
 	if code != ExitUsage || !strings.Contains(errOut, "does not know who you are") {
 		t.Errorf("take: code %d, stderr %q", code, errOut)
 	}
@@ -743,18 +743,18 @@ func TestPushBoard(t *testing.T) {
 	}
 	alex, sam := clone("alex"), clone("sam")
 
-	code, out, errOut := kard(t, "take", "druckvorlagen", "-C", alex, "--force")
+	code, out, errOut := kard(t, "take", "print-templates", "-C", alex, "--force")
 	if code != ExitOK || !strings.Contains(out, "backlog -> working_on") || !strings.HasSuffix(out, ", pushed)\n") {
 		t.Fatalf("take: code %d, out %q, err %q", code, out, errOut)
 	}
 
 	// Sam's command pulls first, so it sees that the card is Alex's.
 	t.Setenv("KARDBOARD_USER", "sam")
-	code, _, errOut = kard(t, "done", "druckvorlagen", "-C", sam)
+	code, _, errOut = kard(t, "done", "print-templates", "-C", sam)
 	if code != ExitViolation || !strings.Contains(errOut, "assigned to alex") {
 		t.Errorf("done: code %d, err %q", code, errOut)
 	}
-	if !isFile(sam, "working_on/druckvorlagen.md") {
+	if !isFile(sam, "working_on/print-templates.md") {
 		t.Error("sam did not get alex's change")
 	}
 
@@ -770,8 +770,8 @@ func TestPushBoard(t *testing.T) {
 
 	// Without the remote the change stays here, and kard says so.
 	gitIn(t, sam, "remote", "set-url", "origin", filepath.Join(t.TempDir(), "gone.git"))
-	code, _, errOut = kard(t, "move", "offline-modus", "backlog", "-C", sam, "--force")
-	if code != ExitUsage || !strings.Contains(errOut, "nothing was changed") || !isFile(sam, "planning/offline-modus.md") {
+	code, _, errOut = kard(t, "move", "offline-mode", "backlog", "-C", sam, "--force")
+	if code != ExitUsage || !strings.Contains(errOut, "nothing was changed") || !isFile(sam, "planning/offline-mode.md") {
 		t.Errorf("move: code %d, err %q", code, errOut)
 	}
 }
@@ -910,46 +910,46 @@ func editorWrites(t *testing.T, text string) {
 func TestEditCommand(t *testing.T) {
 	asUser(t, "alex")
 	root := syncRepo(t, "commit")
-	before := readFile(t, root, "backlog/druckvorlagen.md")
+	before := readFile(t, root, "backlog/print-templates.md")
 
 	// The editor closes without a change: nothing happens.
 	t.Setenv("VISUAL", "true")
-	code, out, errOut := kard(t, "edit", "druckvorlagen", "-C", root)
-	if code != ExitOK || out != "druckvorlagen: nothing to change\n" {
+	code, out, errOut := kard(t, "edit", "print-templates", "-C", root)
+	if code != ExitOK || out != "print-templates: nothing to change\n" {
 		t.Fatalf("unchanged: code %d, out %q, err %q", code, out, errOut)
 	}
 
 	// Text and a field changed in the editor: one commit "edit".
 	edited := strings.Replace(before, "size: S", "size: M", 1) + "\nDazu ein Satz.\n"
 	editorWrites(t, edited)
-	code, out, errOut = kard(t, "edit", "druckvorlagen", "-C", root)
-	if code != ExitOK || !strings.HasPrefix(out, "druckvorlagen: size = M, text changed  (commit ") {
+	code, out, errOut = kard(t, "edit", "print-templates", "-C", root)
+	if code != ExitOK || !strings.HasPrefix(out, "print-templates: size = M, text changed  (commit ") {
 		t.Fatalf("edit: code %d, out %q, err %q", code, out, errOut)
 	}
-	if got := readFile(t, root, "backlog/druckvorlagen.md"); got != edited {
+	if got := readFile(t, root, "backlog/print-templates.md"); got != edited {
 		t.Errorf("file = %q", got)
 	}
-	if got := gitIn(t, root, "log", "-1", "--format=%s"); got != "edit druckvorlagen" {
+	if got := gitIn(t, root, "log", "-1", "--format=%s"); got != "edit print-templates" {
 		t.Errorf("commit = %q", got)
 	}
 
 	// A card the editor breaks is not saved, and the text is kept.
-	editorWrites(t, "---\nsize: [\n---\n\n# Druckvorlagen\n")
-	code, _, errOut = kard(t, "edit", "druckvorlagen", "-C", root)
+	editorWrites(t, "---\nsize: [\n---\n\n# Print templates\n")
+	code, _, errOut = kard(t, "edit", "print-templates", "-C", root)
 	if code == ExitOK || !strings.Contains(errOut, "would have errors") || !strings.Contains(errOut, "your text is in ") {
 		t.Errorf("broken: code %d, err %q", code, errOut)
 	}
-	if readFile(t, root, "backlog/druckvorlagen.md") != edited {
+	if readFile(t, root, "backlog/print-templates.md") != edited {
 		t.Error("broken text was saved")
 	}
 
 	// A card with changes that are not committed is refused before the
 	// editor opens.
-	if err := os.WriteFile(filepath.Join(root, "backlog", "druckvorlagen.md"), []byte(edited+"x\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "backlog", "print-templates.md"), []byte(edited+"x\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("EDITOR", "false")
-	code, _, errOut = kard(t, "edit", "druckvorlagen", "-C", root)
+	code, _, errOut = kard(t, "edit", "print-templates", "-C", root)
 	if code == ExitOK || !strings.Contains(errOut, "not committed") {
 		t.Errorf("dirty: code %d, err %q", code, errOut)
 	}
@@ -959,22 +959,22 @@ func TestRenameCommand(t *testing.T) {
 	asUser(t, "alex")
 	root := syncRepo(t, "commit")
 
-	code, out, errOut := kard(t, "rename", "druckvorlagen", "print-templates", "-C", root)
-	if code != ExitOK || !strings.HasPrefix(out, "backlog/druckvorlagen.md -> backlog/print-templates.md  (commit ") ||
-		!strings.Contains(out, "references updated in backlog/export-als-pdf.md") {
+	code, out, errOut := kard(t, "rename", "print-templates", "pdf-templates", "-C", root)
+	if code != ExitOK || !strings.HasPrefix(out, "backlog/print-templates.md -> backlog/pdf-templates.md  (commit ") ||
+		!strings.Contains(out, "references updated in backlog/export-as-pdf.md") {
 		t.Fatalf("rename: code %d, out %q, err %q", code, out, errOut)
 	}
-	if isFile(root, "backlog/druckvorlagen.md") || !isFile(root, "backlog/print-templates.md") {
+	if isFile(root, "backlog/print-templates.md") || !isFile(root, "backlog/pdf-templates.md") {
 		t.Error("file was not renamed")
 	}
-	if got := readFile(t, root, "backlog/export-als-pdf.md"); !strings.Contains(got, "depends_on: [print-templates]") {
+	if got := readFile(t, root, "backlog/export-as-pdf.md"); !strings.Contains(got, "depends_on: [pdf-templates]") {
 		t.Errorf("reference not updated:\n%s", got)
 	}
 	// One commit with the card and the reference, nothing left over.
-	if got := gitIn(t, root, "log", "-1", "--format=%s"); got != "rename druckvorlagen -> print-templates" {
+	if got := gitIn(t, root, "log", "-1", "--format=%s"); got != "rename print-templates -> pdf-templates" {
 		t.Errorf("commit = %q", got)
 	}
-	if got := gitIn(t, root, "show", "--name-only", "--no-renames", "--format=", "HEAD"); got != "backlog/druckvorlagen.md\nbacklog/export-als-pdf.md\nbacklog/print-templates.md" {
+	if got := gitIn(t, root, "show", "--name-only", "--no-renames", "--format=", "HEAD"); got != "backlog/export-as-pdf.md\nbacklog/pdf-templates.md\nbacklog/print-templates.md" {
 		t.Errorf("files in the commit = %q", got)
 	}
 	if got := gitIn(t, root, "status", "--porcelain"); got != "" {
@@ -986,12 +986,12 @@ func TestRenameCommand(t *testing.T) {
 	}
 
 	// A referring card with changes that are not committed stops it.
-	path := filepath.Join(root, "backlog", "export-als-pdf.md")
-	if err := os.WriteFile(path, []byte(readFile(t, root, "backlog/export-als-pdf.md")+"x\n"), 0o644); err != nil {
+	path := filepath.Join(root, "backlog", "export-as-pdf.md")
+	if err := os.WriteFile(path, []byte(readFile(t, root, "backlog/export-as-pdf.md")+"x\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	code, _, errOut = kard(t, "rename", "print-templates", "druck", "-C", root)
-	if code == ExitOK || !strings.Contains(errOut, "not committed") || !isFile(root, "backlog/print-templates.md") {
+	code, _, errOut = kard(t, "rename", "pdf-templates", "print", "-C", root)
+	if code == ExitOK || !strings.Contains(errOut, "not committed") || !isFile(root, "backlog/pdf-templates.md") {
 		t.Errorf("dirty reference: code %d, err %q", code, errOut)
 	}
 }
@@ -1077,9 +1077,9 @@ func TestLogCommand(t *testing.T) {
 	asUser(t, "alex")
 	root := syncRepo(t, "commit")
 	for _, args := range [][]string{
-		{"move", "druckvorlagen", "working_on", "--force"},
-		{"rename", "druckvorlagen", "print-templates"},
-		{"set", "print-templates", "size=M"},
+		{"move", "print-templates", "working_on", "--force"},
+		{"rename", "print-templates", "pdf-templates"},
+		{"set", "pdf-templates", "size=M"},
 	} {
 		if code, _, errOut := kard(t, append(args, "-C", root)...); code != ExitOK {
 			t.Fatalf("%v: %s", args, errOut)
@@ -1096,15 +1096,15 @@ func TestLogCommand(t *testing.T) {
 		what = append(what, strings.Join(fields[4:], " "))
 	}
 	if code != ExitOK || len(lines) != 4 ||
-		what[0] != "edited print-templates" ||
-		what[1] != "edited export-als-pdf; renamed druckvorlagen -> print-templates" ||
-		what[2] != "druckvorlagen: backlog -> working_on" ||
+		what[0] != "edited pdf-templates" ||
+		what[1] != "edited export-as-pdf; renamed print-templates -> pdf-templates" ||
+		what[2] != "print-templates: backlog -> working_on" ||
 		!strings.HasPrefix(what[3], "new ") || !strings.HasSuffix(what[3], "and 2 more; 1 other file") {
 		t.Errorf("log: code %d, err %q, out\n%s", code, errOut, out)
 	}
 
 	// One card, followed through its move and its rename.
-	code, out, _ = kard(t, "log", "print-templates", "-C", root)
+	code, out, _ = kard(t, "log", "pdf-templates", "-C", root)
 	if n := strings.Count(out, "\n"); code != ExitOK || n != 4 {
 		t.Errorf("log of a card: code %d, %d lines\n%s", code, n, out)
 	}
@@ -1118,7 +1118,7 @@ func TestLogCommand(t *testing.T) {
 			Subject string `json:"subject"`
 		} `json:"entries"`
 	}
-	if code != ExitOK || json.Unmarshal([]byte(out), &log) != nil || !log.Available || log.Entries[0].Subject != "edit print-templates" {
+	if code != ExitOK || json.Unmarshal([]byte(out), &log) != nil || !log.Available || log.Entries[0].Subject != "edit pdf-templates" {
 		t.Errorf("--json: code %d, out %s", code, out)
 	}
 
@@ -1255,7 +1255,7 @@ func TestAgentFriendlyCalls(t *testing.T) {
 	}
 
 	// A refusal says that --force helps.
-	code, _, errOut = kard(t, "done", "export-als-pdf", "--json", "-C", root)
+	code, _, errOut = kard(t, "done", "export-as-pdf", "--json", "-C", root)
 	if code != ExitViolation || json.Unmarshal([]byte(errOut), &failure) != nil || failure.Kind != "refused" || !failure.Force {
 		t.Errorf("refused: code %d, err %q", code, errOut)
 	}
@@ -1274,20 +1274,20 @@ func TestAssignFindsPeopleByTheBeginningOfTheirName(t *testing.T) {
 	root := copyOfExample(t)
 
 	// sam is on a card already, so "sa" means sam.
-	if code, _, errOut := kard(t, "assign", "druckvorlagen", "sa", "-C", root); code != ExitOK {
+	if code, _, errOut := kard(t, "assign", "print-templates", "sa", "-C", root); code != ExitOK {
 		t.Fatalf("assign sa: code %d, %s", code, errOut)
 	}
-	if got := readFile(t, root, "backlog/druckvorlagen.md"); !strings.Contains(got, "assignee: sam\n") {
+	if got := readFile(t, root, "backlog/print-templates.md"); !strings.Contains(got, "assignee: sam\n") {
 		t.Errorf("card = %q", got)
 	}
 	// A new person is taken as given; now "sa" fits two.
-	if code, _, errOut := kard(t, "assign", "offline-modus", "Sabine@Example.org", "-C", root); code != ExitOK {
+	if code, _, errOut := kard(t, "assign", "offline-mode", "Sabine@Example.org", "-C", root); code != ExitOK {
 		t.Fatalf("assign sabine: code %d, %s", code, errOut)
 	}
-	if got := readFile(t, root, "planning/offline-modus.md"); !strings.Contains(got, "assignee: sabine@example.org\n") {
+	if got := readFile(t, root, "planning/offline-mode.md"); !strings.Contains(got, "assignee: sabine@example.org\n") {
 		t.Errorf("addresses are written in lower case: %q", got)
 	}
-	code, _, errOut := kard(t, "assign", "druckvorlagen", "sa", "--json", "-C", root)
+	code, _, errOut := kard(t, "assign", "print-templates", "sa", "--json", "-C", root)
 	var res struct {
 		Kind       string
 		Candidates []struct{ ID string }
@@ -1319,10 +1319,10 @@ func TestWhoami(t *testing.T) {
 		t.Errorf("code %d, %+v", code, id)
 	}
 	// The name is now the user's on this board: their card can be taken.
-	if code, _, errOut := kard(t, "take", "offline-modus", "--force", "-C", root); code != ExitOK {
+	if code, _, errOut := kard(t, "take", "offline-mode", "--force", "-C", root); code != ExitOK {
 		t.Errorf("take: code %d, %s", code, errOut)
 	}
-	if code, out, _ := kard(t, "list", "--mine", "-C", root); code != ExitOK || !strings.Contains(out, "offline-modus") {
+	if code, out, _ := kard(t, "list", "--mine", "-C", root); code != ExitOK || !strings.Contains(out, "offline-mode") {
 		t.Errorf("--mine: code %d\n%s", code, out)
 	}
 }

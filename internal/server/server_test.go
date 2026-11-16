@@ -147,29 +147,29 @@ func TestStateOfOneBoard(t *testing.T) {
 		t.Fatalf("got %d boards", len(st.Boards))
 	}
 	b := st.Boards[0]
-	if b.ID != "demo" || b.Name != "Demo-Projekt" || b.Source != "here" || b.Key != root || b.Error != "" || b.Sync != "none" {
+	if b.ID != "demo" || b.Name != "Demo project" || b.Source != "here" || b.Key != root || b.Error != "" || b.Sync != "none" {
 		t.Errorf("board = %+v", b)
 	}
 	if len(b.Columns) != 4 || b.Columns[2].ID != "working_on" || !b.Columns[2].Doing || b.Columns[2].Limit != 3 ||
-		b.Columns[2].Title != "In Arbeit" || !b.Columns[3].Done {
+		b.Columns[2].Title != "In progress" || !b.Columns[3].Done {
 		t.Errorf("columns = %+v", b.Columns)
 	}
-	if len(b.Fields) == 0 || b.Fields[0].Name != "assignee" || b.Fields[0].Type != "person" || b.Fields[1].Title != "Größe" {
+	if len(b.Fields) == 0 || b.Fields[0].Name != "assignee" || b.Fields[0].Type != "person" || b.Fields[1].Title != "Size" {
 		t.Errorf("fields = %+v", b.Fields)
 	}
 	if len(b.Cards) != 5 || b.Errors != 0 || b.Warnings != 0 {
 		t.Fatalf("%d cards, %d errors, %d warnings", len(b.Cards), b.Errors, b.Warnings)
 	}
 	for _, c := range b.Cards {
-		if c.ID == "export-als-pdf" {
+		if c.ID == "export-as-pdf" {
 			who, _ := c.Fields["assignee"].([]any)
-			if c.Column != "backlog" || c.Title != "Export als PDF" || len(who) != 1 || who[0] != "sam" {
+			if c.Column != "backlog" || c.Title != "Export as PDF" || len(who) != 1 || who[0] != "sam" {
 				t.Errorf("card = %+v", c)
 			}
 			return
 		}
 	}
-	t.Error("card export-als-pdf is missing")
+	t.Error("card export-as-pdf is missing")
 }
 
 func TestStateShowsBrokenBoardsAndCards(t *testing.T) {
@@ -253,7 +253,7 @@ func TestCard(t *testing.T) {
 	settings(t, "")
 	s := New(copyOfExample(t))
 
-	rec := get(t, s, "/api/card?board=demo&id=export-als-pdf")
+	rec := get(t, s, "/api/card?board=demo&id=export-as-pdf")
 	var card struct {
 		Board, ID, Title, Body string
 		Fields                 map[string]any
@@ -261,8 +261,8 @@ func TestCard(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &card); err != nil {
 		t.Fatalf("%v\n%s", err, rec.Body)
 	}
-	if card.Board != "demo" || card.ID != "export-als-pdf" || card.Fields["size"] != "M" ||
-		!strings.Contains(card.Body, "# Export als PDF") || !strings.Contains(card.Body, "## Fertig, wenn") {
+	if card.Board != "demo" || card.ID != "export-as-pdf" || card.Fields["size"] != "M" ||
+		!strings.Contains(card.Body, "# Export as PDF") || !strings.Contains(card.Body, "## Done when") {
 		t.Errorf("card = %+v", card)
 	}
 
@@ -496,26 +496,26 @@ func TestActions(t *testing.T) {
 		want   string // part of the response
 		file   string // a file that must exist afterwards
 	}{
-		{`{"board":"demo","card":"druckvorlagen","action":"take"}`, 200, `"to":"working_on"`, "working_on/druckvorlagen.md"},
-		{`{"board":"demo","card":"druckvorlagen","action":"take"}`, 200, `"moved":false`, "working_on/druckvorlagen.md"},
-		{`{"board":"demo","card":"druckvorlagen","action":"assign","people":["alex"],"add":true}`, 200, `"assignee":["sam","alex"]`, ""},
-		{`{"board":"demo","card":"druckvorlagen","action":"unassign","people":["sam"]}`, 200, `"assignee":["alex"]`, ""},
+		{`{"board":"demo","card":"print-templates","action":"take"}`, 200, `"to":"working_on"`, "working_on/print-templates.md"},
+		{`{"board":"demo","card":"print-templates","action":"take"}`, 200, `"moved":false`, "working_on/print-templates.md"},
+		{`{"board":"demo","card":"print-templates","action":"assign","people":["alex"],"add":true}`, 200, `"assignee":["sam","alex"]`, ""},
+		{`{"board":"demo","card":"print-templates","action":"unassign","people":["sam"]}`, 200, `"assignee":["alex"]`, ""},
 		// now it is alex's card: sam is refused, and may force it
-		{`{"board":"demo","card":"druckvorlagen","action":"done"}`, 409, `"refused":true`, "working_on/druckvorlagen.md"},
-		{`{"board":"demo","card":"druckvorlagen","action":"done","force":true}`, 200, `"to":"done"`, "done/druckvorlagen.md"},
-		{`{"board":"demo","card":"offline-modus","action":"move","column":"backlog"}`, 409, "would lack size", "planning/offline-modus.md"},
-		{`{"board":"demo","card":"offline-modus","action":"set","set":["size=S","tags=ui"]}`, 200, `"size":"S"`, ""},
+		{`{"board":"demo","card":"print-templates","action":"done"}`, 409, `"refused":true`, "working_on/print-templates.md"},
+		{`{"board":"demo","card":"print-templates","action":"done","force":true}`, 200, `"to":"done"`, "done/print-templates.md"},
+		{`{"board":"demo","card":"offline-mode","action":"move","column":"backlog"}`, 409, "would lack size", "planning/offline-mode.md"},
+		{`{"board":"demo","card":"offline-mode","action":"set","set":["size=S","tags=ui"]}`, 200, `"size":"S"`, ""},
 		// a text read before the file changed is not saved; one without a base is
-		{`{"board":"demo","card":"offline-modus","action":"set","text":{"title":"Offline-Modus","body":"Neu."},"base":"0123"}`, 409, "changed since it was opened", ""},
-		{`{"board":"demo","card":"offline-modus","action":"set","text":{"title":"Offline-Modus","body":"Neu."}}`, 200, `"text":true`, ""},
-		{`{"board":"demo","card":"offline-modus","action":"move","column":"backlog"}`, 200, `"to":"backlog"`, "backlog/offline-modus.md"},
+		{`{"board":"demo","card":"offline-mode","action":"set","text":{"title":"Offline mode","body":"Neu."},"base":"0123"}`, 409, "changed since it was opened", ""},
+		{`{"board":"demo","card":"offline-mode","action":"set","text":{"title":"Offline mode","body":"Neu."}}`, 200, `"text":true`, ""},
+		{`{"board":"demo","card":"offline-mode","action":"move","column":"backlog"}`, 200, `"to":"backlog"`, "backlog/offline-mode.md"},
 
-		{`{"board":"demo","card":"offline-modus","action":"move"}`, 400, "move needs a column", ""},
-		{`{"board":"demo","card":"offline-modus","action":"move","column":"nope"}`, 400, "no column", ""},
-		{`{"board":"demo","card":"offline-modus","action":"set","set":["size=XXL"]}`, 400, "size: must be one of", ""},
-		{`{"board":"demo","card":"offline-modus","action":"set"}`, 400, "set needs", ""},
-		{`{"board":"demo","card":"offline-modus","action":"assign"}`, 400, "no person named", ""},
-		{`{"board":"demo","card":"offline-modus","action":"delete"}`, 400, "unknown action", ""},
+		{`{"board":"demo","card":"offline-mode","action":"move"}`, 400, "move needs a column", ""},
+		{`{"board":"demo","card":"offline-mode","action":"move","column":"nope"}`, 400, "no column", ""},
+		{`{"board":"demo","card":"offline-mode","action":"set","set":["size=XXL"]}`, 400, "size: must be one of", ""},
+		{`{"board":"demo","card":"offline-mode","action":"set"}`, 400, "set needs", ""},
+		{`{"board":"demo","card":"offline-mode","action":"assign"}`, 400, "no person named", ""},
+		{`{"board":"demo","card":"offline-mode","action":"delete"}`, 400, "unknown action", ""},
 		{`{"board":"demo","card":"nope","action":"done"}`, 400, "no card", ""},
 		{`{"board":"nope","card":"x","action":"done"}`, 404, "no board", ""},
 		{`{"board":"demo","card":"x","action":"done","extra":1}`, 400, "cannot read the request", ""},
@@ -531,10 +531,10 @@ func TestActions(t *testing.T) {
 		}
 	}
 
-	if got, want := readFile(t, root, "done/druckvorlagen.md"), "assignee: alex\n"; !strings.Contains(got, want) {
+	if got, want := readFile(t, root, "done/print-templates.md"), "assignee: alex\n"; !strings.Contains(got, want) {
 		t.Errorf("file = %q", got)
 	}
-	if got := readFile(t, root, "backlog/offline-modus.md"); !strings.HasSuffix(got, "# Offline-Modus\n\nNeu.\n") {
+	if got := readFile(t, root, "backlog/offline-mode.md"); !strings.HasSuffix(got, "# Offline mode\n\nNeu.\n") {
 		t.Errorf("text = %q", got)
 	}
 	// Everything the page did leaves a valid board.
@@ -549,19 +549,19 @@ func TestActionsNeedTheUserOnlyWhenItMatters(t *testing.T) {
 	s := New(root)
 
 	// Nobody's card moves without kard knowing who asks.
-	if rec := post(t, s, `{"board":"demo","card":"druckvorlagen","action":"move","column":"done"}`, nil); rec.Code != 200 {
+	if rec := post(t, s, `{"board":"demo","card":"print-templates","action":"move","column":"done"}`, nil); rec.Code != 200 {
 		t.Errorf("move: status %d, %s", rec.Code, rec.Body)
 	}
 	for body, want := range map[string]string{
-		`{"board":"demo","card":"offline-modus","action":"take"}`:             "does not know who you are",
-		`{"board":"demo","card":"login-fehler-bei-umlauten","action":"done"}`: "must know who you are",
+		`{"board":"demo","card":"offline-mode","action":"take"}`:             "does not know who you are",
+		`{"board":"demo","card":"login-fails-with-umlauts","action":"done"}`: "must know who you are",
 	} {
 		rec := post(t, s, body, nil)
 		if rec.Code != 400 || !strings.Contains(rec.Body.String(), want) {
 			t.Errorf("%s: status %d, body %s", body, rec.Code, rec.Body)
 		}
 	}
-	if !isFile(root, "working_on/login-fehler-bei-umlauten.md") || !isFile(root, "planning/offline-modus.md") {
+	if !isFile(root, "working_on/login-fails-with-umlauts.md") || !isFile(root, "planning/offline-mode.md") {
 		t.Error("a rejected action changed the board")
 	}
 }
@@ -610,8 +610,8 @@ func TestSyncBoardOutsideARepositoryIsReadOnly(t *testing.T) {
 	if b.Writable || b.Sync != "commit" || b.Git == nil || !strings.Contains(b.Git.Error, "not in a Git repository") {
 		t.Errorf("board = writable %v, sync %q, git %+v", b.Writable, b.Sync, b.Git)
 	}
-	rec := post(t, s, `{"board":"demo","card":"druckvorlagen","action":"move","column":"done"}`, nil)
-	if rec.Code != 400 || !strings.Contains(rec.Body.String(), "not in a Git repository") || !isFile(root, "backlog/druckvorlagen.md") {
+	rec := post(t, s, `{"board":"demo","card":"print-templates","action":"move","column":"done"}`, nil)
+	if rec.Code != 400 || !strings.Contains(rec.Body.String(), "not in a Git repository") || !isFile(root, "backlog/print-templates.md") {
 		t.Errorf("status %d, body %s", rec.Code, rec.Body)
 	}
 }
@@ -625,7 +625,7 @@ func TestActionOnACommitBoardMakesACommit(t *testing.T) {
 	if b := getState(t, s, "").Boards[0]; !b.Writable || b.Git == nil || b.Git.Branch != "main" || b.Git.Error != "" {
 		t.Fatalf("board = writable %v, git %+v", b.Writable, b.Git)
 	}
-	rec := post(t, s, `{"board":"demo","card":"druckvorlagen","action":"move","column":"done","force":true}`, nil)
+	rec := post(t, s, `{"board":"demo","card":"print-templates","action":"move","column":"done","force":true}`, nil)
 	var res struct {
 		Moved           bool
 		Commit, Warning string
@@ -633,16 +633,16 @@ func TestActionOnACommitBoardMakesACommit(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil || rec.Code != 200 || !res.Moved || res.Commit == "" || res.Warning != "" {
 		t.Fatalf("status %d, body %s", rec.Code, rec.Body)
 	}
-	if got := git(t, root, "log", "-1", "--format=%s"); got != "move druckvorlagen: backlog -> done" {
+	if got := git(t, root, "log", "-1", "--format=%s"); got != "move print-templates: backlog -> done" {
 		t.Errorf("subject = %q", got)
 	}
 
 	// A card with changes that are not committed is listed and left alone.
-	writeFile(t, filepath.Join(root, "planning", "offline-modus.md"), readFile(t, root, "planning/offline-modus.md")+"\nmehr\n")
-	if b := getState(t, s, "").Boards[0]; len(b.Git.Dirty) != 1 || b.Git.Dirty[0] != "offline-modus" {
+	writeFile(t, filepath.Join(root, "planning", "offline-mode.md"), readFile(t, root, "planning/offline-mode.md")+"\nmehr\n")
+	if b := getState(t, s, "").Boards[0]; len(b.Git.Dirty) != 1 || b.Git.Dirty[0] != "offline-mode" {
 		t.Errorf("dirty = %v", b.Git.Dirty)
 	}
-	rec = post(t, s, `{"board":"demo","card":"offline-modus","action":"move","column":"done","force":true}`, nil)
+	rec = post(t, s, `{"board":"demo","card":"offline-mode","action":"move","column":"done","force":true}`, nil)
 	if rec.Code != 400 || !strings.Contains(rec.Body.String(), "not committed") {
 		t.Errorf("status %d, body %s", rec.Code, rec.Body)
 	}
@@ -669,18 +669,18 @@ func TestPushBoardFollowsItsRemote(t *testing.T) {
 	s := New(mine)
 
 	// An action is pushed.
-	rec := post(t, s, `{"board":"demo","card":"druckvorlagen","action":"move","column":"done","force":true}`, nil)
+	rec := post(t, s, `{"board":"demo","card":"print-templates","action":"move","column":"done","force":true}`, nil)
 	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `"pushed":true`) {
 		t.Fatalf("status %d, body %s", rec.Code, rec.Body)
 	}
-	if got := git(t, remote, "log", "-1", "--format=%s"); got != "move druckvorlagen: backlog -> done" {
+	if got := git(t, remote, "log", "-1", "--format=%s"); got != "move print-templates: backlog -> done" {
 		t.Errorf("remote subject = %q", got)
 	}
 
 	// Someone else pushes. The page learns of it with the next fetch and
 	// gets it with a sync.
 	git(t, theirs, "pull", "-q", "--rebase")
-	git(t, theirs, "mv", "planning/offline-modus.md", "backlog/offline-modus.md")
+	git(t, theirs, "mv", "planning/offline-mode.md", "backlog/offline-mode.md")
 	git(t, theirs, "commit", "-q", "-m", "theirs")
 	git(t, theirs, "push", "-q")
 
@@ -692,7 +692,7 @@ func TestPushBoardFollowsItsRemote(t *testing.T) {
 		t.Errorf("git = %+v", b.Git)
 	}
 	rec = postTo(t, s, "/api/sync", `{"board":"demo"}`, nil)
-	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `"pulled":1`) || !isFile(mine, "backlog/offline-modus.md") {
+	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `"pulled":1`) || !isFile(mine, "backlog/offline-mode.md") {
 		t.Errorf("status %d, body %s", rec.Code, rec.Body)
 	}
 
@@ -702,8 +702,8 @@ func TestPushBoardFollowsItsRemote(t *testing.T) {
 	if b := getState(t, s, "").Boards[0]; !b.Git.Unreachable {
 		t.Errorf("git = %+v, want unreachable", b.Git)
 	}
-	rec = post(t, s, `{"board":"demo","card":"offline-modus","action":"move","column":"done","force":true}`, nil)
-	if rec.Code != 400 || !strings.Contains(rec.Body.String(), "nothing was changed") || !isFile(mine, "backlog/offline-modus.md") {
+	rec = post(t, s, `{"board":"demo","card":"offline-mode","action":"move","column":"done","force":true}`, nil)
+	if rec.Code != 400 || !strings.Contains(rec.Body.String(), "nothing was changed") || !isFile(mine, "backlog/offline-mode.md") {
 		t.Errorf("status %d, body %s", rec.Code, rec.Body)
 	}
 }
@@ -714,7 +714,7 @@ func TestOtherSitesCannotChangeCards(t *testing.T) {
 	settings(t, "user: sam\n")
 	root := copyOfExample(t)
 	s := New(root)
-	const body = `{"board":"demo","card":"druckvorlagen","action":"move","column":"done"}`
+	const body = `{"board":"demo","card":"print-templates","action":"move","column":"done"}`
 
 	attacks := map[string]func(*http.Request){
 		"another site as origin":           func(r *http.Request) { r.Header.Set("Origin", "https://evil.example") },
@@ -740,7 +740,7 @@ func TestOtherSitesCannotChangeCards(t *testing.T) {
 			t.Errorf("%s: status %d, want 403", name, rec.Code)
 		}
 	}
-	if !isFile(root, "backlog/druckvorlagen.md") {
+	if !isFile(root, "backlog/print-templates.md") {
 		t.Fatal("an attack moved the card")
 	}
 
@@ -761,7 +761,7 @@ func TestOtherSitesCannotChangeCards(t *testing.T) {
 		r.Host = "localhost:4712"
 		r.Header.Set("Origin", "http://localhost:4712")
 	})
-	if rec.Code != http.StatusOK || !isFile(root, "done/druckvorlagen.md") {
+	if rec.Code != http.StatusOK || !isFile(root, "done/print-templates.md") {
 		t.Errorf("own page: status %d, body %s", rec.Code, rec.Body)
 	}
 }
@@ -969,23 +969,23 @@ func TestHistory(t *testing.T) {
 	git("add", "-A")
 	git("commit", "-q", "-m", "Board anlegen")
 	// A move through the page is a rename on disk; the user commits it.
-	if rec := post(t, s, `{"board":"demo","card":"druckvorlagen","action":"move","column":"done"}`, nil); rec.Code != http.StatusOK {
+	if rec := post(t, s, `{"board":"demo","card":"print-templates","action":"move","column":"done"}`, nil); rec.Code != http.StatusOK {
 		t.Fatalf("move: %d %s", rec.Code, rec.Body)
 	}
 	git("add", "-A")
-	git("commit", "-q", "-m", "Druckvorlagen fertig")
+	git("commit", "-q", "-m", "Print templates fertig")
 
 	code, h = read("board=demo")
 	if code != http.StatusOK || !h.Available || h.Branch != "main" || len(h.Entries) != 2 {
 		t.Fatalf("board history: code %d, %+v", code, h)
 	}
 	top := h.Entries[0]
-	if top.Subject != "Druckvorlagen fertig" || top.Author != "Alex Example" || len(top.Changes) != 1 ||
-		top.Changes[0].Kind != "moved" || top.Changes[0].Card != "druckvorlagen" || top.Changes[0].From != "backlog" || top.Changes[0].To != "done" {
+	if top.Subject != "Print templates fertig" || top.Author != "Alex Example" || len(top.Changes) != 1 ||
+		top.Changes[0].Kind != "moved" || top.Changes[0].Card != "print-templates" || top.Changes[0].From != "backlog" || top.Changes[0].To != "done" {
 		t.Errorf("newest entry = %+v", top)
 	}
 
-	code, h = read("board=demo&card=druckvorlagen")
+	code, h = read("board=demo&card=print-templates")
 	if code != http.StatusOK || len(h.Entries) != 2 || h.Entries[1].Changes[0].Kind != "added" {
 		t.Errorf("card history: code %d, %+v", code, h)
 	}

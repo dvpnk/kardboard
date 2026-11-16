@@ -470,9 +470,9 @@ assignee: [alex.berger@example.com,
     </div>
     <div class="branch">
       <span class="label">Assign · without typing addresses</span>
-<div class="term">kard assign export-als-pdf ort
+<div class="term">kard assign export-as-pdf ort
 <span class="c">assignee = sam.ortmann@example.com</span>
-kard assign export-als-pdf a
+kard assign export-as-pdf a
 <span class="c">kard: "a" fits 2 people:
   alex.berger@example.com (Alex Berger),
   anna@example.com (Anna Lang)</span></div>
@@ -488,29 +488,29 @@ kard assign export-als-pdf a
 <div class="tree" aria-label="File tree of the example board"><span class="d">board/</span>
 ├─ <span class="y">board.yaml</span>       <span class="ig">← makes it a board</span>
 ├─ <span class="d">planning/</span>
-│  └─ <span class="f">offline-modus.md</span>
+│  └─ <span class="f">offline-mode.md</span>
 ├─ <span class="d">backlog/</span>
-│  ├─ <span class="f">export-als-pdf.md</span>
-│  └─ <span class="f">druckvorlagen.md</span>
+│  ├─ <span class="f">export-as-pdf.md</span>
+│  └─ <span class="f">print-templates.md</span>
 ├─ <span class="d">working_on/</span>
-│  └─ <span class="f">login-fehler-…md</span>
+│  └─ <span class="f">login-fails-…md</span>
 ├─ <span class="d">done/</span>
-│  └─ <span class="f">projekt-aufsetzen.md</span>
+│  └─ <span class="f">set-up-project.md</span>
 └─ <span class="ig">reference/  ignored</span></div>
     <div class="eq" aria-hidden="true">⇄</div>
     <div class="board">
       <div class="col"><h4>Planning <span class="n">1</span></h4><span class="path">planning/</span>
-        <div class="card"><div class="t">Offline-Modus</div><div class="meta"><span class="tg">#feature</span></div></div>
+        <div class="card"><div class="t">Offline mode</div><div class="meta"><span class="tg">#feature</span></div></div>
       </div>
       <div class="col"><h4>Backlog <span class="n">2</span></h4><span class="path">backlog/</span>
-        <div class="card"><div class="t">Export als PDF</div><div class="meta"><span class="b v">M</span><span class="b v">release</span><span class="mg" title="sam">SA</span></div></div>
-        <div class="card"><div class="t">Druckvorlagen</div><div class="meta"><span class="b v">S</span></div></div>
+        <div class="card"><div class="t">Export as PDF</div><div class="meta"><span class="b v">M</span><span class="b v">release</span><span class="mg" title="sam">SA</span></div></div>
+        <div class="card"><div class="t">Print templates</div><div class="meta"><span class="b v">S</span></div></div>
       </div>
       <div class="col doing"><h4>In progress <span class="n">1/3</span></h4><span class="path">working_on/</span>
-        <div class="card"><div class="t">Login-Fehler bei Umlauten</div><div class="meta"><span class="b v">S</span><span class="tg">#bug</span><span class="mg me" title="alex">AL</span></div></div>
+        <div class="card"><div class="t">Login fails with umlauts</div><div class="meta"><span class="b v">S</span><span class="tg">#bug</span><span class="mg me" title="alex">AL</span></div></div>
       </div>
       <div class="col"><h4>Done <span class="n">1</span></h4><span class="path">done/</span>
-        <div class="card"><div class="t">Projekt aufsetzen</div><div class="meta"><span class="mg me" title="alex">AL</span></div></div>
+        <div class="card"><div class="t">Set up the project</div><div class="meta"><span class="mg me" title="alex">AL</span></div></div>
       </div>
     </div>
   </div>
@@ -521,20 +521,20 @@ kard assign export-als-pdf a
   <div class="head"><h2>A card, taken apart</h2><p class="sub">Every detail has exactly one place.</p></div>
   <div class="anat">
     <div class="file">
-      <div class="bar"><span class="pin">1</span> board/<mark>backlog</mark>/<mark>export-als-pdf</mark>.md</div>
+      <div class="bar"><span class="pin">1</span> board/<mark>backlog</mark>/<mark>export-as-pdf</mark>.md</div>
 <pre><span class="k">---</span>                 <span class="pin">2</span>
 <span class="k">assignee:</span> sam
 <span class="k">size:</span> M
 <span class="k">milestone:</span> release
 <span class="k">tags:</span> [feature]
 <span class="k">due:</span> 2026-12-01
-<span class="k">depends_on:</span> [druckvorlagen]
+<span class="k">depends_on:</span> [print-templates]
 <span class="k">---</span>
 
-<span class="h"># Export als PDF</span>     <span class="pin">3</span>
+<span class="h"># Export as PDF</span>     <span class="pin">3</span>
 
-Kunden wollen das Board als PDF  <span class="pin">4</span>
-verschicken können …</pre>
+A note can be saved as a PDF.  <span class="pin">4</span>
+The layout comes from …</pre>
     </div>
     <div class="notes">
       <div class="note"><span class="pin">1</span><div><b>Path → column and short name</b><span>The folder <code>backlog</code> is the column, the file name the short name.</span></div></div>
@@ -583,28 +583,28 @@ verschicken können …</pre>
   <div class="head"><h2>Life of a card</h2><p class="sub">What the command does, and what <code>git log</code> says afterwards.</p></div>
   <div class="life">
     <div class="step">
-      <div class="cmd">kard new "Export als PDF"</div>
+      <div class="cmd">kard new "Export as PDF"</div>
       <div class="where">→ <span class="col-chip">backlog</span></div>
-      <div class="mini"><div class="t">Export als PDF</div><div class="meta"><span class="b v">M</span></div></div>
-      <div class="commit">new export-als-pdf</div>
+      <div class="mini"><div class="t">Export as PDF</div><div class="meta"><span class="b v">M</span></div></div>
+      <div class="commit">new export-as-pdf</div>
     </div>
     <div class="step now">
-      <div class="cmd">kard take export-als-pdf</div>
+      <div class="cmd">kard take export-as-pdf</div>
       <div class="where">→ <span class="col-chip">working_on</span></div>
-      <div class="mini"><div class="t">Export als PDF</div><div class="meta"><span class="b v">M</span><span class="mg me" title="alex">AL</span></div></div>
-      <div class="commit">move export-als-pdf: backlog -&gt; working_on<br>assign export-als-pdf: alex</div>
+      <div class="mini"><div class="t">Export as PDF</div><div class="meta"><span class="b v">M</span><span class="mg me" title="alex">AL</span></div></div>
+      <div class="commit">move export-as-pdf: backlog -&gt; working_on<br>assign export-as-pdf: alex</div>
     </div>
     <div class="step">
       <div class="cmd">kard assign … sam --add</div>
       <div class="where">stays <span class="col-chip">working_on</span></div>
-      <div class="mini"><div class="t">Export als PDF</div><div class="meta"><span class="b v">M</span><span class="mg me" title="alex">AL</span><span class="mg" title="sam">SA</span></div></div>
-      <div class="commit">assign export-als-pdf: alex, sam</div>
+      <div class="mini"><div class="t">Export as PDF</div><div class="meta"><span class="b v">M</span><span class="mg me" title="alex">AL</span><span class="mg" title="sam">SA</span></div></div>
+      <div class="commit">assign export-as-pdf: alex, sam</div>
     </div>
     <div class="step">
-      <div class="cmd">kard done export-als-pdf</div>
+      <div class="cmd">kard done export-as-pdf</div>
       <div class="where">→ <span class="col-chip">done</span></div>
-      <div class="mini"><div class="t">Export als PDF</div><div class="meta"><span class="b v">M</span><span class="mg me" title="alex">AL</span><span class="mg" title="sam">SA</span></div></div>
-      <div class="commit">move export-als-pdf: working_on -&gt; done</div>
+      <div class="mini"><div class="t">Export as PDF</div><div class="meta"><span class="b v">M</span><span class="mg me" title="alex">AL</span><span class="mg" title="sam">SA</span></div></div>
+      <div class="commit">move export-as-pdf: working_on -&gt; done</div>
     </div>
   </div>
 </section>
@@ -673,16 +673,16 @@ scan:    ← kard scan ~/Repos</div>
     <div class="arrow">→</div>
     <div class="merged">
       <div class="col"><h4>Open <span class="n">3</span></h4>
-        <div class="card"><div class="t"><span class="sq" style="background:var(--p1)"></span>Export als PDF</div></div>
+        <div class="card"><div class="t"><span class="sq" style="background:var(--p1)"></span>Export as PDF</div></div>
         <div class="card"><div class="t"><span class="sq" style="background:var(--p2)"></span>Invoice run</div></div>
         <div class="card"><div class="t"><span class="sq" style="background:var(--p3)"></span>Reading list</div></div>
       </div>
       <div class="col doing"><h4>In progress <span class="n">2</span></h4>
-        <div class="card"><div class="t"><span class="sq" style="background:var(--p1)"></span>Login-Fehler</div></div>
+        <div class="card"><div class="t"><span class="sq" style="background:var(--p1)"></span>Login fails</div></div>
         <div class="card"><div class="t"><span class="sq" style="background:var(--p2)"></span>API limits</div></div>
       </div>
       <div class="col"><h4>Done <span class="n">1</span></h4>
-        <div class="card"><div class="t"><span class="sq" style="background:var(--p1)"></span>Projekt aufsetzen</div></div>
+        <div class="card"><div class="t"><span class="sq" style="background:var(--p1)"></span>Set up the project</div></div>
       </div>
     </div>
   </div>

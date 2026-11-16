@@ -477,7 +477,7 @@ func (a *app) newCmd() *cobra.Command {
 		Use:   "new <title>",
 		Short: "Create a card",
 		Example: `  kard new "Dunkles Design" -c backlog --set size=M --set tags=feature,ui
-  kard new "Export als PDF" --text notes.md
+  kard new "Export as PDF" --text notes.md
   echo "Was zu tun ist." | kard new "Login prüfen" --text -`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {

@@ -72,14 +72,14 @@ short names easily clash with other tools.
 ```
 
 ```bash
-./bin/kard show export-als-pdf -C examples/board
+./bin/kard show export-as-pdf -C examples/board
 ```
 
 When a board lives in a Git repository, `kard log` shows which commits
 changed it, and with a card only that card's history:
 
 ```bash
-./bin/kard log export-als-pdf -C examples/board
+./bin/kard log export-as-pdf -C examples/board
 ```
 
 Without `-C`, `kard` looks for the board from the current folder. `--json`
@@ -233,8 +233,8 @@ card at the same time, whoever pushes first wins; the other is told where
 the card is now. `git log` is the board's record:
 
 ```
-move export-als-pdf: backlog -> working_on
-assign export-als-pdf: alex
+move export-as-pdf: backlog -> working_on
+assign export-as-pdf: alex
 ```
 
 What was left behind, for instance without a network, is fetched and sent

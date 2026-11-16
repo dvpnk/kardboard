@@ -99,9 +99,9 @@ func TestExampleBoardIsValid(t *testing.T) {
 		t.Fatalf("got %d cards, want 5", len(b.Cards))
 	}
 
-	c, ok := b.Card("export-als-pdf.md")
+	c, ok := b.Card("export-as-pdf.md")
 	if !ok {
-		t.Fatal("card export-als-pdf not found")
+		t.Fatal("card export-as-pdf not found")
 	}
 	want := map[string]any{
 		"assignee":   []string{"sam"},
@@ -109,21 +109,21 @@ func TestExampleBoardIsValid(t *testing.T) {
 		"milestone":  "release",
 		"tags":       []string{"feature"},
 		"due":        "2026-12-01",
-		"depends_on": []string{"druckvorlagen"},
+		"depends_on": []string{"print-templates"},
 		"created":    "2026-11-11",
 	}
 	if !reflect.DeepEqual(c.Fields, want) {
 		t.Errorf("fields = %#v, want %#v", c.Fields, want)
 	}
-	if c.Title != "Export als PDF" || c.Column != "backlog" || who(c) != "sam" {
+	if c.Title != "Export as PDF" || c.Column != "backlog" || who(c) != "sam" {
 		t.Errorf("card = %+v", c)
 	}
 
-	c, _ = b.Card("login-fehler-bei-umlauten")
-	if who(c) != "alex" || c.Path != "working_on/login-fehler-bei-umlauten.md" {
+	c, _ = b.Card("login-fails-with-umlauts")
+	if who(c) != "alex" || c.Path != "working_on/login-fails-with-umlauts.md" {
 		t.Errorf("assigned card = %+v", c)
 	}
-	if c, _ = b.Card("offline-modus"); who(c) != "" {
+	if c, _ = b.Card("offline-mode"); who(c) != "" {
 		t.Errorf("unassigned card has assignee %q", who(c))
 	}
 }
