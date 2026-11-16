@@ -34,6 +34,13 @@ Verlauf, `sync` und den Namen aus `git config`.
 scripts/dist
 ```
 
+Nur einige Systeme: Jedes Wort wählt die Systeme, deren Name es enthält,
+`mac` steht für macOS.
+
+```bash
+scripts/dist mac windows
+```
+
 Die Version kommt aus Git. Wer einen Stand weitergibt, setzt vorher einen
 Tag, dann sagt `kard version` bei allen dasselbe:
 

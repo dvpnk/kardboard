@@ -1,9 +1,10 @@
 #!/bin/sh
 # Build kard for every system it is handed out for, into dist/.
 #
-#   scripts/dist            all systems
-#   scripts/dist darwin     only those whose name contains "darwin",
-#                           such as darwin-arm64
+#   scripts/dist                  all systems
+#   scripts/dist mac windows      only these; each word picks the systems
+#                                 whose name contains it: mac (or darwin),
+#                                 linux, windows, arm64, linux-amd64, ...
 #
 # Each file is a single program with the web interface inside; it needs no
 # Go and nothing else on the target machine. The version comes from Git:
@@ -12,7 +13,20 @@ set -eu
 cd "$(dirname "$0")/.."
 
 targets="darwin/arm64 darwin/amd64 linux/amd64 linux/arm64 windows/amd64"
-only=${1:-}
+# The words that pick systems; mac and macos stand for darwin.
+only=
+for w in "$@"; do
+	case $w in mac | macos) w=darwin ;; esac
+	only="$only $w"
+done
+
+picked() {
+	[ -z "$only" ] && return 0
+	for w in $only; do
+		case $1 in *"$w"*) return 0 ;; esac
+	done
+	return 1
+}
 
 version=$(git describe --tags --always --dirty 2>/dev/null || echo devel)
 rm -rf dist
@@ -21,7 +35,7 @@ mkdir -p dist
 for t in $targets; do
 	os=${t%/*}
 	arch=${t#*/}
-	case $os-$arch in *"$only"*) ;; *) continue ;; esac
+	picked "$os-$arch" || continue
 	out=dist/kard-$version-$os-$arch
 	[ "$os" = windows ] && out=$out.exe
 	echo "build $out"
@@ -35,7 +49,7 @@ if [ -f "dist/kard-$version-darwin-arm64" ] && [ -f "dist/kard-$version-darwin-a
 fi
 
 if ! ls dist/kard-* >/dev/null 2>&1; then
-	echo "no system matches $only: $targets" >&2
+	echo "no system matches$only; there are: $targets" >&2
 	exit 2
 fi
 (cd dist && shasum -a 256 kard-* > SHA256SUMS)
