@@ -1,68 +1,67 @@
 # kardboard
 
-Ein Board für Karten, die als Markdown-Dateien im Projekt liegen. Das Programm
-läuft einmal auf dem Rechner, erkennt die Boards in den Projekten und zeigt sie
-einzeln oder zusammen.
+A board for cards that live as Markdown files in your project. The program
+runs once on your machine, finds the boards in your projects and shows them
+one by one or together.
 
-**Stand:** früher Entwurf. Das Format steht als Entwurf. Der Befehl `kard` kann
-Boards anlegen, lesen und prüfen, Karten anlegen, verschieben und zuweisen und alle
-Boards des Rechners im Browser zeigen. Dort lassen sich Karten auch ziehen,
-nehmen und zuweisen. Mit `sync: commit` oder `sync: push` in der `board.yaml`
-macht `kard` aus jeder Änderung einen Commit und gleicht das Board mit seinem
-Remote ab.
+**Status:** early draft. The format is a draft. The `kard` command can create,
+read and check boards, create, move and assign cards, and show every board on
+the machine in the browser. There, cards can also be dragged, taken and
+assigned. With `sync: commit` or `sync: push` in `board.yaml`, `kard` turns
+every change into a commit and syncs the board with its remote.
 
-- [Übersicht in Bildern](docs/overview.html), zum Öffnen im Browser
-- [Format und CLI](docs/spec.md)
-- [Beispiel-Board](examples/board)
+- [Visual overview](docs/overview.html), to open in a browser
+- [Format and CLI](docs/spec.md)
+- [Example board](examples/board)
 
-## Bauen und ausprobieren
+## Build and try it
 
-Braucht Go 1.27 oder neuer.
+Needs Go 1.27 or newer.
 
 ```bash
 go build -o bin/kard ./cmd/kard
 ```
 
-Für andere Rechner baut `scripts/dist` alle Systeme auf einmal nach
-`dist/`: macOS (Apple-Chip, Intel und eine Datei für beide), Linux und
-Windows, dazu `SHA256SUMS`. Jede Datei ist das ganze Programm samt
-Oberfläche; auf dem Zielrechner braucht es kein Go und keine Installation,
-nur einen Platz im Pfad, etwa `~/.local/bin`. Git braucht `kard` nur für
-Verlauf, `sync` und den Namen aus `git config`.
+For other machines, `scripts/dist` builds every system at once into `dist/`:
+macOS (Apple silicon, Intel and one file for both), Linux and Windows, plus
+`SHA256SUMS`. Each file is the whole program including the UI; the target
+machine needs no Go and no installation, only a place in the path, such as
+`~/.local/bin`. `kard` needs Git only for history, `sync` and the name from
+`git config`.
 
 ```bash
 scripts/dist
 ```
 
-Nur einige Systeme: Jedes Wort wählt die Systeme, deren Name es enthält,
-`mac` steht für macOS.
+Only some systems: each word picks the systems whose name contains it, and
+`mac` stands for macOS.
 
 ```bash
 scripts/dist mac windows
 ```
 
-Die Version rechnet `scripts/calculate_version.sh` aus den Commits seit dem
-letzten Tag `vX.Y.Z` aus, nach Conventional Commits: `feat:` hebt die
-zweite Stelle, `fix:`, `refactor:` und `build:` die dritte, `feat!:` die
-erste; `docs:` und `chore:` zählen nicht. `scripts/dist` gibt sie dem
-Programm mit, `kard version` nennt sie. Wer einen Stand weitergibt, legt sie
-als Tag fest:
+`scripts/calculate_version.sh` works out the version from the commits since
+the last `vX.Y.Z` tag, following Conventional Commits: `feat:` raises the
+second number, `fix:`, `refactor:` and `build:` the third, `feat!:` the
+first; `docs:` and `chore:` do not count. `scripts/dist` passes it to the
+program, and `kard version` shows it. When you hand out a build, fix the
+version as a tag:
 
 ```bash
 git tag "v$(scripts/calculate_version.sh)" && scripts/dist
 ```
 
-Die Dateien sind nicht signiert. Kommt eine über Browser oder Chat auf einen
-Mac, hält Gatekeeper sie beim ersten Start an; einmal freigeben genügt.
-Windows warnt einmal über SmartScreen.
+The files are not signed. When one reaches a Mac through a browser or a
+chat, Gatekeeper stops it on first launch; allowing it once is enough.
+Windows warns once through SmartScreen.
 
 ```bash
 xattr -d com.apple.quarantine ~/.local/bin/kard
 ```
 
-Der Befehl heißt `kard`. Wer es kürzer mag, legt sich selbst einen Alias an,
-etwa `alias kb=kard`. Eingebaut ist kein Kurzname, weil kurze Namen leicht
-mit anderen Werkzeugen zusammenstoßen.
+The command is called `kard`. If you prefer something shorter, set up an
+alias yourself, such as `alias kb=kard`. No short name is built in, because
+short names easily clash with other tools.
 
 ```bash
 ./bin/kard lint -C examples/board
@@ -76,107 +75,106 @@ mit anderen Werkzeugen zusammenstoßen.
 ./bin/kard show export-als-pdf -C examples/board
 ```
 
-Liegt ein Board in einem Git-Repository, zeigt `kard log`, welche Commits es
-geändert haben, mit einer Karte nur deren Geschichte:
+When a board lives in a Git repository, `kard log` shows which commits
+changed it, and with a card only that card's history:
 
 ```bash
 ./bin/kard log export-als-pdf -C examples/board
 ```
 
-Ohne `-C` sucht `kard` das Board vom aktuellen Ordner aus. `--json` gibt JSON
-aus.
+Without `-C`, `kard` looks for the board from the current folder. `--json`
+prints JSON.
 
-Karten anlegen und ändern, am besten in einer Kopie des Beispiels. Dafür muss
-`kard` im Pfad liegen.
+Create and change cards, best in a copy of the example. For this, `kard`
+must be in your path.
 
 ```bash
 cp -R examples/board /tmp/kard-demo && cd /tmp/kard-demo
 ```
 
-Wer man selbst ist, weiß `kard` meist schon: die Adresse aus
-`git config user.email`, in jedem Repository die dort gültige. Die Karten
-des Beispiels tragen Kürzel, also setzt man den Namen für die Demo selbst:
+`kard` usually knows who you are already: the address from
+`git config user.email`, in each repository the one that applies there. The
+example's cards carry short names, so set the name for the demo yourself:
 
 ```bash
 export KARDBOARD_USER=alex
 ```
 
-`kard whoami` zeigt den Namen und woher er kommt. Einen eigenen Namen für
-ein Projekt legt `kard whoami --set <name>` in `.kard/config.yaml` ab; der
-Ordner ignoriert sich selbst und wird nie committet. Beim Zuweisen reicht
-der Anfang eines Namens oder einer Adresse, die das Board kennt, aus seinen
-Commits oder seinen Karten: `kard assign <karte> sam`.
+`kard whoami` shows the name and where it comes from. `kard whoami --set
+<name>` stores a name of your own for one project in `.kard/config.yaml`;
+the folder ignores itself and is never committed. When assigning, the
+beginning of a name or address the board knows, from its commits or its
+cards, is enough: `kard assign <card> sam`.
 
 ```bash
-kard new "Dunkles Design" -c backlog --set size=M --set tags=feature,ui
+kard new "Dark mode" -c backlog --set size=M --set tags=feature,ui
 ```
 
 ```bash
-kard assign dunkles-design alex
+kard assign dark-mode alex
 ```
 
 ```bash
-kard take dunkles-design
+kard take dark-mode
 ```
 
 ```bash
-kard assign dunkles-design sam --add
+kard assign dark-mode sam --add
 ```
 
 ```bash
-kard done dunkles-design
+kard done dark-mode
 ```
 
-Den Text einer Karte ändert man in jedem Editor. `kard edit` öffnet sie in
-`$VISUAL` oder `$EDITOR` und speichert sie danach wie ein `kard set`: mit
-denselben Regeln und auf Boards mit `sync: commit` oder `push` als ein
-Commit.
+You change a card's text in any editor. `kard edit` opens it in `$VISUAL` or
+`$EDITOR` and saves it afterwards like a `kard set`: with the same rules,
+and on boards with `sync: commit` or `push` as one commit.
 
 ```bash
-kard edit dunkles-design
+kard edit dark-mode
 ```
 
-`kard rename` gibt einer Karte einen neuen Dateinamen und zieht die Verweise
-im Board nach:
+`kard rename` gives a card a new file name and updates the references in
+the board:
 
 ```bash
-kard rename dunkles-design dark-mode
+kard rename dark-mode dark-theme
 ```
 
 ```bash
 kard list --mine
 ```
 
-## Eigenes Board anlegen
+## Create your own board
 
-Im Projekt, in einem neuen Ordner:
+In the project, in a new folder:
 
 ```bash
 kard init board
 ```
 
-Das schreibt eine `board.yaml` mit den Spalten `backlog`, `working_on` und
-`done` und meldet das Board auf dem Rechner an. Gibt es schon Ordner mit
-Markdown-Dateien, werden sie die Spalten; keine Datei wird dabei geändert:
+This writes a `board.yaml` with the columns `backlog`, `working_on` and
+`done` and registers the board on the machine. If there are folders with
+Markdown files already, they become the columns; no file is changed:
 
 ```bash
-kard init ~/Repos/notizen
+kard init ~/Repos/notes
 ```
 
-Was an den vorhandenen Karten noch nicht zum Format passt, zeigt danach
-`kard lint`.
+`kard lint` then shows what about the existing cards does not fit the format
+yet.
 
-Damit auch ein Editor oder ein anderes Werkzeug den Kopf der Karten prüft,
-gibt `kard schema` ein JSON Schema aus der `board.yaml` aus. Mit einer Spalte,
-etwa `kard schema working_on`, verlangt es auch deren Pflichtfelder:
+So that an editor or another tool can check the cards' header too,
+`kard schema` prints a JSON Schema from `board.yaml`. With a column, such as
+`kard schema working_on`, it also requires that column's required fields:
 
 ```bash
 kard schema > card.schema.json
 ```
 
-## Alle Boards im Browser
+## All boards in the browser
 
-Ein Board anmelden, oder gleich einen Ordner mit Projekten durchsuchen lassen:
+Register a board, or have a folder of projects searched right away:
 
 ```bash
 kard add examples/board
@@ -190,8 +188,8 @@ kard scan ~/Repos
 kard boards
 ```
 
-`--all` prüft oder listet alle diese Boards auf einmal, etwa die eigenen
-Karten über alle Projekte:
+`--all` checks or lists all these boards at once, for instance your own
+cards across every project:
 
 ```bash
 kard lint --all
@@ -201,105 +199,106 @@ kard lint --all
 kard list --mine --all
 ```
 
-Dann die Oberfläche starten. Sie öffnet sich im Browser, folgt Änderungen an
-den Dateien und läuft, bis man sie mit Strg+C beendet:
+Then start the UI. It opens in the browser, follows changes to the files and
+runs until you stop it with Ctrl+C:
 
 ```bash
 kard ui
 ```
 
-Karten lassen sich in eine andere Spalte ziehen. Ein Klick auf eine Karte
-öffnet ihren Text und bietet Nehmen, Abschließen, Verschieben und Zuweisen an.
-Der Stift ändert Titel, Felder und Text in einem Schritt, mit Vorschau.
-Jede dieser Handlungen ist der gleichnamige Befehl, mit denselben Regeln.
+Cards can be dragged into another column. A click on a card opens its text
+and offers take, done, move and assign. The pencil changes title, fields and
+text in one step, with a preview. Each of these actions is the command of
+the same name, with the same rules.
 
-Liegt ein Board in einem Git-Repository, zeigt „Verlauf“ oben rechts die
-Commits, die es berührt haben, und jede Karte ihre eigene Geschichte. Dafür
-muss `git` installiert sein.
+When a board lives in a Git repository, "History" at the top right shows the
+commits that touched it, and every card its own history. This needs `git`
+to be installed.
 
-Der Server ist nur vom eigenen Rechner aus erreichbar und nimmt Änderungen nur
-von der eigenen Seite an.
+The server can only be reached from your own machine and accepts changes
+only from its own page.
 
-## Board im Team
+## A board for a team
 
-Liegt das Board in einem eigenen Git-Repository, das mehrere Leute klonen,
-steht in seiner `board.yaml`:
+When the board lives in a Git repository of its own that several people
+clone, its `board.yaml` says:
 
 ```yaml
 sync: push
 ```
 
-Dann holt jeder ändernde Befehl zuerst den Stand der anderen, macht genau
-einen Commit mit der einen Karte und pusht ihn. Bewegen zwei dieselbe Karte
-gleichzeitig, gewinnt, wer zuerst pusht; der andere bekommt gesagt, wo die
-Karte jetzt liegt. `git log` ist das Protokoll des Boards:
+Then every changing command first fetches the others' work, makes exactly
+one commit with that one card and pushes it. If two people move the same
+card at the same time, whoever pushes first wins; the other is told where
+the card is now. `git log` is the board's record:
 
 ```
 move export-als-pdf: backlog -> working_on
 assign export-als-pdf: alex
 ```
 
-Was liegen geblieben ist, etwa ohne Netz, holt und sendet:
+What was left behind, for instance without a network, is fetched and sent
+by:
 
 ```bash
 kard sync
 ```
 
-Mit `sync: commit` committet `kard` nur und pusht nicht. Git darf dabei nicht
-nach einem Passwort fragen; der Schlüssel gehört in den Agenten oder den
-Schlüsselbund.
+With `sync: commit`, `kard` only commits and does not push. Git must not
+ask for a password then; the key belongs in the agent or the keychain.
 
-## Für Skripte und KI-Agenten
+## For scripts and AI agents
 
-`kard` braucht kein Gegenüber. Jeder Befehl erklärt sich mit `--help`, samt
-Beispielen, und gibt mit `--json` JSON aus, auch Fehler: als Objekt auf
-stderr, mit Grund, Art und ob `--force` hilft. Der Rückgabecode ist `0` bei
-Erfolg, `1` bei einer Regel, die ablehnt, `2` bei falschem Aufruf.
+`kard` needs no one at the keyboard. Every command explains itself with
+`--help`, including examples, and prints JSON with `--json`, errors too: as
+an object on stderr, with the reason, the kind and whether `--force` helps.
+The exit code is `0` on success, `1` when a rule refuses, `2` for a wrong
+call.
 
-Wer eine Karte ändert, tut das über `kard` und nicht in der Datei: Dann gelten
-die Regeln des Boards, und auf Boards mit Git entsteht der richtige Commit.
-Text, den sonst ein Editor liefert, kommt aus einer Datei oder von stdin:
-
-```bash
-echo "Was zu tun ist." | kard new "Login prüfen" -c backlog --set size=S --text -
-```
-
-Zum Ändern liest man die Karte mit ihrem Fingerabdruck und gibt ihn beim
-Speichern mit. Hat inzwischen jemand anderes die Karte geändert, wird nichts
-überschrieben:
+Whoever changes a card does so through `kard`, not in the file: then the
+board's rules apply, and on boards with Git the right commit is made. Text
+an editor would otherwise provide comes from a file or from stdin:
 
 ```bash
-kard show login-pruefen --json   # body, fields und sum
+echo "What needs doing." | kard new "Check login" -c backlog --set size=S --text -
+```
+
+To change a card, read it with its fingerprint and pass the fingerprint
+along when saving. If someone else has changed the card in the meantime,
+nothing is overwritten:
+
+```bash
+kard show check-login --json   # body, fields and sum
 ```
 
 ```bash
-kard edit login-pruefen --file neu.md --base <sum>
+kard edit check-login --file new.md --base <sum>
 ```
 
-Welche Felder und Werte erlaubt sind, beschreibt `kard schema` als JSON
-Schema. Wer man selbst ist, sagt `kard whoami --json`; `KARDBOARD_USER`
-setzt es für einen Aufruf. Passt ein Name auf mehrere Personen, ist der
-Fehler `ambiguous` und nennt sie unter `candidates`.
+`kard schema` describes which fields and values are allowed, as a JSON
+Schema. `kard whoami --json` says who you are; `KARDBOARD_USER` sets it for
+one call. When a name fits several people, the error is `ambiguous` and
+lists them under `candidates`.
 
-## Lizenz
+## License
 
-kardboard steht unter der [MIT License](LICENSE). Für die fremden
-Bestandteile unten gelten ihre eigenen Lizenzen.
+kardboard is under the [MIT License](LICENSE). The third-party components
+below are under their own licenses.
 
-## Fremde Bestandteile
+## Third-party components
 
-Die Oberfläche nutzt die Schrift [JetBrains Mono](https://github.com/JetBrains/JetBrainsMono),
-Copyright 2020 The JetBrains Mono Project Authors, unter der SIL Open Font
-License 1.1. Die Schriftdateien und der Lizenztext liegen unter
-[internal/server/web/fonts](internal/server/web/fonts) und sind ins Programm
-eingebettet. Die Lizenz gilt nur für die Schrift.
+The UI uses the font [JetBrains Mono](https://github.com/JetBrains/JetBrainsMono),
+Copyright 2020 The JetBrains Mono Project Authors, under the SIL Open Font
+License 1.1. The font files and the license text are in
+[internal/server/web/fonts](internal/server/web/fonts) and are embedded in
+the program. The license applies to the font only.
 
-Die Oberfläche ist mit [Preact](https://preactjs.com) 11.0.1 (MIT License,
-Copyright 2015-present Jason Miller) und [htm](https://github.com/developit/htm)
-3.1.1 (Apache License 2.0) gebaut. Beide liegen als fertige Dateien unter
-[internal/server/web/vendor](internal/server/web/vendor), mit ihren
-Lizenztexten, Herkunft und Prüfsummen. Es gibt kein npm und keinen
-Build-Schritt; ein Test prüft, dass sich die Dateien nicht unbemerkt ändern.
+The UI is built with [Preact](https://preactjs.com) 11.0.1 (MIT License,
+Copyright 2015-present Jason Miller) and [htm](https://github.com/developit/htm)
+3.1.1 (Apache License 2.0). Both are in
+[internal/server/web/vendor](internal/server/web/vendor) as ready-made
+files, with their license texts, origin and checksums. There is no npm and
+no build step; a test checks that the files do not change unnoticed.
 
 ## Tests
 

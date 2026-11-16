@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>kardboard im Überblick</title>
+<title>kardboard overview</title>
 <style>
-/* Schriften aus dem Repo, damit die Seite nichts von außen lädt. */
+/* Fonts from the repo, so the page loads nothing from outside. */
 @font-face { font-family: "JetBrains Mono"; src: url("../internal/server/web/fonts/JetBrainsMono-Regular.woff2") format("woff2"); font-weight: 400; font-display: swap; }
 @font-face { font-family: "JetBrains Mono"; src: url("../internal/server/web/fonts/JetBrainsMono-Medium.woff2") format("woff2"); font-weight: 500; font-display: swap; }
 @font-face { font-family: "Zilla Slab"; src: url("../output/branding/fonts/zilla-slab/ZillaSlab-Bold.ttf") format("truetype"); font-weight: 700; font-display: swap; }
@@ -13,9 +13,9 @@ html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; }
 </style>
 <style>
-/* Layout: ein Raster aus Linien wie in kard ui. Jede Sektion ist eine Zelle mit
-   einem Label in Kapitälchen-Mono und einem Bild statt Text. Tinte auf Papier,
-   Gelb nur als Textmarker. */
+/* Layout: a grid of lines as in kard ui. Each section is a cell with a label
+   in monospace capitals and a picture instead of text. Ink on paper, yellow
+   only as a highlighter. */
 :root {
   --bg: #f4f4f2;
   --surface: #fbfbfa;
@@ -57,20 +57,20 @@ body { background: var(--bg); color: var(--text); font-family: var(--sans); font
 mark, .hl { background: var(--accent); color: var(--on-accent); padding: 0 .25em; }
 code { font-family: var(--mono); font-size: .9em; }
 
-/* Kopf */
+/* Header */
 header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; padding-bottom: 20px; border-bottom: 1px solid var(--text); }
 .brand { display: flex; align-items: center; gap: 14px; }
 .brand svg { width: 44px; height: 44px; }
 .brand h1 { font-family: var(--slab); font-weight: 700; font-size: clamp(36px, 6vw, 56px); line-height: 1; margin: 0; letter-spacing: -.01em; }
 .tagline { font-size: clamp(17px, 2.2vw, 21px); margin: 20px 0 0; max-width: 40ch; text-wrap: balance; }
 
-/* Sektionen als Rasterzellen */
+/* Sections as grid cells */
 section { border-bottom: 1px solid var(--border); padding-block: 40px; }
 section > .head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20px; margin-bottom: 24px; }
 section h2 { font-family: var(--slab); font-size: clamp(22px, 3vw, 28px); margin: 0; text-wrap: balance; }
 section .sub { color: var(--dim); margin: 0; }
 
-/* 1 · Ordner = Board */
+/* 1 · folder = board */
 .mirror { display: grid; grid-template-columns: minmax(0, 280px) 56px minmax(0, 1fr); gap: 0; align-items: stretch; }
 .tree { background: var(--surface); border: 1px solid var(--border); padding: 18px 20px; font-family: var(--mono); font-size: 13px; line-height: 1.9; white-space: pre; overflow-x: auto; }
 .tree .d { color: var(--text); font-weight: 500; }
@@ -100,7 +100,7 @@ section .sub { color: var(--dim); margin: 0; }
 .who { color: var(--dim); }
 .sq { display: inline-block; width: 8px; height: 8px; margin-right: 6px; vertical-align: 1px; }
 
-/* 2 · Anatomie einer Karte */
+/* 2 · anatomy of a card */
 .anat { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 32px; align-items: start; }
 .file { background: var(--surface); border: 1px solid var(--border); font-family: var(--mono); font-size: 13px; line-height: 1.75; min-width: 0; }
 .file .bar { border-bottom: 1px solid var(--border); padding: 8px 14px; font-size: 12px; color: var(--dim); overflow-x: auto; white-space: nowrap; }
@@ -113,7 +113,7 @@ section .sub { color: var(--dim); margin: 0; }
 .note b { display: block; font-weight: 600; }
 .note span { color: var(--dim); font-size: 14px; }
 
-/* 3 · Fluss */
+/* 3 · flow */
 .flow { display: grid; gap: 0; }
 .row { display: grid; gap: 12px; }
 .row.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -136,7 +136,7 @@ section .sub { color: var(--dim); margin: 0; }
 .storage { display: grid; grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr) 40px minmax(0, 1fr); align-items: center; }
 .storage .arrow { text-align: center; font-family: var(--mono); color: var(--faint); }
 
-/* 4 · Lebenslauf */
+/* 4 · life of a card */
 .life { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--border); background: var(--surface); }
 .step { padding: 16px; border-left: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; min-width: 0; position: relative; }
 .step:first-child { border-left: 0; }
@@ -158,7 +158,7 @@ section .sub { color: var(--dim); margin: 0; }
 .mode .for { color: var(--dim); font-size: 13.5px; margin-top: auto; }
 svg text { font-family: var(--mono); }
 
-/* 6 · Viele Boards */
+/* 6 · many boards */
 .reg { display: grid; grid-template-columns: minmax(0, 240px) 40px minmax(0, 220px) 40px minmax(0, 1fr); align-items: center; }
 .reg .arrow { text-align: center; font-family: var(--mono); color: var(--faint); font-size: 18px; }
 .stack { display: grid; gap: 8px; }
@@ -174,7 +174,7 @@ nav.jump a:hover, nav.jump a:focus-visible { color: var(--text); background: var
 nav.jump a.go { background: var(--accent); color: var(--on-accent); }
 section { scroll-margin-top: 12px; }
 
-/* Loslegen: fünf Schritte */
+/* Get started: five steps */
 .track { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border: 1px solid var(--border); background: var(--surface); }
 .st { padding: 16px; border-left: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .st:first-child { border-left: 0; }
@@ -185,7 +185,7 @@ section { scroll-margin-top: 12px; }
 .term .c { opacity: .55; }
 .st .or { font-family: var(--mono); font-size: 10.5px; color: var(--faint); text-transform: uppercase; letter-spacing: .12em; }
 
-/* kard init: zwei Einstiege */
+/* kard init: two ways in */
 .fork { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; margin-top: 28px; }
 .branch { border: 1px solid var(--border); background: var(--surface); padding: 16px; display: grid; gap: 12px; min-width: 0; }
 .branch .ba { display: grid; grid-template-columns: minmax(0, 1fr) 32px minmax(0, 1fr); align-items: center; }
@@ -195,7 +195,7 @@ section { scroll-margin-top: 12px; }
 .mtree .ig { color: var(--faint); }
 .branch .small { color: var(--dim); font-size: 13.5px; }
 
-/* Einstellungen: drei Ebenen */
+/* Settings: levels */
 .layers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .layer { border: 1px solid var(--border); background: var(--surface); display: flex; flex-direction: column; min-width: 0; }
 .layer .top { padding: 14px 16px; border-bottom: 1px solid var(--border); }
@@ -209,7 +209,7 @@ section { scroll-margin-top: 12px; }
 .wins { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; font-family: var(--mono); font-size: 11.5px; color: var(--dim); }
 .wins .b { color: var(--text); }
 
-/* Personen */
+/* People */
 .layers { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .chain { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border: 1px solid var(--border); background: var(--surface); }
 .src { padding: 14px 16px; border-left: 1px solid var(--border); display: grid; gap: 6px; min-width: 0; position: relative; }
@@ -227,7 +227,7 @@ section { scroll-margin-top: 12px; }
 .msq { display: inline-grid; place-items: center; width: 34px; height: 34px; font-family: var(--mono); font-size: 14px; font-weight: 500; letter-spacing: .04em; color: var(--dim); background: var(--badge); border: 1px solid var(--badge-line); }
 .msq.me { background: var(--text); color: var(--bg); border-color: var(--text); }
 
-/* 7 · Was noch offen ist */
+/* 7 · what is left */
 .todo { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--border); background: var(--surface); }
 .todo .card .t { font-size: 14px; }
 .todo .card .why { color: var(--dim); font-size: 13px; margin-top: 4px; }
@@ -236,7 +236,7 @@ section { scroll-margin-top: 12px; }
 .b.decide { border-color: var(--accent); }
 .foot { margin-top: 28px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; color: var(--faint); font-family: var(--mono); font-size: 11px; }
 
-/* schmal */
+/* narrow */
 @media (max-width: 860px) {
   .mirror { grid-template-columns: minmax(0, 1fr); }
   .eq { height: 40px; transform: rotate(90deg); }
@@ -300,63 +300,63 @@ section { scroll-margin-top: 12px; }
       <svg viewBox="0 0 32 32" aria-hidden="true"><g fill="currentColor"><path d="M2 2h6v28H2z"/><path fill-rule="evenodd" d="M24 2h6v28h-6C22 25 6 23 6 16S22 7 24 2ZM24 8C20 12 12 12 12 16s8 4 12 8Z"/></g></svg>
       <h1>kardboard</h1>
     </div>
-    <p class="tagline">Ein Board aus Markdown-Dateien. Der Befehl <code>kard</code> hält die Regeln, Git schreibt das Protokoll.</p>
-    <nav class="jump" aria-label="Abschnitte">
-      <a class="go" href="#loslegen">Loslegen</a><a href="#einstellen">Einstellen</a><a href="#personen">Personen</a><a href="#prinzip">Prinzip</a><a href="#karte">Karte</a><a href="#ablauf">Ablauf</a><a href="#git">Git</a><a href="#boards">Boards</a><a href="#offen">Offen</a>
+    <p class="tagline">A board made of Markdown files. The <code>kard</code> command keeps the rules, Git keeps the record.</p>
+    <nav class="jump" aria-label="Sections">
+      <a class="go" href="#start">Start</a><a href="#settings">Settings</a><a href="#people">People</a><a href="#idea">Idea</a><a href="#card">Card</a><a href="#flow">Flow</a><a href="#git">Git</a><a href="#boards">Boards</a><a href="#open">Open</a>
     </nav>
   </div>
-  <div class="label">Systemübersicht · Stand 1a128aa · 13.11.2026</div>
+  <div class="label">System overview · v0.1.0 · 2026-11-16</div>
 </header>
 
-<!-- Loslegen -->
-<section id="loslegen">
-  <div class="head"><h2>Loslegen in fünf Schritten</h2><p class="sub">Vom Quellcode bis zum ersten Board im Browser.</p></div>
+<!-- Start -->
+<section id="start">
+  <div class="head"><h2>Get started in five steps</h2><p class="sub">From source code to the first board in the browser.</p></div>
   <div class="track">
     <div class="st">
       <div class="num">1</div>
-      <div class="what">Bauen</div>
+      <div class="what">Build</div>
 <div class="term">go build -o bin/kard \
   ./cmd/kard</div>
-      <div class="why">Braucht Go 1.27. Danach <code>bin/kard</code> in den <code>PATH</code> legen.</div>
+      <div class="why">Needs Go 1.27. Then put <code>bin/kard</code> in your <code>PATH</code>. Or take a ready file from <code>scripts/dist</code>.</div>
     </div>
     <div class="st">
       <div class="num">2</div>
-      <div class="what">Nachsehen, wer man ist</div>
+      <div class="what">Check who you are</div>
 <div class="term">kard whoami
-<span class="c">angelique.lambert@firma.de
+<span class="c">alex.berger@example.com
 (from git config user.email)</span></div>
-      <div class="why">Nichts einzurichten: Der Name kommt aus Git, je Repo. Ein eigener mit <code>kard whoami --set</code>.</div>
+      <div class="why">Nothing to set up: the name comes from Git, per repo. A name of your own with <code>kard whoami --set</code>.</div>
     </div>
     <div class="st">
       <div class="num">3</div>
-      <div class="what">Board anlegen</div>
-<div class="term">cd ~/Repos/projekt
+      <div class="what">Create a board</div>
+<div class="term">cd ~/Repos/project
 kard init board</div>
-      <div class="why">Schreibt die <code>board.yaml</code> und meldet das Board an.</div>
+      <div class="why">Writes <code>board.yaml</code> and registers the board.</div>
     </div>
     <div class="st">
       <div class="num">4</div>
-      <div class="what">Weitere Boards finden</div>
+      <div class="what">Find more boards</div>
 <div class="term">kard scan ~/Repos
 kard boards</div>
-      <div class="why">Sucht dauerhaft nach <code>board.yaml</code>, sechs Ebenen tief.</div>
+      <div class="why">Keeps looking for <code>board.yaml</code>, six levels deep.</div>
     </div>
     <div class="st">
       <div class="num">5</div>
-      <div class="what">Arbeiten</div>
+      <div class="what">Work</div>
 <div class="term">kard ui
-kard new "Login prüfen"
-kard take login-pruefen</div>
-      <div class="why">Browser und Terminal wirken gleich, mit denselben Regeln.</div>
+kard new "Check login"
+kard take check-login</div>
+      <div class="why">Browser and terminal act the same, with the same rules.</div>
     </div>
   </div>
 
   <div class="fork">
     <div class="branch">
-      <span class="label">kard init · leerer Ordner</span>
+      <span class="label">kard init · empty folder</span>
       <div class="ba">
 <div class="mtree">board/
-<span class="ig">  (leer)</span></div>
+<span class="ig">  (empty)</span></div>
         <div class="arrow">→</div>
 <div class="mtree">board/
   <span class="new">board.yaml</span>
@@ -364,129 +364,129 @@ kard take login-pruefen</div>
   working_on/  <span class="ig">doing</span>
   done/        <span class="ig">done</span></div>
       </div>
-      <div class="small">Drei Spalten als Vorgabe. Eigene mit <code>--columns a,b,c</code>.</div>
+      <div class="small">Three columns by default. Your own with <code>--columns a,b,c</code>.</div>
     </div>
     <div class="branch">
-      <span class="label">kard init · vorhandene Notizen</span>
+      <span class="label">kard init · existing notes</span>
       <div class="ba">
-<div class="mtree">notizen/
-  ideen/*.md
+<div class="mtree">notes/
+  ideas/*.md
   wip/*.md
   closed/*.md</div>
         <div class="arrow">→</div>
-<div class="mtree">notizen/
+<div class="mtree">notes/
   <span class="new">board.yaml</span>
-  ideen/
+  ideas/
   wip/     <span class="ig">doing</span>
   closed/  <span class="ig">done</span></div>
       </div>
-      <div class="small">Ordner werden Spalten. Keine Datei wird verändert. Was nicht passt, zeigt danach <code>kard lint</code>.</div>
+      <div class="small">Folders become columns. No file is changed. <code>kard lint</code> then shows what does not fit.</div>
     </div>
   </div>
 </section>
 
-<!-- Einstellen -->
-<section id="einstellen">
-  <div class="head"><h2>Wo was eingestellt wird</h2><p class="sub">Drei Ebenen, von dauerhaft bis einmalig.</p></div>
+<!-- Settings -->
+<section id="settings">
+  <div class="head"><h2>Where things are set</h2><p class="sub">Four levels, from lasting to a single call.</p></div>
   <div class="layers">
     <div class="layer">
-      <div class="top"><span class="label">gilt für dich, auf diesem Rechner</span><div class="scope">Person</div><div class="file-name">~/.config/kardboard/config.yaml</div></div>
+      <div class="top"><span class="label">for you, on this machine</span><div class="scope">Person</div><div class="file-name">~/.config/kardboard/config.yaml</div></div>
 <pre><span class="k">user:</span> alex  <span class="c"># optional</span>
 <span class="k">boards:</span>
   - ~/Repos/demo/board
 <span class="k">scan:</span>
   - ~/Repos
 <span class="k">hidden:</span>
-  - atlas  <span class="c"># nicht in Gesamtansicht</span></pre>
-      <div class="by">Geändert durch <code>kard add</code>, <code>remove</code>, <code>scan</code>. Kommentare bleiben.</div>
+  - billing  <span class="c"># not in "All"</span></pre>
+      <div class="by">Changed by <code>kard add</code>, <code>remove</code>, <code>scan</code>. Comments are kept.</div>
     </div>
     <div class="layer">
-      <div class="top"><span class="label">gilt für dich, in diesem Repo</span><div class="scope">Projekt</div><div class="file-name">.kard/config.yaml</div></div>
-<pre><span class="k">user:</span> angelique-l
+      <div class="top"><span class="label">for you, in this repo</span><div class="scope">Project</div><div class="file-name">.kard/config.yaml</div></div>
+<pre><span class="k">user:</span> alex-b
 
 <span class="c"># .kard/.gitignore</span>
 *</pre>
-      <div class="by">Schreibt <code>kard whoami --set</code>. Der Ordner ignoriert sich selbst; <code>kard lint</code> meldet E11, wenn Git ihn doch verfolgt.</div>
+      <div class="by">Written by <code>kard whoami --set</code>. The folder ignores itself; <code>kard lint</code> reports E11 if Git tracks it anyway.</div>
     </div>
     <div class="layer">
-      <div class="top"><span class="label">gilt für alle, liegt im Repo</span><div class="scope">Board</div><div class="file-name">board/board.yaml</div></div>
-<pre><span class="k">sync:</span> push      <span class="c"># Git-Stufe</span>
+      <div class="top"><span class="label">for everyone, in the repo</span><div class="scope">Board</div><div class="file-name">board/board.yaml</div></div>
+<pre><span class="k">sync:</span> push      <span class="c"># Git level</span>
 <span class="k">columns:</span>
   - id: working_on
-    <span class="k">doing:</span> true  <span class="c"># Ziel von take</span>
-    <span class="k">limit:</span> 3     <span class="c"># sonst W02</span>
+    <span class="k">doing:</span> true  <span class="c"># target of take</span>
+    <span class="k">limit:</span> 3     <span class="c"># else W02</span>
   - id: done
-    <span class="k">done:</span> true   <span class="c"># Ziel von done</span>
+    <span class="k">done:</span> true   <span class="c"># target of done</span>
 <span class="k">fields:</span>
   size:
     type: enum
     values: [S, M, L]
     <span class="k">required:</span> [working_on]</pre>
-      <div class="by">Von Hand im Editor. <code>kard schema</code> macht daraus ein JSON Schema für Editoren.</div>
+      <div class="by">By hand in an editor. <code>kard schema</code> turns it into a JSON Schema for editors.</div>
     </div>
     <div class="layer">
-      <div class="top"><span class="label">gilt für einen Aufruf</span><div class="scope">Befehl</div><div class="file-name">Schalter und Umgebung</div></div>
-<pre><span class="k">-C</span> ordner   <span class="c"># dieses Board</span>
-<span class="k">-b</span> atlas     <span class="c"># angemeldetes Board</span>
-<span class="k">--all</span>       <span class="c"># alle Boards</span>
-<span class="k">--mine</span>      <span class="c"># nur eigene Karten</span>
-<span class="k">--json</span>      <span class="c"># für Skripte</span>
-<span class="k">--force</span>     <span class="c"># Regel übergehen</span>
+      <div class="top"><span class="label">for one call</span><div class="scope">Command</div><div class="file-name">flags and environment</div></div>
+<pre><span class="k">-C</span> folder   <span class="c"># this board</span>
+<span class="k">-b</span> billing  <span class="c"># registered board</span>
+<span class="k">--all</span>       <span class="c"># every board</span>
+<span class="k">--mine</span>      <span class="c"># only my cards</span>
+<span class="k">--json</span>      <span class="c"># for scripts</span>
+<span class="k">--force</span>     <span class="c"># override a rule</span>
 
-<span class="k">KARDBOARD_USER</span>  <span class="c"># Name</span>
+<span class="k">KARDBOARD_USER</span>  <span class="c"># name</span>
 <span class="k">VISUAL</span> / <span class="k">EDITOR</span>  <span class="c"># kard edit</span></pre>
-      <div class="by">Ohne <code>-C</code> sucht <code>kard</code> vom aktuellen Ordner aufwärts nach der <code>board.yaml</code>.</div>
+      <div class="by">Without <code>-C</code>, <code>kard</code> looks for <code>board.yaml</code> from the current folder upwards.</div>
     </div>
   </div>
 </section>
 
-<!-- Personen -->
-<section id="personen">
-  <div class="head"><h2>Wer man ist, und wen ein Name meint</h2><p class="sub">Je Board, ohne Liste der Leute. Git weiß es meist schon.</p></div>
-  <div class="chain" aria-label="Reihenfolge der Quellen für den eigenen Namen">
-    <div class="src set"><span class="label">1 · Aufruf</span><div class="mono">KARDBOARD_USER</div></div>
-    <div class="src set"><span class="label">2 · Projekt</span><div class="mono">.kard/config.yaml</div></div>
-    <div class="src set"><span class="label">3 · Rechner</span><div class="mono">user: in config.yaml</div></div>
-    <div class="src got hl-src"><span class="label">4 · Git, Normalfall</span><div class="mono">git config user.email</div></div>
-    <div class="src got"><span class="label">5 · Notlösung</span><div class="mono">Kontoname</div></div>
+<!-- People -->
+<section id="people">
+  <div class="head"><h2>Who you are, and whom a name means</h2><p class="sub">Per board, without a list of people. Git usually knows already.</p></div>
+  <div class="chain" aria-label="Order of the sources for your own name">
+    <div class="src set"><span class="label">1 · Call</span><div class="mono">KARDBOARD_USER</div></div>
+    <div class="src set"><span class="label">2 · Project</span><div class="mono">.kard/config.yaml</div></div>
+    <div class="src set"><span class="label">3 · Machine</span><div class="mono">user: in config.yaml</div></div>
+    <div class="src got hl-src"><span class="label">4 · Git, the usual case</span><div class="mono">git config user.email</div></div>
+    <div class="src got"><span class="label">5 · Fallback</span><div class="mono">account name</div></div>
   </div>
-  <div class="chain-legend"><span><i class="sw set"></i>eingetragen</span><span><i class="sw got"></i>abgeleitet</span><span>Der erste Treffer gilt. <code>kard whoami</code> nennt ihn mit Quelle.</span></div>
+  <div class="chain-legend"><span><i class="sw set"></i>set by you</span><span><i class="sw got"></i>derived</span><span>The first match wins. <code>kard whoami</code> names it with its source.</span></div>
 
   <div class="ppl">
     <div class="branch">
-      <span class="label">Auf der Karte · im Board</span>
+      <span class="label">On the card · on the board</span>
       <div class="ba">
 <div class="mtree"><span class="ig">---</span>
-assignee: [angelique.lambert@firma.de,
+assignee: [alex.berger@example.com,
            sam]
 <span class="ig">---</span></div>
         <div class="arrow">→</div>
         <div class="mono-row">
-          <span class="msq me" title="Angélique Lambert · angelique.lambert@firma.de">AL</span>
+          <span class="msq me" title="Alex Berger · alex.berger@example.com">AB</span>
           <span class="msq" title="sam">SA</span>
         </div>
       </div>
-      <div class="small">Kürzel oder Adresse. Zwei Buchstaben aus dem Namen in Git; das eigene Monogramm ist mit Tinte gefüllt. Name und Adresse zeigt der Tooltip. Die <code>.mailmap</code> führt alte und neue Adressen zusammen.</div>
+      <div class="small">Short name or address. Two letters from the name in Git; your own monogram is filled with ink. The tooltip shows name and address. <code>.mailmap</code> merges old and new addresses.</div>
     </div>
     <div class="branch">
-      <span class="label">Zuweisen · ohne Adressen zu tippen</span>
-<div class="term">kard assign export-als-pdf berg
-<span class="c">assignee = alex.berger@firma.de</span>
-kard assign export-als-pdf an
-<span class="c">kard: "an" fits 2 people:
-  angelique.lambert@firma.de (Angélique Lambert),
-  anna@firma.de (Anna Lang)</span></div>
-      <div class="small">Gesucht wird unter den Commit-Autoren des Boards und den Personen auf seinen Karten, nach dem Anfang von Adresse oder Name, ohne Akzente. Kein Treffer: Ein gültiger Name gilt als neue Person.</div>
+      <span class="label">Assign · without typing addresses</span>
+<div class="term">kard assign export-als-pdf ort
+<span class="c">assignee = sam.ortmann@example.com</span>
+kard assign export-als-pdf a
+<span class="c">kard: "a" fits 2 people:
+  alex.berger@example.com (Alex Berger),
+  anna@example.com (Anna Lang)</span></div>
+      <div class="small">kard searches the board's commit authors and the people on its cards, by the beginning of address or name, ignoring accents. No match: a valid name counts as a new person.</div>
     </div>
   </div>
 </section>
 
 <!-- 1 -->
-<section id="prinzip">
-  <div class="head"><h2>Der Ordner ist das Board</h2><p class="sub">Spalte = Ordner. Karte = Datei. Verschieben ändert keine Zeile Text.</p></div>
+<section id="idea">
+  <div class="head"><h2>The folder is the board</h2><p class="sub">Column = folder. Card = file. Moving changes no line of text.</p></div>
   <div class="mirror">
-<div class="tree" aria-label="Dateibaum des Beispiel-Boards"><span class="d">board/</span>
-├─ <span class="y">board.yaml</span>       <span class="ig">← macht's zum Board</span>
+<div class="tree" aria-label="File tree of the example board"><span class="d">board/</span>
+├─ <span class="y">board.yaml</span>       <span class="ig">← makes it a board</span>
 ├─ <span class="d">planning/</span>
 │  └─ <span class="f">offline-modus.md</span>
 ├─ <span class="d">backlog/</span>
@@ -496,20 +496,20 @@ kard assign export-als-pdf an
 │  └─ <span class="f">login-fehler-…md</span>
 ├─ <span class="d">done/</span>
 │  └─ <span class="f">projekt-aufsetzen.md</span>
-└─ <span class="ig">reference/  ignoriert</span></div>
+└─ <span class="ig">reference/  ignored</span></div>
     <div class="eq" aria-hidden="true">⇄</div>
     <div class="board">
-      <div class="col"><h4>Planung <span class="n">1</span></h4><span class="path">planning/</span>
+      <div class="col"><h4>Planning <span class="n">1</span></h4><span class="path">planning/</span>
         <div class="card"><div class="t">Offline-Modus</div><div class="meta"><span class="tg">#feature</span></div></div>
       </div>
       <div class="col"><h4>Backlog <span class="n">2</span></h4><span class="path">backlog/</span>
         <div class="card"><div class="t">Export als PDF</div><div class="meta"><span class="b v">M</span><span class="b v">release</span><span class="mg" title="sam">SA</span></div></div>
         <div class="card"><div class="t">Druckvorlagen</div><div class="meta"><span class="b v">S</span></div></div>
       </div>
-      <div class="col doing"><h4>In Arbeit <span class="n">1/3</span></h4><span class="path">working_on/</span>
+      <div class="col doing"><h4>In progress <span class="n">1/3</span></h4><span class="path">working_on/</span>
         <div class="card"><div class="t">Login-Fehler bei Umlauten</div><div class="meta"><span class="b v">S</span><span class="tg">#bug</span><span class="mg me" title="alex">AL</span></div></div>
       </div>
-      <div class="col"><h4>Erledigt <span class="n">1</span></h4><span class="path">done/</span>
+      <div class="col"><h4>Done <span class="n">1</span></h4><span class="path">done/</span>
         <div class="card"><div class="t">Projekt aufsetzen</div><div class="meta"><span class="mg me" title="alex">AL</span></div></div>
       </div>
     </div>
@@ -517,8 +517,8 @@ kard assign export-als-pdf an
 </section>
 
 <!-- 2 -->
-<section id="karte">
-  <div class="head"><h2>Eine Karte, auseinandergenommen</h2><p class="sub">Jede Angabe hat genau einen Ort.</p></div>
+<section id="card">
+  <div class="head"><h2>A card, taken apart</h2><p class="sub">Every detail has exactly one place.</p></div>
   <div class="anat">
     <div class="file">
       <div class="bar"><span class="pin">1</span> board/<mark>backlog</mark>/<mark>export-als-pdf</mark>.md</div>
@@ -537,50 +537,50 @@ Kunden wollen das Board als PDF  <span class="pin">4</span>
 verschicken können …</pre>
     </div>
     <div class="notes">
-      <div class="note"><span class="pin">1</span><div><b>Pfad → Spalte und Kürzel</b><span>Ordner <code>backlog</code> ist die Spalte, der Dateiname das Kürzel.</span></div></div>
-      <div class="note"><span class="pin">2</span><div><b>Kopf → Felder</b><span>Nur was <code>board.yaml</code> erlaubt, mit Typ und Pflicht je Spalte. Auf dem Board: <span class="b v">M</span> <span class="b v">release</span> für Werte aus fester Liste, <span class="tg">#feature</span> für Tags.</span></div></div>
-      <div class="note"><span class="pin">3</span><div><b>Überschrift → Titel</b><span>Liest sich in jedem Markdown-Betrachter richtig.</span></div></div>
-      <div class="note"><span class="pin">4</span><div><b>Rest → freier Text</b><span>Gehört den Menschen, wird nicht geprüft.</span></div></div>
+      <div class="note"><span class="pin">1</span><div><b>Path → column and short name</b><span>The folder <code>backlog</code> is the column, the file name the short name.</span></div></div>
+      <div class="note"><span class="pin">2</span><div><b>Header → fields</b><span>Only what <code>board.yaml</code> allows, with type and requirement per column. On the board: <span class="b v">M</span> <span class="b v">release</span> for values from a fixed list, <span class="tg">#feature</span> for tags.</span></div></div>
+      <div class="note"><span class="pin">3</span><div><b>Heading → title</b><span>Reads right in any Markdown viewer.</span></div></div>
+      <div class="note"><span class="pin">4</span><div><b>The rest → free text</b><span>Belongs to the people, is not checked.</span></div></div>
     </div>
   </div>
 </section>
 
 <!-- 3 -->
-<section id="ablauf">
-  <div class="head"><h2>Wer ändert, geht durch kard</h2><p class="sub">Drei Wege hinein, ein Satz Regeln, ein Commit je Handlung.</p></div>
+<section id="flow">
+  <div class="head"><h2>Changes go through kard</h2><p class="sub">Three ways in, one set of rules, one commit per action.</p></div>
   <div class="side">
     <div class="flow">
       <div class="row three">
-        <div class="node"><span class="label">Terminal</span><div class="big">kard take</div><div class="small">Mensch an der Shell</div></div>
-        <div class="node"><span class="label">Browser</span><div class="big">kard ui</div><div class="small">ziehen, nehmen, bearbeiten</div></div>
-        <div class="node"><span class="label">Skript · Agent</span><div class="big">--json</div><div class="small">Fehler als JSON, <code>--base sum</code></div></div>
+        <div class="node"><span class="label">Terminal</span><div class="big">kard take</div><div class="small">a person at the shell</div></div>
+        <div class="node"><span class="label">Browser</span><div class="big">kard ui</div><div class="small">drag, take, edit</div></div>
+        <div class="node"><span class="label">Script · agent</span><div class="big">--json</div><div class="small">errors as JSON, <code>--base sum</code></div></div>
       </div>
       <div class="down"><i></i><i></i><i></i></div>
       <div class="node ink">
-        <span class="label">kard · Regeln aus board.yaml</span>
-        <div class="big">prüfen → ändern → committen</div>
-        <div class="rules"><span>E01</span><span>E02</span><span>E03</span><span>E04</span><span>E05</span><span>E06</span><span>E07</span><span>E08</span><span>E09</span><span>E10</span><span class="w">W01</span><span class="w">W02</span></div>
+        <span class="label">kard · rules from board.yaml</span>
+        <div class="big">check → change → commit</div>
+        <div class="rules"><span>E01</span><span>E02</span><span>E03</span><span>E04</span><span>E05</span><span>E06</span><span>E07</span><span>E08</span><span>E09</span><span>E10</span><span>E11</span><span class="w">W01</span><span class="w">W02</span></div>
       </div>
       <div class="down one"><i></i></div>
       <div class="storage">
-        <div class="node"><span class="label">Dateien</span><div class="big">*.md im Spaltenordner</div></div>
+        <div class="node"><span class="label">Files</span><div class="big">*.md in the column folder</div></div>
         <div class="arrow">→</div>
-        <div class="node"><span class="label">Git</span><div class="big">ein Commit</div><div class="small">nur diese eine Karte</div></div>
+        <div class="node"><span class="label">Git</span><div class="big">one commit</div><div class="small">only this one card</div></div>
         <div class="arrow">⇅</div>
-        <div class="node"><span class="label">Remote</span><div class="big">das Team</div><div class="small">bei <code>sync: push</code></div></div>
+        <div class="node"><span class="label">Remote</span><div class="big">the team</div><div class="small">with <code>sync: push</code></div></div>
       </div>
     </div>
     <div class="bypass">
-      <span class="label">Daneben, immer erlaubt</span>
-      <div class="big mono">Editor · grep · git</div>
-      <div class="small">Die Datei bleibt ohne kardboard lesbar und änderbar. Was dabei nicht passt, meldet <code>kard lint</code> danach, auch als Pre-Commit-Hook oder in CI.</div>
+      <span class="label">Alongside, always allowed</span>
+      <div class="big mono">editor · grep · git</div>
+      <div class="small">The file stays readable and editable without kardboard. <code>kard lint</code> reports afterwards what does not fit, also as a pre-commit hook or in CI.</div>
     </div>
   </div>
 </section>
 
 <!-- 4 -->
-<section id="ablauf-karte">
-  <div class="head"><h2>Lebenslauf einer Karte</h2><p class="sub">Was der Befehl tut, und was danach in <code>git log</code> steht.</p></div>
+<section id="life">
+  <div class="head"><h2>Life of a card</h2><p class="sub">What the command does, and what <code>git log</code> says afterwards.</p></div>
   <div class="life">
     <div class="step">
       <div class="cmd">kard new "Export als PDF"</div>
@@ -596,7 +596,7 @@ verschicken können …</pre>
     </div>
     <div class="step">
       <div class="cmd">kard assign … sam --add</div>
-      <div class="where">bleibt <span class="col-chip">working_on</span></div>
+      <div class="where">stays <span class="col-chip">working_on</span></div>
       <div class="mini"><div class="t">Export als PDF</div><div class="meta"><span class="b v">M</span><span class="mg me" title="alex">AL</span><span class="mg" title="sam">SA</span></div></div>
       <div class="commit">assign export-als-pdf: alex, sam</div>
     </div>
@@ -611,31 +611,31 @@ verschicken können …</pre>
 
 <!-- 5 -->
 <section id="git">
-  <div class="head"><h2>Drei Stufen Git</h2><p class="sub">Eine Zeile in <code>board.yaml</code> entscheidet.</p></div>
+  <div class="head"><h2>Three levels of Git</h2><p class="sub">One line in <code>board.yaml</code> decides.</p></div>
   <div class="sync">
     <div class="mode">
       <div class="yaml">sync: <b>none</b></div>
-      <svg viewBox="0 0 240 70" role="img" aria-label="Nur die Datei ändert sich">
+      <svg viewBox="0 0 240 70" role="img" aria-label="Only the file changes">
         <rect x="10" y="20" width="60" height="30" fill="var(--bg)" stroke="var(--strong)"/>
         <text x="40" y="39" font-size="10" text-anchor="middle" fill="var(--text)">.md</text>
-        <text x="90" y="39" font-size="10" fill="var(--faint)">nur die Datei</text>
+        <text x="90" y="39" font-size="10" fill="var(--faint)">only the file</text>
       </svg>
-      <div class="for">Board im Code-Repo. Committen tut man selbst.</div>
+      <div class="for">Board inside the code repo. You commit yourself.</div>
     </div>
     <div class="mode">
       <div class="yaml">sync: <b>commit</b></div>
-      <svg viewBox="0 0 240 70" role="img" aria-label="Datei, dann ein Commit">
+      <svg viewBox="0 0 240 70" role="img" aria-label="File, then one commit">
         <rect x="10" y="20" width="60" height="30" fill="var(--bg)" stroke="var(--strong)"/>
         <text x="40" y="39" font-size="10" text-anchor="middle" fill="var(--text)">.md</text>
         <line x1="70" y1="35" x2="120" y2="35" stroke="var(--strong)"/>
         <circle cx="132" cy="35" r="9" fill="var(--text)"/>
-        <text x="150" y="39" font-size="10" fill="var(--faint)">1 Commit</text>
+        <text x="150" y="39" font-size="10" fill="var(--faint)">1 commit</text>
       </svg>
-      <div class="for">Eigenes Board-Repo, allein.</div>
+      <div class="for">A board repo of its own, alone.</div>
     </div>
     <div class="mode">
       <div class="yaml">sync: <b>push</b></div>
-      <svg viewBox="0 0 240 70" role="img" aria-label="Pull, Commit, Push, bei Ablehnung ein neuer Versuch">
+      <svg viewBox="0 0 240 70" role="img" aria-label="Pull, commit, push, one retry when rejected">
         <text x="10" y="18" font-size="10" fill="var(--faint)">pull</text>
         <line x1="22" y1="24" x2="22" y2="44" stroke="var(--strong)"/>
         <path d="M18 40 L22 46 L26 40" fill="none" stroke="var(--strong)"/>
@@ -647,16 +647,16 @@ verschicken können …</pre>
         <path d="M136 30 L140 24 L144 30" fill="none" stroke="var(--strong)"/>
         <text x="130" y="18" font-size="10" fill="var(--faint)">push</text>
         <path d="M160 22 C190 10, 214 30, 196 46" fill="none" stroke="var(--accent)" stroke-width="2"/>
-        <text x="168" y="62" font-size="10" fill="var(--faint)">1× neu</text>
+        <text x="168" y="62" font-size="10" fill="var(--faint)">1 retry</text>
       </svg>
-      <div class="for">Board-Repo im Team. Wer zuerst pusht, gewinnt; der andere erfährt, wo die Karte jetzt liegt.</div>
+      <div class="for">A team's board repo. Whoever pushes first wins; the other learns where the card is now.</div>
     </div>
   </div>
 </section>
 
 <!-- 6 -->
 <section id="boards">
-  <div class="head"><h2>Viele Projekte, eine Oberfläche</h2><p class="sub">Einmal anmelden, dann zeigt <code>kard ui</code> alles auf <code>127.0.0.1:4712</code>.</p></div>
+  <div class="head"><h2>Many projects, one UI</h2><p class="sub">Register once, then <code>kard ui</code> shows everything on <code>127.0.0.1:4712</code>.</p></div>
   <div class="reg">
     <div class="node">
       <span class="label">~/.config/kardboard/config.yaml</span>
@@ -667,57 +667,57 @@ scan:    ← kard scan ~/Repos</div>
     <div class="arrow">→</div>
     <div class="stack">
       <div class="node"><span class="sq" style="background:var(--p1)"></span><span class="mono">demo</span> <span class="label">· push</span></div>
-      <div class="node"><span class="sq" style="background:var(--p2)"></span><span class="mono">atlas</span> <span class="label">· commit</span></div>
-      <div class="node"><span class="sq" style="background:var(--p3)"></span><span class="mono">notizen</span> <span class="label">· none</span></div>
+      <div class="node"><span class="sq" style="background:var(--p2)"></span><span class="mono">billing</span> <span class="label">· commit</span></div>
+      <div class="node"><span class="sq" style="background:var(--p3)"></span><span class="mono">notes</span> <span class="label">· none</span></div>
     </div>
     <div class="arrow">→</div>
     <div class="merged">
-      <div class="col"><h4>offen <span class="n">3</span></h4>
+      <div class="col"><h4>Open <span class="n">3</span></h4>
         <div class="card"><div class="t"><span class="sq" style="background:var(--p1)"></span>Export als PDF</div></div>
-        <div class="card"><div class="t"><span class="sq" style="background:var(--p2)"></span>Rechnungslauf</div></div>
-        <div class="card"><div class="t"><span class="sq" style="background:var(--p3)"></span>Leseliste</div></div>
+        <div class="card"><div class="t"><span class="sq" style="background:var(--p2)"></span>Invoice run</div></div>
+        <div class="card"><div class="t"><span class="sq" style="background:var(--p3)"></span>Reading list</div></div>
       </div>
-      <div class="col doing"><h4>in Arbeit <span class="n">2</span></h4>
+      <div class="col doing"><h4>In progress <span class="n">2</span></h4>
         <div class="card"><div class="t"><span class="sq" style="background:var(--p1)"></span>Login-Fehler</div></div>
-        <div class="card"><div class="t"><span class="sq" style="background:var(--p2)"></span>API-Limits</div></div>
+        <div class="card"><div class="t"><span class="sq" style="background:var(--p2)"></span>API limits</div></div>
       </div>
-      <div class="col"><h4>erledigt <span class="n">1</span></h4>
+      <div class="col"><h4>Done <span class="n">1</span></h4>
         <div class="card"><div class="t"><span class="sq" style="background:var(--p1)"></span>Projekt aufsetzen</div></div>
       </div>
     </div>
   </div>
-  <p class="label" style="margin:14px 0 0">Ein Board angehakt: seine eigenen Spalten · mehrere: drei gemeinsame · Server prüft jede Sekunde, fetcht jede Minute</p>
+  <p class="label" style="margin:14px 0 0">One board ticked: its own columns · several: three shared ones · the server checks every second, fetches every minute</p>
 </section>
 
 <!-- 7 -->
-<section id="offen" style="border-bottom:0">
-  <div class="head"><h2>Was noch zu tun ist</h2><p class="sub">Geprüft am Stand von <code>main</code>. Als Board, wie sonst.</p></div>
+<section id="open" style="border-bottom:0">
+  <div class="head"><h2>What is left to do</h2><p class="sub">Checked against <code>main</code>. As a board, of course.</p></div>
   <div class="todo">
-    <div class="col"><h4>Entscheiden <span class="n">8</span></h4><span class="path">offene Punkte der Spec</span>
-      <div class="card"><div class="t">Reihenfolge in einer Spalte</div><div class="why">Ordner kennen keine. Nach Feld sortieren oder eigener Ort?</div><div class="meta"><span class="b decide">Format</span></div></div>
-      <div class="card"><div class="t">Unterordner in Spalten</div><div class="why">Heute ignoriert. Archiv oder Gruppe?</div><div class="meta"><span class="b decide">Format</span></div></div>
-      <div class="card"><div class="t">Titel im Kopf statt Überschrift?</div><div class="why">Andere Werkzeuge machen es so.</div><div class="meta"><span class="b decide">Format</span></div></div>
-      <div class="card"><div class="t"><code>take --add</code> ohne <code>--force</code></div><div class="why">Dazukommen nimmt niemandem etwas weg.</div><div class="meta"><span class="b decide">CLI</span></div></div>
-      <div class="card"><div class="t">Grenze je Person</div><div class="why"><code>limit</code> zählt heute nur je Spalte.</div><div class="meta"><span class="b decide">Format</span></div></div>
-      <div class="card"><div class="t">Kürzel auf Adressen umstellen</div><div class="why">Wer <code>user: alex</code> entfernt, verliert seine alten Karten. Befehl dafür oder <code>user</code> behalten?</div><div class="meta"><span class="b decide">Personen</span></div></div>
-      <div class="card"><div class="t">Personen über Boards hinweg</div><div class="why">„Nur meine“ über mehrere Boards, wenn man in jedem anders heißt.</div><div class="meta"><span class="b decide">Personen</span></div></div>
-      <div class="card"><div class="t">Sprache der Spec</div><div class="why">Vor einer Veröffentlichung.</div><div class="meta"><span class="b decide">Doku</span></div></div>
+    <div class="col"><h4>Decide <span class="n">7</span></h4><span class="path">open points of the spec</span>
+      <div class="card"><div class="t">Order within a column</div><div class="why">Folders have none. Sort by a field, or a place of its own?</div><div class="meta"><span class="b decide">Format</span></div></div>
+      <div class="card"><div class="t">Subfolders in columns</div><div class="why">Ignored today. Archive or group?</div><div class="meta"><span class="b decide">Format</span></div></div>
+      <div class="card"><div class="t">Title in the header instead of a heading?</div><div class="why">Other tools do it that way.</div><div class="meta"><span class="b decide">Format</span></div></div>
+      <div class="card"><div class="t"><code>take --add</code> without <code>--force</code></div><div class="why">Joining takes nothing away from anyone.</div><div class="meta"><span class="b decide">CLI</span></div></div>
+      <div class="card"><div class="t">Limit per person</div><div class="why"><code>limit</code> counts only per column today.</div><div class="meta"><span class="b decide">Format</span></div></div>
+      <div class="card"><div class="t">Switch short names to addresses</div><div class="why">Whoever removes <code>user: alex</code> loses their old cards. A command for it, or keep <code>user</code>?</div><div class="meta"><span class="b decide">People</span></div></div>
+      <div class="card"><div class="t">People across boards</div><div class="why">"Only mine" across several boards when you have a different name in each.</div><div class="meta"><span class="b decide">People</span></div></div>
     </div>
-    <div class="col doing"><h4>Wartet <span class="n">1</span></h4><span class="path">bewusst noch offen</span>
-      <div class="card"><div class="t">Logo in Arbeit</div><div class="why">Die Versuche sind verworfen; die Wortmarke bleibt, bis ein neues Zeichen steht.</div><div class="meta"><span class="b">Branding</span></div></div>
+    <div class="col doing"><h4>Waiting <span class="n">2</span></h4><span class="path">open on purpose</span>
+      <div class="card"><div class="t">Logo in progress</div><div class="why">The attempts are dropped; the wordmark stays until there is a new mark.</div><div class="meta"><span class="b">Branding</span></div></div>
+      <div class="card"><div class="t">English example board</div><div class="why">The cards under <code>examples/board</code> are still German.</div><div class="meta"><span class="b">Docs</span></div></div>
     </div>
-    <div class="col ok"><h4>Grün <span class="n">✓</span></h4><span class="path">jetzt geprüft</span>
+    <div class="col ok"><h4>Green <span class="n">✓</span></h4><span class="path">checked now</span>
       <div class="card"><div class="t"><span class="check">✓</span><code>go build</code></div></div>
-      <div class="card"><div class="t"><span class="check">✓</span><code>go test ./...</code> · 8 Pakete</div></div>
-      <div class="card"><div class="t"><span class="check">✓</span><code>go vet</code> · <code>gofmt</code> sauber</div></div>
-      <div class="card"><div class="t"><span class="check">✓</span>Umbenennung <code>kb → kard</code> vollständig</div><div class="why">Nur die <code>kb.</code>-Schlüssel im Browser-Speicher bleiben, mit Absicht.</div></div>
-      <div class="card"><div class="t"><span class="check">✓</span>Marken unterscheidbar</div><div class="why">Tags als <span class="tg">#abo</span>, Werte als Kasten, Filter nach Größe und Dringlichkeit. Commit <code>1a128aa</code>.</div></div>
-      <div class="card"><div class="t"><span class="check">✓</span>Personen aus Git</div><div class="why">Name je Board, Adressen auf Karten, <code>kard whoami</code>, E11, Monogramme. Commit <code>8af013d</code>.</div></div>
-      <div class="card"><div class="t"><span class="check">✓</span>MIT-Lizenz</div><div class="why"><code>LICENSE</code> liegt im Repo, das README nennt sie.</div></div>
-      <div class="card"><div class="t"><span class="check">✓</span>Vorschau <code>kard-ui</code></div><div class="why">Baut <code>kard</code> und startet die Oberfläche auf einer frischen Kopie des Beispiel-Boards.</div></div>
+      <div class="card"><div class="t"><span class="check">✓</span><code>go test ./...</code> · 8 packages</div></div>
+      <div class="card"><div class="t"><span class="check">✓</span><code>go vet</code> · <code>gofmt</code> clean</div></div>
+      <div class="card"><div class="t"><span class="check">✓</span>English docs and commits</div><div class="why">README, spec, this page; history as Conventional Commits.</div></div>
+      <div class="card"><div class="t"><span class="check">✓</span>Version from commits</div><div class="why"><code>scripts/calculate_version.sh</code> counts from the last tag; <code>kard version</code>, <code>scripts/dist</code> for every system.</div></div>
+      <div class="card"><div class="t"><span class="check">✓</span>Distinct marks</div><div class="why">Tags as <span class="tg">#abo</span>, values as boxes, filter by size and urgency. Commit <code>1371ddc</code>.</div></div>
+      <div class="card"><div class="t"><span class="check">✓</span>People from Git</div><div class="why">Name per board, addresses on cards, <code>kard whoami</code>, E11, monograms. Commit <code>2cb6498</code>.</div></div>
+      <div class="card"><div class="t"><span class="check">✓</span>MIT license</div><div class="why"><code>LICENSE</code> is in the repo, the README names it.</div></div>
     </div>
   </div>
-  <div class="foot"><span>kardboard · Entwurf v0</span><span>docs/spec.md · README.md</span></div>
+  <div class="foot"><span>kardboard · v0.1.0</span><span>docs/spec.md · README.md</span></div>
 </section>
 
 </div>

@@ -1,49 +1,51 @@
-# kardboard: Format und CLI
+# kardboard: format and CLI
 
-**Stand:** Entwurf v0, zur Diskussion. Schlüssel, Feldnamen und Befehle sind
-englisch und bleiben es. Der Text ist vorerst deutsch.
+**Status:** Draft v0, open for discussion. Keys, field names and commands are
+English and stay that way.
 
-kardboard zeigt Karten als Board, die als Markdown-Dateien in einem Ordner
-liegen. Dieses Dokument legt fest, wie der Ordner und die Dateien aussehen und
-welche Befehle es gibt. Wie das Programm gebaut ist, steht hier nicht.
+kardboard shows cards as a board. The cards are Markdown files in a directory.
+This document defines what the directory and the files look like and which
+commands exist. How the program is built is not described here.
 
-## Grundsätze
+## Principles
 
-1. **Ein Board ist ein Ordner mit einer `board.yaml`.** Wo der Ordner liegt, ist
-   egal: im Projekt, daneben oder als eigenes Repo.
-2. **Der Ordner ist die Spalte.** In welcher Spalte eine Karte liegt, ergibt
-   sich aus dem Pfad, nie aus dem Inhalt der Datei. Verschieben ändert deshalb
-   keine Zeile Text.
-3. **Alles andere über die Karte steht in ihrem Kopf**, auch wem sie gehört.
-   Der Kopf trägt nur, was das Board filtert, sortiert oder prüft. Was darüber
-   hinausgeht, ist Text und bleibt frei.
-4. **Jede Karte ist ohne kardboard lesbar und änderbar.** Editor, `ls`, `grep`
-   und `git` reichen immer aus.
-5. **Einstieg ohne Umbau.** Ein Ordner mit Spaltenordnern und Markdown-Dateien
-   wird durch eine `board.yaml` zum gültigen Board. Felder kommen dazu, wenn man
-   sie braucht.
+1. **A board is a directory with a `board.yaml`.** Where the directory lives
+   does not matter: in the project, next to it or as a repo of its own.
+2. **The directory is the column.** Which column a card is in follows from
+   its path, never from the content of the file. So moving a card changes no
+   line of text.
+3. **Everything else about the card is in its header**, including whose card it
+   is. The header only holds what the board filters, sorts or checks. Anything
+   beyond that is text and stays free.
+4. **Every card can be read and changed without kardboard.** An editor, `ls`,
+   `grep` and `git` are always enough.
+5. **Start without rebuilding.** A directory with column directories and
+   Markdown files becomes a valid board by adding a `board.yaml`. Fields come
+   in when you need them.
 
-## Verzeichnis
+## Directory
 
 ```
-board/                         Name frei wählbar
-  board.yaml                   macht den Ordner zum Board
-  planning/                    Spalte
-    offline-modus.md           Karte
+board/                         any name
+  board.yaml                   makes the directory a board
+  planning/                    column
+    offline-modus.md           card
   backlog/
     export-als-pdf.md
   working_on/
     login-fehler-bei-umlauten.md
   done/
-  reference/                   keine Spalte: wird ignoriert
+  reference/                   not a column: ignored
 ```
 
-- Spalten sind die Ordner, die `board.yaml` unter `columns` nennt. Alle anderen
-  Ordner und Dateien im Board ignoriert kardboard. Dort ist Platz für Anhänge.
-- Eine Karte ist eine `.md`-Datei direkt in einem Spaltenordner.
-- Unterordner in einer Spalte werden ignoriert (siehe offene Punkte).
-- Versteckte Dateien (`.gitkeep`, `.DS_Store`) werden ignoriert.
-- Leere Spaltenordner dürfen fehlen. Git kennt keine leeren Ordner.
+- Columns are the directories that `board.yaml` names under `columns`.
+  kardboard ignores all other directories and files in the board. That is
+  where attachments can go.
+- A card is a `.md` file directly in a column directory.
+- Subdirectories in a column are ignored (see open questions).
+- Hidden files (`.gitkeep`, `.DS_Store`) are ignored.
+- Empty column directories may be missing. Git does not know empty
+  directories.
 
 ## `board.yaml`
 
@@ -84,28 +86,28 @@ fields:
     values: [bug, feature, cleanup, security, ui]
 ```
 
-| Schlüssel | Pflicht | Bedeutung |
+| Key | Required | Meaning |
 |---|---|---|
-| `kardboard` | ja | Version des Formats, derzeit `1` |
-| `id` | ja | Kürzel des Boards, `[a-z0-9][a-z0-9-]*`. Vorsatz für Verweise über Boards hinweg |
-| `name` | nein | Anzeigename, sonst die `id` |
-| `sync` | nein | `none` (Vorgabe), `commit` oder `push`, siehe [Git](#git) |
-| `columns` | ja | Spalten in Anzeigereihenfolge, mindestens eine |
-| `fields` | nein | Felder, die Karten im Kopf tragen dürfen |
+| `kardboard` | yes | Version of the format, currently `1` |
+| `id` | yes | Short name of the board, `[a-z0-9][a-z0-9-]*`. Prefix for references across boards |
+| `name` | no | Display name, otherwise the `id` |
+| `sync` | no | `none` (default), `commit` or `push`, see [Git](#git) |
+| `columns` | yes | Columns in display order, at least one |
+| `fields` | no | Fields that cards may carry in their header |
 
-Schlüssel einer Spalte:
+Keys of a column:
 
-| Schlüssel | Pflicht | Bedeutung |
+| Key | Required | Meaning |
 |---|---|---|
-| `id` | ja | Ordnername, `[a-z0-9][a-z0-9_-]*` |
-| `title` | nein | Anzeigename, sonst die `id` |
-| `doing` | nein | `true`: Hier liegt, woran gearbeitet wird. Ziel von `kard take` |
-| `done` | nein | `true`: Karten hier gelten als erledigt. Ziel von `kard done` |
-| `limit` | nein | Höchstzahl Karten in der Spalte. Überschreiten ist eine Warnung |
+| `id` | yes | Directory name, `[a-z0-9][a-z0-9_-]*` |
+| `title` | no | Display name, otherwise the `id` |
+| `doing` | no | `true`: This is where the work in progress is. Target of `kard take` |
+| `done` | no | `true`: Cards here count as done. Target of `kard done` |
+| `limit` | no | Maximum number of cards in the column. Going over it is a warning |
 
-Unbekannte Schlüssel in der `board.yaml` sind ein Fehler.
+Unknown keys in `board.yaml` are an error.
 
-## Karte
+## Card
 
 ```markdown
 ---
@@ -119,49 +121,48 @@ depends_on: [druckvorlagen]
 
 # Export als PDF
 
-Freier Text in Markdown.
+Free text in Markdown.
 ```
 
-- **Dateiname:** `<kürzel>.md`, Kürzel aus `[a-z0-9][a-z0-9-]*`, höchstens 80
-  Zeichen.
-- **Der Dateiname ist der Schlüssel der Karte.** Er ist im ganzen Board
-  eindeutig, über alle Spalten. Umbenennen heißt neue Karte; `kard rename` zieht
-  Verweise nach.
-- **Kopf:** YAML zwischen zwei Zeilen `---` ganz am Anfang der Datei. Der Kopf
-  darf fehlen, solange die Spalte kein Pflichtfeld verlangt.
-- **Titel:** die erste nicht leere Zeile nach dem Kopf, in der Form `# Titel`.
-  Der Titel steht nur dort, nicht im Kopf.
-- **Text:** alles danach, frei.
-- **Kodierung:** UTF-8, Zeilenende LF.
+- **File name:** `<short-name>.md`, short name from `[a-z0-9][a-z0-9-]*`, at
+  most 80 characters.
+- **The file name is the key of the card.** It is unique in the whole board,
+  across all columns. Renaming means a new card; `kard rename` updates the
+  references.
+- **Head:** YAML between two `---` lines at the very start of the file. The
+  header may be missing as long as the column requires no field.
+- **Title:** the first non-empty line after the header, in the form `# Title`.
+  The title is only there, not in the header.
+- **Text:** everything after that, free.
+- **Encoding:** UTF-8, LF line endings.
 
-### Felder im Kopf
+### Fields in the header
 
-Erlaubt sind die eingebauten Felder und die in `board.yaml` unter `fields`
-erklärten. Jeder andere Schlüssel ist ein Fehler. So fällt ein Tippfehler auf,
-statt still ein neues Feld zu werden.
+Allowed are the built-in fields and the fields declared in `board.yaml` under
+`fields`. Any other key is an error. This way a typo stands out instead of
+silently becoming a new field.
 
-Eingebaut, ohne Erklärung nutzbar:
+Built in, usable without a declaration:
 
-| Feld | Typ | Bedeutung |
+| Field | Type | Meaning |
 |---|---|---|
-| `assignee` | `person` | wem die Karte gehört, eine Person oder mehrere |
-| `tags` | `list` | Schlagworte |
-| `due` | `date` | Termin |
-| `depends_on` | `cards` | Karten, die vorher fertig sein müssen |
-| `created` | `date` | Anlagedatum, setzt `kard new` |
+| `assignee` | `person` | whose card it is, one person or several |
+| `tags` | `list` | tags |
+| `due` | `date` | due date |
+| `depends_on` | `cards` | cards that must be finished first |
+| `created` | `date` | creation date, set by `kard new` |
 
-Ein eingebautes Feld darf unter `fields` enger gefasst werden: `tags` mit
-festen `values`, `assignee` als Pflicht in einer Spalte. Der Typ bleibt
-derselbe.
+A built-in field may be narrowed under `fields`: `tags` with fixed `values`,
+`assignee` as required in a column. The type stays the same.
 
-Verboten im Kopf sind `status`, `column`, `id` und `title`. Diese Angaben
-stehen im Pfad, im Dateinamen oder in der Überschrift, und zwei Quellen für
-dieselbe Angabe laufen auseinander.
+`status`, `column`, `id` and `title` are forbidden in the header. This
+information is in the path, the file name or the heading, and two sources for
+the same information drift apart.
 
-### Wem eine Karte gehört
+### Who a card belongs to
 
-`assignee` nennt eine Person mit ihrem Kürzel oder ihrer E-Mail-Adresse,
-oder mehrere als Liste (siehe [Personen](#personen)):
+`assignee` names one person by their short name or email address, or several
+as a list (see [People](#people)):
 
 ```yaml
 assignee: sam
@@ -171,16 +172,16 @@ assignee: sam
 assignee: [alex, sam]
 ```
 
-Das Feld gilt in jeder Spalte: Eine Karte kann im Backlog schon für jemanden
-vorgemerkt sein, und eine erledigte Karte behält, wer sie gemacht hat. Fehlt
-das Feld, gehört die Karte niemandem. Stehen mehrere Namen dort, gehört sie
-jedem von ihnen gleichermaßen.
+The field applies in every column: A card in the backlog can already be set
+aside for someone, and a done card keeps who did it. Without the field, the
+card belongs to nobody. With several names, it belongs to each of them
+equally.
 
-Eine leere Liste und ein doppelter Name sind Fehler. kardboard schreibt einen
-einzelnen Namen ohne Klammern und mehrere als Liste in einer Zeile.
+An empty list and a duplicate name are errors. kardboard writes a single name
+without brackets and several names as a list on one line.
 
-Ob eine Spalte eine Person verlangt, legt das Board selbst fest, mit der
-üblichen Regel für Pflichtfelder:
+Whether a column requires a person is up to the board itself, with the usual
+rule for required fields:
 
 ```yaml
 fields:
@@ -189,110 +190,105 @@ fields:
     required: [working_on]
 ```
 
-Mit `values` lässt sich die Liste der Personen festlegen. Ein Tippfehler im
-Namen ist dann ein Fehler.
+`values` fixes the list of people. A typo in a name is then an error.
 
-### Feldtypen
+### Field types
 
-| Typ | Wert | Beispiel |
+| Type | Value | Example |
 |---|---|---|
-| `text` | eine Zeile Text | `owner: Einkauf` |
-| `enum` | genau einer der `values` | `size: M` |
-| `list` | Liste von Texten, mit `values` nur diese | `tags: [bug, ui]` |
-| `date` | `JJJJ-MM-TT` | `due: 2026-12-01` |
-| `number` | Zahl | `estimate: 3` |
-| `bool` | `true` oder `false` | `blocked: true` |
-| `person` | Kürzel einer Person, `[a-z0-9][a-z0-9-]*`, oder ihre E-Mail-Adresse, oder eine Liste davon; mit `values` nur diese | `reviewer: sam` |
-| `cards` | Liste von Kartenverweisen | `depends_on: [druckvorlagen]` |
+| `text` | one line of text | `owner: Purchasing` |
+| `enum` | exactly one of the `values` | `size: M` |
+| `list` | list of texts, with `values` only those | `tags: [bug, ui]` |
+| `date` | `YYYY-MM-DD` | `due: 2026-12-01` |
+| `number` | number | `estimate: 3` |
+| `bool` | `true` or `false` | `blocked: true` |
+| `person` | short name of a person, `[a-z0-9][a-z0-9-]*`, or their email address, or a list of these; with `values` only those | `reviewer: sam` |
+| `cards` | list of card references | `depends_on: [druckvorlagen]` |
 
-Schlüssel einer Felderklärung:
+Keys of a field declaration:
 
-| Schlüssel | Bedeutung |
+| Key | Meaning |
 |---|---|
-| `type` | einer der Typen oben, Pflicht |
-| `title` | Anzeigename, sonst der Feldname |
-| `values` | erlaubte Werte, Pflicht bei `enum`, möglich bei `list` und `person` |
-| `required` | `true`: Pflicht in jeder Spalte. Liste von Spalten: Pflicht nur dort |
+| `type` | one of the types above, required |
+| `title` | display name, otherwise the field name |
+| `values` | allowed values, required for `enum`, possible for `list` and `person` |
+| `required` | `true`: required in every column. List of columns: required only there |
 
-Feldnamen bestehen aus `[a-z][a-z0-9_]*`.
+Field names consist of `[a-z][a-z0-9_]*`.
 
-### Kartenverweise
+### Card references
 
-`druckvorlagen` meint eine Karte im selben Board. `atlas/druckvorlagen` meint
-eine Karte im Board mit der `id` `atlas`. Verweise im selben Board müssen
-auflösbar sein. Verweise in ein anderes Board prüft kardboard nur, wenn dieses
-Board auf dem Rechner angemeldet ist, und meldet sonst eine Warnung.
+`druckvorlagen` means a card in the same board. `atlas/druckvorlagen` means a
+card in the board with the `id` `atlas`. References in the same board must
+resolve. kardboard checks references into another board only if that board is
+registered on the machine, and reports a warning otherwise.
 
-## Prüfregeln
+## Lint rules
 
-`kard lint` prüft ein Board und endet mit Code 1, wenn es einen Fehler gibt. Damit
-taugt es für einen Pre-Commit-Hook und für CI.
+`kard lint` checks a board and exits with code 1 if there is an error. This
+makes it fit for a pre-commit hook and for CI.
 
-Fehler:
+Errors:
 
-| Nr. | Regel |
+| No. | Rule |
 |---|---|
-| E01 | `board.yaml` fehlt, ist kein gültiges YAML oder verletzt dieses Dokument |
-| E02 | Der Kopf einer Karte ist kein gültiges YAML oder keine Zuordnung |
-| E03 | Unbekanntes Feld im Kopf |
-| E04 | Verbotenes Feld im Kopf (`status`, `column`, `id`, `title`) |
-| E05 | Wert passt nicht zum Typ oder steht nicht in `values` |
-| E06 | Pflichtfeld fehlt für die Spalte, in der die Karte liegt |
-| E07 | Titelzeile `# …` fehlt oder steht nicht an erster Stelle |
-| E08 | Dateiname ist kein gültiges Kürzel |
-| E09 | Derselbe Dateiname kommt mehrfach im Board vor |
-| E10 | Verweis auf eine Karte, die es im Board nicht gibt |
-| E11 | Git verfolgt eine Datei aus `.kard/`, siehe [Personen](#personen) |
+| E01 | `board.yaml` is missing, is not valid YAML or violates this document |
+| E02 | The header of a card is not valid YAML or not a mapping |
+| E03 | Unknown field in the header |
+| E04 | Forbidden field in the header (`status`, `column`, `id`, `title`) |
+| E05 | Value does not match the type or is not in `values` |
+| E06 | A field required by the card's column is missing |
+| E07 | Title line `# …` is missing or does not come first |
+| E08 | File name is not a valid short name |
+| E09 | The same file name occurs more than once in the board |
+| E10 | Reference to a card that does not exist in the board |
+| E11 | Git tracks a file from `.kard/`, see [People](#people) |
 
-Warnungen:
+Warnings:
 
-| Nr. | Regel |
+| No. | Rule |
 |---|---|
-| W01 | Verweis in ein Board, das nicht angemeldet ist |
-| W02 | `limit` einer Spalte überschritten |
+| W01 | Reference into a board that is not registered |
+| W02 | `limit` of a column exceeded |
 
-Eine fehlerhafte Karte wird überall angezeigt und als fehlerhaft markiert, nie
-ausgeblendet.
+A faulty card is shown everywhere and marked as faulty, never hidden.
 
-Aus der `board.yaml` erzeugt `kard schema` ein JSON Schema (Draft 2020-12)
-für den Kartenkopf. Damit prüfen auch Editoren und fremde Werkzeuge, was
-`kard` prüft: welche Felder es gibt (E03, E04), ihre Typen und Werte (E05),
-mit denselben Mustern für Kürzel, Verweise und Datum. Ob eine Karte, auf
-die verwiesen wird, existiert (E10), steht nicht im Kopf und bleibt
-`kard lint`.
+From `board.yaml`, `kard schema` generates a JSON Schema (draft 2020-12) for
+the card header. With it, editors and other tools check what `kard` checks:
+which fields exist (E03, E04), their types and values (E05), with the same
+patterns for short names, references and dates. Whether a referenced card
+exists (E10) is not in the header and stays with `kard lint`.
 
-Welche Felder Pflicht sind, hängt von der Spalte ab, und die steht nicht im
-Kopf. `kard schema` verlangt deshalb nur die Felder, die überall Pflicht
-sind. `kard schema <spalte>` verlangt dazu die dieser Spalte (E06); man gibt
-dann jedem Spaltenordner sein eigenes Schema.
+Which fields are required depends on the column, and the column is not in the
+header. So `kard schema` only requires the fields that are required everywhere.
+`kard schema <column>` also requires those of that column (E06); you then give
+each column directory its own schema.
 
 ## Git
 
-`sync` in der `board.yaml` legt fest, was ein ändernder Befehl mit Git tut.
+`sync` in `board.yaml` defines what a changing command does with Git.
 
-| Wert | Verhalten | Gedacht für |
+| Value | Behavior | Meant for |
 |---|---|---|
-| `none` | ändert nur Dateien | Board im Code-Repo |
-| `commit` | ein Commit je Aktion, nur mit dieser Karte | eigenes Board-Repo, allein |
-| `push` | holen, ein Commit, pushen; bei Ablehnung einmal neu versuchen | eigenes Board-Repo, im Team |
+| `none` | only changes files | board in the code repo |
+| `commit` | one commit per action, with only this card | own board repo, alone |
+| `push` | pull, one commit, push; on rejection retry once | own board repo, in a team |
 
-Für `commit` und `push` muss das Board in einem Git-Repository liegen, für
-`push` braucht der Branch außerdem einen Upstream. Fehlt etwas davon, lehnt
-`kard` jede Änderung ab und sagt, was fehlt.
+For `commit` and `push` the board must be in a Git repository, and for `push`
+the branch also needs an upstream. If any of this is missing, `kard` refuses
+every change and says what is missing.
 
-**Ein Commit je Aktion.** Er enthält genau die eine Karte, auch wenn im
-Repository anderes geändert oder vorgemerkt ist; das bleibt unberührt. Nur
-`kard rename` nimmt dazu die Karten, deren Verweise es nachzieht. Wo
-nichts zu ändern ist, entsteht kein Commit. Scheitert der Commit, etwa an
-einem Hook, liegt die Karte danach wieder, wie sie war.
+**One commit per action.** It contains exactly the one card, even if other
+things in the repository are changed or staged; those stay untouched. Only
+`kard rename` adds the cards whose references it updates. Where there is
+nothing to change, no commit is made. If the commit fails, for example
+because of a hook, the card is left as it was.
 
-**Karten mit Änderungen ohne Commit ändert `kard` nicht.** Sie landeten sonst
-im Commit der Aktion und gingen bei einem Konflikt mit ihm verloren. Erst
-committen, dann verschieben. Das gilt auch für Karten, die Git noch nicht
-kennt.
+**`kard` does not change cards with uncommitted changes.** Otherwise they
+would end up in the action's commit and be lost in a conflict with it. Commit
+first, then move. This also applies to cards that Git does not know yet.
 
-Commit-Nachrichten haben eine feste Form, damit `git log` das Protokoll des
-Boards ist:
+Commit messages have a fixed form, so that `git log` is the board's record:
 
 ```
 move export-als-pdf: backlog -> working_on
@@ -303,37 +299,35 @@ new export-als-pdf
 rename druckvorlagen -> print-templates
 ```
 
-`edit` steht für jede Änderung an anderen Feldern als `assignee` und am
-Text. Tut eine
-Aktion mehreres, etwa `kard take` (verschieben und zuweisen), steht das Erste
-in der Betreffzeile und das Weitere darunter.
+`edit` stands for any change to fields other than `assignee` and to the text. If
+an action does several things, such as `kard take` (move and assign), the
+first is in the subject line and the rest below it.
 
-Bei `push` läuft jede Aktion so ab:
+With `push`, every action runs like this:
 
-1. `git pull --rebase --autostash`. Die Aktion sieht also, was die anderen
-   inzwischen getan haben. Ist der Remote nicht erreichbar, geschieht nichts.
-2. Regeln prüfen, Karte ändern, ein Commit.
-3. `git push`. Lehnt der Remote ab, weil jemand schneller war, holt `kard` den
-   neuen Stand und versucht es genau einmal neu.
-4. Hat inzwischen jemand dieselbe Karte bewegt oder dieselbe Zeile geändert,
-   nimmt `kard` den eigenen Commit zurück, übernimmt den fremden Stand und
-   meldet, wo die Karte jetzt liegt. Änderungen an verschiedenen Stellen
-   derselben Karte, etwa Verschieben hier und Zuweisen dort, führt Git
-   zusammen.
+1. `git pull --rebase --autostash`. So the action sees what the others have
+   done in the meantime. If the remote is not reachable, nothing happens.
+2. Check the rules, change the card, one commit.
+3. `git push`. If the remote rejects it because someone was faster, `kard`
+   pulls the new state and tries again exactly once.
+4. If someone has meanwhile moved the same card or changed the same line,
+   `kard` takes back its own commit, takes over the other state and reports
+   where the card is now. Git merges changes at different places of the same
+   card, such as a move here and an assignment there.
 
-Gelingt der Commit, aber der Push nicht, bleibt die Änderung als Commit auf
-dem Rechner. `kard` meldet das und endet mit Code 1; `kard sync` holt den Push
-nach.
+If the commit succeeds but the push does not, the change stays as a commit on
+the machine. `kard` reports this and exits with code 1; `kard sync` does the
+push later.
 
-Git fragt dabei nie nach einem Passwort. Zugangsdaten müssen im Agenten oder
-im Schlüsselbund liegen.
+Git never asks for a password in this. Credentials must be in the agent or in
+the keychain.
 
-Liegt das Board im Code-Repo, hängt sein Stand am ausgecheckten Branch.
-kardboard zeigt immer den Arbeitsstand des angemeldeten Ordners.
+If the board is in the code repo, its state depends on the checked-out branch.
+kardboard always shows the working tree of the registered directory.
 
-## Einstellungen des Benutzers
+## User settings
 
-`~/.config/kardboard/config.yaml`, je Rechner und Person:
+`~/.config/kardboard/config.yaml`, per machine and person:
 
 ```yaml
 user: alex
@@ -346,433 +340,416 @@ hidden:
   - atlas
 ```
 
-| Schlüssel | Bedeutung |
+| Key | Meaning |
 |---|---|
-| `user` | eigenes Kürzel oder eigene Adresse für alle Boards. Ohne Eintrag kommt der Name aus Git, siehe [Personen](#personen) |
-| `boards` | einzeln angemeldete Boards |
-| `scan` | Ordner, in denen kardboard nach `board.yaml` sucht |
-| `hidden` | Boards, die in der Gesamtansicht ausgeblendet sind |
+| `user` | your own short name or address for all boards. Without an entry the name comes from Git, see [People](#people) |
+| `boards` | boards registered one by one |
+| `scan` | directories in which kardboard looks for `board.yaml` |
+| `hidden` | boards hidden in the overall view |
 
-`KARDBOARD_USER` und eine `.kard/config.yaml` im Projekt gehen dem Eintrag
-`user` vor, siehe [Personen](#personen).
+`KARDBOARD_USER` and a `.kard/config.yaml` in the project take precedence over
+the `user` entry, see [People](#people).
 
-Ein Board ist auf dem Rechner bekannt, wenn es unter `boards` steht oder unter
-einem Ordner aus `scan` liegt. Die Suche geht höchstens sechs Ebenen tief und
-lässt versteckte Ordner, `node_modules`, `vendor` und das Innere von Boards
-aus. Zwei bekannte Boards mit derselben `id` sind ein Fehler: Das erste behält
-die `id`, die anderen werden als unbrauchbar gemeldet.
+A board is known on the machine if it is listed under `boards` or lies below a
+directory from `scan`. The search goes at most six levels deep and skips
+hidden directories, `node_modules`, `vendor` and the inside of boards. Two
+known boards with the same `id` are an error: The first keeps the `id`, the
+others are reported as unusable.
 
-`kard add`, `kard remove` und `kard scan` ändern diese Datei. Kommentare und die
-Reihenfolge der Einträge bleiben erhalten, Leerzeilen nicht.
+`kard add`, `kard remove` and `kard scan` change this file. Comments and the
+order of the entries are kept, blank lines are not.
 
 ## CLI
 
-Der Befehl heißt `kard`. Ohne weitere Angabe wirkt er auf das Board, in dem man
-steht: kardboard sucht vom aktuellen Ordner aufwärts nach einer `board.yaml`
-und danach in den Unterordnern des Git-Repos. Liegen dort mehrere Boards, muss
-man eines wählen. `-C <ordner>` nennt den Board-Ordner direkt, `-b <id>` wählt
-ein angemeldetes Board. `kard lint` und `kard list` nehmen mit `--all` alle
-Boards, die `kard boards` zeigt, dazu das, in dem man steht. Sie zeigen sie
-nacheinander, jedes unter seinem Namen; `kard lint --all` zählt am Ende
-zusammen und endet mit Code 1, wenn irgendwo ein Fehler steckt oder ein
-Board nicht lesbar ist. `kard list <spalte> --all` lässt Boards ohne diese
-Spalte aus. `--all` geht nicht zusammen mit `-C` oder `-b`.
+The command is called `kard`. Without further arguments it works on the board
+you are in: kardboard looks for a `board.yaml` from the current directory
+upwards and then in the subdirectories of the Git repo. If there are several
+boards, you have to pick one. `-C <dir>` names the board directory directly,
+`-b <id>` picks a registered board. With `--all`, `kard lint` and `kard list`
+take all boards that `kard boards` shows, plus the one you are in. They show
+them one after the other, each under its name; `kard lint --all` adds up at
+the end and exits with code 1 if there is an error anywhere or a board cannot
+be read. `kard list <column> --all` skips boards without that column. `--all`
+does not go together with `-C` or `-b`.
 
 Board:
 
-| Befehl | Wirkung |
+| Command | Effect |
 |---|---|
-| `kard init [ordner] [--id kürzel] [--name name] [--sync modus] [--columns a,b,c] [--no-add]` | macht einen Ordner zum Board, siehe unten |
-| `kard lint [--all]` | prüft das Board, mit `--all` alle bekannten |
-| `kard schema [spalte]` | gibt das JSON Schema für den Kartenkopf aus, mit Spalte samt ihren Pflichtfeldern |
-| `kard ui [--port n] [--no-open]` | startet den lokalen Server und zeigt alle bekannten Boards im Browser, siehe [Oberfläche](#oberfläche) |
+| `kard init [dir] [--id id] [--name name] [--sync mode] [--columns a,b,c] [--no-add]` | turns a directory into a board, see below |
+| `kard lint [--all]` | checks the board, with `--all` all known boards |
+| `kard schema [column]` | prints the JSON Schema for the card header, with a column including its required fields |
+| `kard ui [--port n] [--no-open]` | starts the local server and shows all known boards in the browser, see [UI](#ui) |
 
-Karten lesen:
+Reading cards:
 
-| Befehl | Wirkung |
+| Command | Effect |
 |---|---|
-| `kard list [spalte] [--mine] [--all]` | listet Karten, mit `--mine` nur die eigenen, aus jeder Spalte, mit `--all` aus allen bekannten Boards |
-| `kard show <karte>` | zeigt eine Karte |
-| `kard log [karte] [-n anzahl]` | zeigt, welche Commits das Board oder eine Karte geändert haben, die neuesten zuerst, in der Vorgabe 20 |
+| `kard list [column] [--mine] [--all]` | lists cards, with `--mine` only your own, from every column, with `--all` from all known boards |
+| `kard show <card>` | shows one card |
+| `kard log [card] [-n number]` | shows which commits changed the board or one card, newest first, 20 by default |
 
-Karten ändern:
+Changing cards:
 
-| Befehl | Spalte | Person | Wirkung |
+| Command | Column | Person | Effect |
 |---|---|---|---|
-| `kard new "<titel>" [-c spalte] [--set feld=wert] [--id kürzel] [--text datei]` | | | legt eine Karte an, mit `--text` samt Text |
-| `kard move <karte> <spalte>` | wechselt | bleibt | verschiebt die Karte |
-| `kard take <karte> [--add]` | geht in die erste Spalte mit `doing` | wird man selbst, mit `--add` kommt man dazu | nimmt die Karte in Arbeit |
-| `kard done <karte>` | geht in die erste Spalte mit `done` | bleibt | schließt die Karte ab |
-| `kard assign <karte> <person>… [--add]` | bleibt | wird ersetzt, mit `--add` ergänzt | weist die Karte zu. `kard give` ist dasselbe |
-| `kard unassign <karte> [person…]` | bleibt | entfällt, mit Namen nur diese | gibt die Karte frei |
-| `kard set <karte> feld=wert …` | bleibt | bleibt | ändert Felder im Kopf, `feld=` entfernt eines |
-| `kard edit <karte> [--file datei] [--base sum]` | bleibt | wie im Editor geändert | öffnet die Karte im Editor, mit `--file` ohne, und speichert sie als eine Änderung, siehe unten |
-| `kard rename <karte> <neu>` | bleibt | bleibt | benennt um und zieht Verweise nach, siehe unten |
+| `kard new "<title>" [-c column] [--set field=value] [--id id] [--text file]` | | | creates a card, with `--text` including its text |
+| `kard move <card> <column>` | changes | stays | moves the card |
+| `kard take <card> [--add]` | goes to the first column with `doing` | becomes you, with `--add` you join | starts work on the card |
+| `kard done <card>` | goes to the first column with `done` | stays | finishes the card |
+| `kard assign <card> <person>… [--add]` | stays | is replaced, with `--add` added to | assigns the card. `kard give` is the same |
+| `kard unassign <card> [person…]` | stays | is removed, with names only those | makes the card nobody's |
+| `kard set <card> field=value …` | stays | stays | changes fields in the header, `field=` removes one |
+| `kard edit <card> [--file file] [--base sum]` | stays | as changed in the editor | opens the card in the editor, with `--file` without one, and saves it as one change, see below |
+| `kard rename <card> <new>` | stays | stays | renames and updates references, see below |
 
-Rechner:
+Machine:
 
-| Befehl | Wirkung |
+| Command | Effect |
 |---|---|
-| `kard boards` | listet angemeldete und gefundene Boards |
-| `kard add [ordner]` | meldet ein Board an. Der Ordner ist das Board oder liegt in seinem Projekt; ohne Angabe gilt der aktuelle |
-| `kard remove <id\|ordner>` | meldet ein Board ab, löscht nichts |
-| `kard scan <ordner>` | nimmt einen Ordner in die Suche auf, `--remove` nimmt ihn wieder heraus |
-| `kard sync` | holt, was auf dem Remote neu ist, und pusht, was hier wartet. Nur für Boards mit `sync: push` |
-| `kard whoami [--all] [--set name]` | sagt, wer man im Board ist und woher der Name kommt, mit `--set` setzt es ihn für das Projekt, siehe [Personen](#personen) |
-| `kard version` | sagt, welche Version das ist: der Git-Tag, aus dem `kard` gebaut wurde, sonst Commit und Datum, dazu das System. `kard --version` ist dasselbe |
+| `kard boards` | lists registered and found boards |
+| `kard add [dir]` | registers a board. The directory is the board or lies in its project; without it, the current one applies |
+| `kard remove <id\|dir>` | unregisters a board, deletes nothing |
+| `kard scan <dir>` | adds a directory to the search, `--remove` takes it out again |
+| `kard sync` | pulls what is new on the remote and pushes what is waiting here. Only for boards with `sync: push` |
+| `kard whoami [--all] [--set name]` | says who you are on the board and where the name comes from, with `--set` sets it for the project, see [People](#people) |
+| `kard version` | says which version this is: the Git tag `kard` was built from, otherwise commit and date, plus the system. `kard --version` is the same |
 
-Zu `kard edit`:
+On `kard edit`:
 
-- **Der Editor bekommt eine Kopie.** `kard edit` nimmt `$VISUAL`, sonst
-  `$EDITOR`, sonst `vi`. Erst wenn der Editor geschlossen ist, ersetzt die
-  Kopie die Karte, in einem Schritt. Bleibt sie unverändert, geschieht
-  nichts.
-- **Dieselben Regeln wie `kard set`.** Was im Kopf anders ist, gilt als
-  gesetzt oder entfernt: Eine fremde Karte braucht `--force`, ein
-  Pflichtfeld darf nicht wegfallen. Auf Boards mit `sync: commit` oder
-  `push` entsteht ein Commit, `edit <karte>` oder `assign …`, wenn sich
-  `assignee` geändert hat. Bei `push` holt `kard` vorher den Stand der
-  anderen.
-- **Nichts geht verloren.** Eine Karte mit Änderungen ohne Commit öffnet
-  `kard edit` gar nicht erst. Hätte die Kopie Fehler, die die Karte nicht
-  hatte (E02 bis E05, E07), oder hat sich die Karte inzwischen geändert,
-  bleibt die Karte, wie sie war, und `kard` nennt den Ort der Kopie.
+- **The editor gets a copy.** `kard edit` uses `$VISUAL`, otherwise
+  `$EDITOR`, otherwise `vi`. Only when the editor is closed does the copy
+  replace the card, in one step. If the copy is unchanged, nothing happens.
+- **The same rules as `kard set`.** Whatever is different in the header counts
+  as set or removed: A card assigned to someone else needs `--force`, a
+  required field must not go away. On boards with `sync: commit` or `push`
+  this makes a commit, `edit <card>` or `assign …` if `assignee` changed. With
+  `push`, `kard` first pulls the others' state.
+- **Nothing gets lost.** `kard edit` does not even open a card with
+  uncommitted changes. If the copy has errors the card did not have (E02 to
+  E05, E07), or if the card has changed in the meantime, the card stays as it
+  was, and `kard` names the location of the copy.
 
-Zu `kard rename`:
+On `kard rename`:
 
-- **Nur der Dateiname ändert sich.** Die Karte bleibt in ihrer Spalte, ihr
-  Inhalt bleibt, wie er war. Der neue Name muss ein gültiges Kürzel sein,
-  das es im Board noch nicht gibt.
-- **Verweise ziehen nach.** Jedes Feld vom Typ `cards` im selben Board, das
-  die Karte nennt, ob als `druckvorlagen` oder als `<board>/druckvorlagen`,
-  nennt danach den neuen Namen. Geändert wird nur diese Zeile des Kopfes.
-  Das gilt auch für Karten anderer Personen, denn ihr Inhalt ändert sich
-  nicht. Verweise aus anderen Boards und Erwähnungen im Text bleiben, wie
-  sie sind; `kard lint` zeigt, was danach ins Leere zeigt.
-- **Eine fremde Karte braucht `--force`,** wie bei jeder anderen Änderung.
-- **Ein Commit.** Auf Boards mit `sync: commit` oder `push` enthält er die
-  Karte und jede Karte, deren Verweis nachgezogen wurde. Keine davon darf
-  Änderungen ohne Commit haben.
+- **Only the file name changes.** The card stays in its column, its content
+  stays as it was. The new name must be a valid short name that does not yet
+  exist in the board.
+- **References follow.** Every field of type `cards` in the same board that
+  names the card, whether as `druckvorlagen` or as `<board>/druckvorlagen`,
+  names the new name afterwards. Only that line of the header is changed. This
+  also applies to cards of other people, because their content does not
+  change. References from other boards and mentions in the text stay as they
+  are; `kard lint` shows what points nowhere afterwards.
+- **A card assigned to someone else needs `--force`,** as with any other
+  change.
+- **One commit.** On boards with `sync: commit` or `push` it contains the card
+  and every card whose reference was updated. None of them may have
+  uncommitted changes.
 
-Zu `kard init`:
+On `kard init`:
 
-- **Es schreibt die `board.yaml` und sonst nichts um.** Keine vorhandene
-  Datei wird geändert oder verschoben. Eine vorhandene `board.yaml` wird nie
-  überschrieben. Ohne Angabe gilt der aktuelle Ordner; fehlt der genannte
-  Ordner, entsteht er.
-- **Vorhandene Ordner werden die Spalten.** Jeder Unterordner, der
-  Markdown-Dateien enthält, direkt oder eine Ebene tiefer, wird eine Spalte,
-  wenn sein Name als Spaltenkürzel taugt. Bekannte Namen kommen in die
-  übliche Reihenfolge (`planning`, `backlog`, …, `working_on`, …, `done`),
-  unbekannte dazwischen. `working_on`, `doing`, `in_progress` oder `wip`
-  bekommt `doing: true`; `done`, `finished` oder `closed` bekommt
-  `done: true`. Was nicht passt, ändert man danach in der `board.yaml`.
-- **Ein Ordner ohne solche Unterordner** bekommt `backlog`, `working_on` und
-  `done`.
-- **`--columns`** nennt die Spalten selbst, in ihrer Reihenfolge.
-- **Die `id`** kommt aus dem Ordnernamen, gebildet wie ein Kartenkürzel.
-  Heißt der Ordner `board`, `kanban` oder `cards`, gilt der Name des Ordners
-  darüber.
-- **`--sync`** setzt den Git-Modus, Vorgabe `none`. `kard init` selbst
-  committet nichts.
-- **Das Board wird auf dem Rechner angemeldet**, wie mit `kard add`.
-  `--no-add` lässt das weg. Trägt schon ein anderes Board dieselbe `id`,
-  entsteht das Board trotzdem, bleibt aber unangemeldet, und `kard` sagt das.
-- **Am Ende steht, was vorgefunden wurde:** die Spalten, die Zahl der Karten
-  und wie viele davon eine Regel verletzen.
+- **It writes the `board.yaml` and rewrites nothing else.** No existing file
+  is changed or moved. An existing `board.yaml` is never overwritten. Without
+  an argument the current directory applies; if the named directory does not
+  exist, it is created.
+- **Existing directories become the columns.** Every subdirectory that holds
+  Markdown files, directly or one level deeper, becomes a column if its name
+  works as a column short name. Known names go in the usual order
+  (`planning`, `backlog`, …, `working_on`, …, `done`), unknown ones in
+  between. `working_on`, `doing`, `in_progress` or `wip` gets `doing: true`;
+  `done`, `finished` or `closed` gets `done: true`. Whatever does not fit you
+  change afterwards in `board.yaml`.
+- **A directory without such subdirectories** gets `backlog`, `working_on`
+  and `done`.
+- **`--columns`** names the columns yourself, in their order.
+- **The `id`** comes from the directory name, formed like a card short name.
+  If the directory is called `board`, `kanban` or `cards`, the name of the
+  directory above it applies.
+- **`--sync`** sets the Git mode, default `none`. `kard init` itself commits
+  nothing.
+- **The board is registered on the machine**, as with `kard add`.
+  `--no-add` leaves that out. If another board already has the same `id`, the
+  board is still created but stays unregistered, and `kard` says so.
+- **At the end it says what it found:** the columns, the number of cards and
+  how many of them break a rule.
 
-Zum Anlegen:
+On creating:
 
-- `kard new` legt die Karte in die erste Spalte, wenn `-c` fehlt, und setzt
-  `created` auf das heutige Datum.
-- Der Dateiname entsteht aus dem Titel: klein geschrieben, Umlaute
-  ausgeschrieben (`ä` wird `ae`), alles andere als `a–z` und `0–9` wird zu
-  einem Bindestrich. Gibt es das Kürzel schon, lehnt `kard new` ab und verlangt
-  `--id`.
-- `--set` darf mehrfach stehen. Listen gehen als `tags=bug,ui` oder
-  `tags=[bug, ui]`. Die Person kommt mit `--set assignee=sam`.
+- `kard new` puts the card in the first column if `-c` is missing, and sets
+  `created` to today's date.
+- The file name is made from the title: lower case, umlauts spelled out (`ä`
+  becomes `ae`), anything other than `a–z` and `0–9` becomes a hyphen. If the
+  short name already exists, `kard new` refuses and asks for `--id`.
+- `--set` may be repeated. Lists go as `tags=bug,ui` or `tags=[bug, ui]`. The
+  person comes with `--set assignee=sam`.
 
-Zum Ändern:
+On changing:
 
-- **Verschieben benennt nur die Datei um.** Der Text bleibt unberührt.
-- **Felder ändern schreibt nur die Zeilen dieser Felder neu.** Andere Felder,
-  Kommentare, die Reihenfolge im Kopf und der Text bleiben, wie sie sind. Ein
-  neues Feld kommt ans Ende des Kopfes. Entfällt das letzte Feld, entfällt der
-  Kopf.
-- **Ein Schritt geschieht ganz oder gar nicht.** `kard take` weist zu und
-  verschiebt; lehnt eine Regel eines von beidem ab, bleibt die Karte, wie sie
-  war.
-- **Eine Karte, die anderen gehört, ändert kein Befehl ohne `--force`**, in
-  keiner Spalte. Wer selbst unter `assignee` steht, darf sie ändern, auch wenn
-  dort weitere Namen stehen. Eine Karte, die niemandem gehört, darf jeder
-  nehmen, verschieben und zuweisen.
-- **Dazukommen ist auch eine Änderung.** `kard take --add` auf der Karte anderer
-  braucht `--force`. Ohne das holt einen jemand dazu, der schon auf der Karte
-  steht: `kard assign <karte> <person> --add`.
-- **Ohne `--add` ersetzen `kard take` und `kard assign` alle Namen.** Verlässt die
-  letzte Person die Karte, entfällt das Feld.
-- **Pflichtfelder gelten beim Ändern.** Eine Karte kommt nicht in eine Spalte,
-  deren Pflichtfeld ihr fehlt, und verliert kein Pflichtfeld ihrer Spalte.
-  `kard new` legt keine Karte an, der eines fehlt. Mit `--force` geht es
-  trotzdem, und `kard lint` meldet die Karte danach. Was einer Karte schon
-  vorher fehlte, hindert andere Änderungen an ihr nicht.
-- **Ohne Spalte mit `doing`** weist `kard take` nur zu.
-- **Wer man ist, muss kardboard nur wissen, wenn es darauf ankommt:** bei
-  `kard take`, bei `--mine` und bei Karten, die jemandem gehören.
+- **Moving only renames the file.** The text stays untouched.
+- **Changing fields only rewrites the lines of those fields.** Other fields,
+  comments, the order in the header and the text stay as they are. A new field
+  goes to the end of the header. If the last field goes away, the header goes
+  away.
+- **A step happens completely or not at all.** `kard take` assigns and moves;
+  if a rule refuses either of the two, the card stays as it was.
+- **No command changes a card that belongs to others without `--force`**, in
+  any column. Whoever is listed under `assignee` may change it, even if other
+  names are listed there too. Anyone may take, move and assign a card that
+  belongs to nobody.
+- **Joining is a change too.** `kard take --add` on someone else's card needs
+  `--force`. Without it, someone already on the card brings you in:
+  `kard assign <card> <person> --add`.
+- **Without `--add`, `kard take` and `kard assign` replace all names.** When
+  the last person leaves the card, the field goes away.
+- **Required fields apply when changing.** A card does not go into a column
+  whose required field it lacks, and does not lose a required field of its
+  column. `kard new` does not create a card that lacks one. With `--force` it
+  works anyway, and `kard lint` reports the card afterwards. What a card
+  already lacked before does not block other changes to it.
+- **Without a column with `doing`**, `kard take` only assigns.
+- **kardboard only needs to know who you are when it matters:** for
+  `kard take`, for `--mine` and for cards that belong to someone.
 
-Für alle Befehle gilt:
+For all commands:
 
-- Lesende Befehle kennen `--json`, für Skripte und Agenten. Ein Feld vom Typ
-  `person` ist dort immer eine Liste, auch bei einem einzelnen Namen.
-  `kard show --json` nennt auch den Fingerabdruck der Datei (`sum`).
-- Mit `--json` steht ein Fehler als ein Objekt auf stderr: `error` (der
-  Grund), `kind` (`refused`, `conflict`, `not_pushed`, `stale`, `ambiguous`
-  oder `usage`) und `force`, wenn `--force` es trotzdem täte. Bei
-  `ambiguous` nennt `candidates` die Personen, auf die ein Name passt. stdout trägt nur, was der
-  Befehl ausgibt.
-- Nichts braucht ein Gegenüber. Text, den sonst der Editor liefert, nimmt
-  `kard new --text` und `kard edit --file` aus einer Datei oder mit `-` von
-  stdin. `kard edit --file … --base <sum>` speichert nur, wenn die Karte seit
-  dem Lesen unverändert ist.
-- Jeder Befehl hat `--help` (oder `-h`, `kard help <befehl>`) mit Beispielen.
-- Rückgabecode `0` bei Erfolg, `1` bei einem Regelverstoß, bei einer
-  Änderung, die wegen eines Konflikts zurückgenommen wurde, und bei einem
-  Commit, der nicht gepusht werden konnte. `2` bei falschem Aufruf oder wenn
-  der Befehl nicht wirken kann (kein Board gefunden, Karte oder Spalte
-  unbekannt, Remote nicht erreichbar).
-- Die Oberfläche tut nichts, was das CLI nicht kann. Jede Aktion dort ist genau
-  einer dieser Befehle.
+- Reading commands know `--json`, for scripts and agents. A field of type
+  `person` is always a list there, even with a single name.
+  `kard show --json` also gives the fingerprint of the file (`sum`).
+- With `--json` an error is one object on stderr: `error` (the reason),
+  `kind` (`refused`, `conflict`, `not_pushed`, `stale`, `ambiguous` or
+  `usage`) and `force` if `--force` would do it anyway. With `ambiguous`,
+  `candidates` names the people a name matches. stdout only carries what the
+  command prints.
+- Nothing needs someone at the keyboard. Text that the editor would otherwise
+  supply is taken by `kard new --text` and `kard edit --file` from a file or,
+  with `-`, from stdin. `kard edit --file … --base <sum>` only saves if the
+  card is unchanged since it was read.
+- Every command has `--help` (or `-h`, `kard help <command>`) with examples.
+- Exit code `0` on success, `1` on a rule violation, on a change that was
+  taken back because of a conflict, and on a commit that could not be pushed.
+  `2` on a wrong invocation or when the command cannot take effect (no board
+  found, card or column unknown, remote not reachable).
+- The UI does nothing the CLI cannot do. Every action there is exactly one of
+  these commands.
 
-## Oberfläche
+## UI
 
-`kard ui` startet einen Webserver auf dem eigenen Rechner und zeigt alle
-bekannten Boards. Steht man in einem Board, gehört es dazu, auch wenn es nicht
-angemeldet ist.
+`kard ui` starts a web server on your own machine and shows all known boards.
+If you are in a board, it is included, even if it is not registered.
 
-- **Nur der eigene Rechner.** Der Server lauscht auf `127.0.0.1`, in der
-  Vorgabe auf Port 4712, und beantwortet nur Anfragen, die `localhost` als
-  Ziel nennen.
-- **Ändern wie im CLI.** Karten lassen sich in eine andere Spalte ziehen, und
-  die Kartenansicht bietet Nehmen, Abschließen, Verschieben, das Zuweisen
-  von Personen und das Ändern von Titel, Feldern und Text. Jede dieser
-  Handlungen ist genau der gleichnamige Befehl, mit denselben Regeln. Lehnt
-  eine Regel ab, zeigt die Seite den Grund und bietet an, es trotzdem zu
-  tun. Das entspricht `--force`.
-- **Bearbeiten in einem Schritt.** Titel, Felder und Text ändert man in
-  einem Bearbeiten-Modus, den Text als Markdown mit Vorschau. Was dort
-  geändert wird, geht erst mit „Speichern“ als eine Änderung an die Karte,
-  also als ein Commit `edit <karte>`. Der Kopf bleibt dabei bis auf die
-  geänderten Felder, wie er war. Ein geleertes Feld entfällt wie bei
-  `kard set <karte> feld=`. Abbrechen verwirft alles.
-- **Kein Überschreiben.** Titel und Text werden beim Öffnen festgehalten,
-  zusammen mit einem Fingerabdruck der Datei. Hat sich die Datei bis zum
-  Speichern geändert, speichert die Seite den Text nicht, sagt das und
-  behält den Entwurf. Das lässt sich nicht erzwingen, denn es würde
-  überschreiben, was ein anderer geschrieben hat. Wer nur Felder ändert,
-  ändert nur diese Zeilen.
-- **Ziehen auf die Arbeitsspalte nimmt die Karte.** Gehört sie noch
-  niemandem, wird man selbst eingetragen. Sonst ist Ziehen ein reines
-  Verschieben. In der gemeinsamen Ansicht mehrerer Boards steht „in Arbeit“
-  für die Arbeitsspalte und „erledigt“ für die erledigte Spalte des Boards
-  der Karte. Auf „offen“ lässt sich dort nicht ziehen, weil es mehrere
-  Spalten sein können.
-- **Fremde Webseiten können nichts ändern.** Eine ändernde Anfrage muss von
-  der eigenen Seite stammen: gleiche Herkunft, ein eigener Kopf in der
-  Anfrage und JSON als Inhalt. Ein Formular oder Skript einer anderen Seite
-  im selben Browser kann das nicht erfüllen.
-- **Git wie im CLI.** Auf Boards mit `sync: commit` oder `push` macht jede
-  Handlung denselben Commit wie der Befehl. Nimmt ein Konflikt die Änderung
-  zurück oder gelingt der Push nicht, sagt die Seite das. Eine Karte mit
-  Änderungen ohne Commit sagt in ihrer Ansicht, dass sie sich so nicht
-  ändern lässt. Ein Board, dem das Repository oder der Upstream fehlt, zeigt
-  die Seite nur an und nennt den Grund.
-- **Abgleich mit dem Remote.** Für Boards mit `sync: push` fragt der Server
-  jede Minute den Remote (`git fetch`). Das Menü nennt je Board den Stand:
-  aktuell, wie viele Commits zu holen oder zu senden sind, oder dass der
-  Remote nicht erreichbar ist. Ein Klick darauf ist `kard sync`. Solange etwas
-  wartet, trägt der Menüknopf einen Punkt.
-- **Sie folgt den Dateien.** Der Server prüft die Boards jede Sekunde auf
-  Änderungen und meldet sie der offenen Seite. Nach neuen Boards unter `scan`
-  sucht er alle 30 Sekunden und auf Wunsch sofort.
-- **Eine Ansicht, kein Umschalter.** Was sie zeigt, folgt aus den angehakten
-  Boards. Ist eines angehakt, erscheint es mit seinen eigenen Spalten. Sind es
-  mehrere, liegen ihre Karten in drei gemeinsamen Spalten: offen, in Arbeit
-  (`doing`), erledigt (`done`). Jede Karte zeigt dann, zu welchem Board sie
-  gehört.
-- **Ein- und Ausblenden.** Die Projektauswahl klappt aus der Kopfzeile auf.
-  Das Kästchen blendet ein Board ein oder aus, ein Klick auf den Namen zeigt
-  es allein. Welche Boards zu sehen sind, merkt sich der Browser. `hidden` in
-  den Einstellungen ist die Vorgabe, solange dort noch nichts gewählt wurde.
-- **Filter.** Ein Suchfeld und „Nur meine“ wirken auf alles, was zu sehen ist.
-  „Nur meine“ steht im Menü. Solange es an ist, zeigt die Kopfzeile das an.
-- **Hell und dunkel.** Die Seite folgt dem System. Im Menü lässt sich Hell
-  oder Dunkel fest wählen; auch das merkt sich der Browser.
-- **Verlauf aus Git.** Liegt ein Board in einem Git-Repository, zeigt die
-  Seite, welche Commits es berührt haben, für das ganze Board und für jede
-  Karte einzeln. Was ein Commit getan hat, liest kardboard aus seinem Inhalt
-  und nicht aus seiner Nachricht: Eine Datei, die Git als von `backlog/` nach
-  `done/` umbenannt führt, ist eine verschobene Karte, gleich wer sie wie
-  committet hat. Das gilt für jedes Board, auch mit `sync: none`. Ein Board
-  ohne Repository hat keinen Verlauf, und die Seite sagt das. Denselben
-  Verlauf zeigt `kard log` im Terminal, eine Zeile je Commit.
-- **Fehler bleiben sichtbar.** Eine fehlerhafte Karte ist markiert und zeigt
-  ihre Verstöße, ein unbrauchbares Board zeigt den Grund.
-- **Keine Anfrage nach außen.** Alles, was die Seite braucht, steckt im
-  Programm.
+- **Only your own machine.** The server listens on `127.0.0.1`, by default on
+  port 4712, and only answers requests that name `localhost` as their target.
+- **Changing as in the CLI.** Cards can be dragged to another column, and the
+  card view offers Take, Finish, Move, assigning people and changing title,
+  fields and text. Each of these actions is exactly the command of the same
+  name, with the same rules. If a rule refuses, the page shows the reason and
+  offers to do it anyway. That corresponds to `--force`.
+- **Editing in one step.** You change title, fields and text in an edit mode,
+  the text as Markdown with a preview. What you change there only goes to the
+  card with "Save", as one change, so as one commit `edit <card>`. The header
+  stays as it was, apart from the changed fields. A cleared field goes away,
+  as with `kard set <card> field=`. Cancel discards everything.
+- **No overwriting.** Title and text are recorded on opening, together with a
+  fingerprint of the file. If the file has changed by the time you save, the
+  page does not save the text, says so and keeps the draft. This cannot be
+  forced, because it would overwrite what someone else wrote. Changing only
+  fields changes only those lines.
+- **Dragging onto the working column takes the card.** If it does not belong
+  to anyone yet, you are added. Otherwise dragging is a plain move. In the
+  shared view of several boards, "In progress" stands for the working column
+  and "Done" for the done column of the card's board. You cannot drag onto
+  "Open" there, because it can be several columns.
+- **Other websites cannot change anything.** A changing request must come
+  from the page itself: same origin, a header of its own in the request and
+  JSON as the content. A form or script of another page in the same browser
+  cannot meet this.
+- **Git as in the CLI.** On boards with `sync: commit` or `push` every action
+  makes the same commit as the command. If a conflict takes the change back or
+  the push fails, the page says so. A card with uncommitted changes says in
+  its view that it cannot be changed this way. A board that lacks the
+  repository or the upstream is only shown, and the page names the reason.
+- **Keeping up with the remote.** For boards with `sync: push` the server
+  asks the remote every minute (`git fetch`). The menu shows the state per
+  board: up to date, how many commits there are to pull or to push, or that
+  the remote is not reachable. A click on it is `kard sync`. As long as
+  something is waiting, the menu button carries a dot.
+- **It follows the files.** The server checks the boards for changes every
+  second and reports them to the open page. It looks for new boards under
+  `scan` every 30 seconds and on request right away.
+- **One view, no switch.** What it shows follows from the ticked boards. If
+  one is ticked, it appears with its own columns. If several are, their cards
+  are in three shared columns: Open, In progress (`doing`), Done (`done`).
+  Each card then shows which board it belongs to.
+- **Showing and hiding.** The project picker opens from the top bar. The
+  checkbox shows or hides a board, a click on the name shows it alone. The
+  browser remembers which boards are shown. `hidden` in the settings is the
+  default as long as nothing has been picked there yet.
+- **Filter.** A search field and "Only mine" apply to everything that is
+  shown. "Only mine" is in the menu. While it is on, the top bar shows it.
+- **Light and dark.** The page follows the system. In the menu you can fix
+  Light or Dark; the browser remembers that too.
+- **History from Git.** If a board is in a Git repository, the page shows
+  which commits touched it, for the whole board and for each card on its own.
+  kardboard reads what a commit did from its content and not from its
+  message: A file that Git lists as renamed from `backlog/` to `done/` is a
+  moved card, no matter who committed it and how. This applies to every
+  board, also with `sync: none`. A board without a repository has no history,
+  and the page says so. `kard log` shows the same history in the terminal,
+  one line per commit.
+- **Errors stay visible.** A faulty card is marked and shows its violations,
+  an unusable board shows the reason.
+- **No requests to the outside.** Everything the page needs is in the
+  program.
 
-## Personen
+## People
 
-Git hat schon eine Identität, oft je Repository eine andere, und die
-Commits von `kard` tragen sie ohnehin. kardboard nimmt diese Identität,
-ohne dass jemand etwas einrichtet, und lässt sie überschreiben, wo man das
-will.
+Git already has an identity, often a different one per repository, and the
+commits of `kard` carry it anyway. kardboard takes this identity without
+anyone setting anything up, and lets you override it where you want to.
 
-### Wer man ist
+### Who you are
 
-kardboard bestimmt den eigenen Namen je Board. Es nimmt den ersten Eintrag,
-den es findet:
+kardboard determines your own name per board. It takes the first entry it
+finds:
 
-| Nr. | Quelle | Gedacht für |
+| No. | Source | Meant for |
 |---|---|---|
-| 1 | `KARDBOARD_USER` | einen Aufruf, Skripte und Tests |
-| 2 | `user` in `.kard/config.yaml`, der nächsten vom Board aus | einen anderen Namen in einem Repository oder Board |
-| 3 | `user` in `~/.config/kardboard/config.yaml` | einen festen Namen in allen Boards |
-| 4 | `git config user.email`, gelesen im Ordner des Boards | den Normalfall: nichts einrichten |
-| 5 | der Kontoname im Betriebssystem | Rechner ohne Git oder ohne Git-Adresse |
+| 1 | `KARDBOARD_USER` | a single call, scripts and tests |
+| 2 | `user` in `.kard/config.yaml`, the nearest one from the board | a different name in one repository or board |
+| 3 | `user` in `~/.config/kardboard/config.yaml` | a fixed name in all boards |
+| 4 | `git config user.email`, read in the board's directory | the normal case: set up nothing |
+| 5 | the account name in the operating system | machines without Git or without a Git address |
 
-Was ausdrücklich eingetragen ist, geht dem Abgeleiteten vor. Wer schon heute
-`user: alex` eingetragen hat, merkt also keinen Unterschied.
+What is set explicitly takes precedence over what is derived. So whoever
+already has `user: alex` set notices no difference.
 
-Zu den Quellen:
+On the sources:
 
-- **Git je Board.** `git config user.email` wird im Ordner des Boards
-  gelesen. So greift, was Git dort gilt, auch eine Adresse je Repository
-  über `includeIf`. Liegt das Board in keinem Repository, gilt die globale
-  Git-Adresse. kardboard liest die Git-Config nur und schreibt nie hinein.
-- **Ein eigener Name je Repository oder Board** steht in `.kard/config.yaml`.
-  Er ist für den, der dort nicht unter seiner Adresse erscheinen will.
-- **Der Kontoname** ist der letzte Ausweg. Er wird klein geschrieben, unter
-  Windows ohne den Teil vor `\`. Ist er danach kein gültiges Kürzel, fehlt
-  ein Name, und `kard` sagt, wo man ihn einträgt. Der Kontoname kann auf
-  jedem Rechner ein anderer sein. Für ein Board, das man allein nutzt, ist
-  das gleich; im Team sollte ein Name aus Git oder den Einstellungen
-  kommen.
-- **`kard whoami`** zeigt den Namen und woher er kommt, mit Pfad der Datei,
-  für das Board, in dem man steht, oder mit `--all` für jedes. `--json`
-  gibt beides als Felder aus. `kard whoami --set <name>` schreibt den Namen
-  in `.kard/config.yaml` an der Wurzel des Repositorys, ohne Repository in
-  den Board-Ordner.
+- **Git per board.** `git config user.email` is read in the board's
+  directory. So whatever applies for Git there takes effect, including an
+  address per repository via `includeIf`. If the board is not in a
+  repository, the global Git address applies. kardboard only reads the Git
+  config and never writes to it.
+- **A name of your own per repository or board** goes in `.kard/config.yaml`.
+  It is for whoever does not want to appear there under their address.
+- **The account name** is the last resort. It is lower-cased, on Windows
+  without the part before `\`. If it is then not a valid short name, there is
+  no name, and `kard` says where to set one. The account name can be
+  different on every machine. For a board you use alone that does not matter;
+  in a team the name should come from Git or the settings.
+- **`kard whoami`** shows the name and where it comes from, with the path of
+  the file, for the board you are in, or with `--all` for every board.
+  `--json` prints both as fields. `kard whoami --set <name>` writes the name
+  to `.kard/config.yaml` at the root of the repository, without a repository
+  to the board directory.
 
-### Persönliche Einstellungen im Projekt: `.kard/`
+### Personal settings in the project: `.kard/`
 
 ```
-projekt/
+project/
   .kard/
-    .gitignore      enthält nur: *
+    .gitignore      contains only: *
     config.yaml     user: angelique-l
   board/
     board.yaml
 ```
 
-- **Nur für einen selbst.** `.kard/` gehört dem, der den Klon hat. Was alle
-  angeht, steht in der `board.yaml`. In jedem neuen Klon legt man `.kard/`
-  neu an.
-- **Wird nie committet.** Die `.gitignore` in `.kard/` schließt den ganzen
-  Ordner aus, sich selbst eingeschlossen. Die `.gitignore` des Projekts
-  bleibt unberührt. `kard` legt diese Datei an, wenn es den Ordner anlegt,
-  und `kard lint` meldet einen Fehler, wenn Git eine Datei aus `.kard/`
-  verfolgt (neue Regel E11).
-- **Gesucht wird vom Board-Ordner aufwärts** bis zur Wurzel des
-  Repositorys, ohne Repository nur im Board-Ordner. Die erste
-  `.kard/config.yaml` gilt. So gilt eine an der Wurzel für alle Boards
-  eines Repositorys, und ein Board kann trotzdem seine eigene haben.
-- **Dieselbe Form wie `~/.config/kardboard/config.yaml`**, aber nur mit
-  `user`. Jeder andere Schlüssel ist ein Fehler, bis es einen Grund für ihn
-  gibt.
+- **Only for yourself.** `.kard/` belongs to whoever has the clone. What
+  concerns everyone goes in `board.yaml`. In every new clone you create
+  `.kard/` again.
+- **Never committed.** The `.gitignore` in `.kard/` excludes the whole
+  directory, itself included. The project's `.gitignore` stays untouched.
+  `kard` creates this file when it creates the directory, and `kard lint`
+  reports an error if Git tracks a file from `.kard/` (new rule E11).
+- **The search goes from the board directory upwards** to the root of the
+  repository, without a repository only in the board directory. The first
+  `.kard/config.yaml` applies. So one at the root applies to all boards of a
+  repository, and a board can still have its own.
+- **The same form as `~/.config/kardboard/config.yaml`**, but only with
+  `user`. Any other key is an error, until there is a reason for it.
 
-### Was in der Karte steht
+### What the card holds
 
-Ein Wert vom Typ `person` ist ein Kürzel wie bisher oder eine E-Mail-Adresse.
-kardboard schreibt die Adresse klein und vergleicht ohne Rücksicht auf
-Groß- und Kleinschreibung.
+A value of type `person` is a short name as before or an email address.
+kardboard writes the address in lower case and compares without regard to
+case.
 
 ```yaml
-assignee: angelique.lambert@firma.de
+assignee: angelique.lambert@example.com
 ```
 
 ```yaml
-assignee: [angelique.lambert@firma.de, sam]
+assignee: [angelique.lambert@example.com, sam]
 ```
 
-Die Datei bleibt ohne kardboard lesbar, und `grep` findet die Person. Die
-Adresse ist dieselbe wie in den Commits des Boards. Wer sie in einem
-öffentlichen Repository nicht zeigen will, nutzt dort eine
-noreply-Adresse oder einen eigenen Namen in `.kard/config.yaml`.
+The file stays readable without kardboard, and `grep` finds the person. The
+address is the same as in the board's commits. Whoever does not want to show
+it in a public repository uses a noreply address there or a name of their own
+in `.kard/config.yaml`.
 
-Bestehende Karten mit Kürzeln bleiben gültig und werden nicht umgeschrieben.
+Existing cards with short names stay valid and are not rewritten.
 
-### Andere zuweisen, ohne Adressen zu tippen
+### Assigning others without typing addresses
 
-Ein Board kennt seine Leute schon, ohne Liste in der `board.yaml`:
+A board already knows its people, without a list in `board.yaml`:
 
-- die Autoren der Commits, die das Board berührt haben, mit Name und Adresse
-- die Personen, die schon in den Karten stehen
+- the authors of the commits that touched the board, with name and address
+- the people already named in the cards
 
-Git führt diese Personen über die `.mailmap` des Repositorys zusammen.
-kardboard nutzt dieselbe Datei: Zwei Adressen, die sie einer Person zuordnet,
-gelten auch auf Karten als dieselbe Person, etwa für `--mine` und für die
-Frage, ob eine Karte einem selbst gehört.
+Git merges these people via the repository's `.mailmap`. kardboard uses the
+same file: Two addresses that it maps to one person also count as the same
+person on cards, for example for `--mine` and for the question whether a card
+is your own.
 
-`kard assign <karte> <person>` und `kard new --set assignee=…` nehmen eine
-Person so:
+`kard assign <card> <person>` and `kard new --set assignee=…` take a person
+like this:
 
-1. Ist der Wert ein Kürzel oder eine Adresse, die das Board kennt, gilt sie.
-2. Sonst sucht `kard` unter den bekannten Personen nach dem Anfang einer
-   Adresse oder eines Namens, ohne Rücksicht auf Groß- und Kleinschreibung
-   und Umlaute. `sam` findet `sam@firma.de` und Sam Berger. Genau ein
-   Treffer gilt.
-3. Mehrere Treffer sind ein Fehler, der sie nennt. Mit `--json` hat er die
-   Art `ambiguous` und eine Liste `candidates`.
-4. Kein Treffer: Ein gültiges Kürzel oder eine gültige Adresse wird so
-   genommen, wie sie dasteht. Das ist eine neue Person. Hat das Feld
-   `values`, gilt das wie bisher als Fehler.
+1. If the value is a short name or an address the board knows, it applies.
+2. Otherwise `kard` searches the known people for the start of an address or
+   a name, ignoring case and umlauts. `sam` finds `sam@example.com` and Sam
+   Berger. Exactly one match applies.
+3. Several matches are an error that names them. With `--json` it has the
+   kind `ambiguous` and a list `candidates`.
+4. No match: A valid short name or a valid address is taken as it stands.
+   That is a new person. If the field has `values`, this is an error as
+   before.
 
-### In der Oberfläche
+### In the UI
 
-- **Ein Monogramm statt des Namens.** Zwei Buchstaben, aus dem Namen in Git,
-  sonst aus der Adresse vor dem `@` oder aus dem Kürzel: Angélique Lambert wird
-  AL, `sam@firma.de` wird SA. Das Monogramm ist quadratisch und in Mono
-  gesetzt, wie alles, was das Werkzeug sagt. Das eigene ist mit Tinte
-  gefüllt, die anderen haben eine Haarlinie.
-- **Name und Adresse beim Darüberfahren.** Zwei Personen mit gleichen
-  Buchstaben unterscheidet erst das; mehr soll das Monogramm nicht leisten.
-- **Zuweisen aus einer Auswahl** der bekannten Personen des Boards, mit
-  demselben Suchen wie im CLI.
-- **Wer man ist, gilt je Board.** „Nur meine“ meint in jedem angehakten
-  Board den Namen, den kardboard für dieses Board bestimmt. Kommt er dort
-  nur aus dem Kontonamen, sagt das Menü es.
+- **A monogram instead of the name.** Two letters, from the name in Git,
+  otherwise from the address before the `@` or from the short name: Angélique
+  Lambert becomes AL, `sam@example.com` becomes SA. The monogram is square and
+  set in mono, like everything the tool says. Your own is filled with ink,
+  the others have a hairline.
+- **Name and address on hover.** Only that tells apart two people with the
+  same letters; the monogram is not meant to do more.
+- **Assigning from a list** of the board's known people, with the same search
+  as in the CLI.
+- **Who you are applies per board.** "Only mine" means, in each ticked board,
+  the name that kardboard determines for that board. If the name there comes
+  only from the account name, the menu says so.
 
-## Offene Punkte
+## Open questions
 
-- **Kürzel in bestehenden Karten umstellen.** Wer bisher `user: alex`
-  eingetragen hatte und es entfernt, heißt danach wie seine Git-Adresse,
-  und seine alten Karten sind nicht mehr seine. Ob es dafür einen Befehl
-  braucht, der ein Kürzel in allen Karten eines Boards durch eine Adresse
-  ersetzt, oder ob ein eingetragenes `user` reicht.
-- **Personen über Boards hinweg.** Eine Adresse ist über Boards hinweg
-  dieselbe, ein Kürzel nicht unbedingt. „Nur meine“ über mehrere Boards
-  hängt davon ab, wie man dort jeweils heißt.
+- **Switching short names in existing cards.** Whoever had `user: alex` set
+  and removes it is then named after their Git address, and their old cards
+  are no longer theirs. Whether this needs a command that replaces a short
+  name with an address in all cards of a board, or whether a set `user` is
+  enough.
+- **People across boards.** An address is the same across boards, a short
+  name not necessarily. "Only mine" across several boards depends on what you
+  are called in each of them.
 
-- **Reihenfolge in einer Spalte.** Der Ordner kennt keine. Entweder sortiert das
-  Board nach einem Feld, oder die Reihenfolge braucht einen eigenen Ort.
-- **Unterordner in Spalten.** Heute ignoriert. Denkbar als Archiv oder als
-  Gruppe zusammengehöriger Karten.
-- **Titel in der Überschrift statt im Kopf.** Gewählt, weil die Datei so in
-  jedem Markdown-Betrachter richtig aussieht. Andere Werkzeuge führen den Titel
-  im Kopf.
-- **Dazukommen ohne `--force`.** Wer sich mit `kard take --add` einer Karte
-  anschließt, nimmt niemandem etwas weg. Heute verlangt es trotzdem `--force`,
-  damit die Regel für fremde Karten keine Ausnahme hat.
-- **Grenze je Person.** `limit` zählt die Karten der Spalte, nicht die einer
-  Person.
-- **Sprache dieses Dokuments** vor einer Veröffentlichung.
+- **Order within a column.** The directory has none. Either the board sorts by
+  a field, or the order needs a place of its own.
+- **Subdirectories in columns.** Ignored today. Conceivable as an archive or
+  as a group of cards that belong together.
+- **Title in the heading instead of the header.** Chosen because that way the
+  file looks right in every Markdown viewer. Other tools keep the title in the
+  header.
+- **Joining without `--force`.** Whoever joins a card with `kard take --add`
+  takes nothing away from anyone. Today it still requires `--force`, so that
+  the rule for other people's cards has no exception.
+- **Limit per person.** `limit` counts the cards of the column, not those of a
+  person.
