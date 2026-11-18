@@ -1,0 +1,37 @@
+name: Release
+
+# Push a tag vX.Y.Z (git tag "v$(scripts/calculate_version.sh)") and this
+# builds every system with scripts/dist and publishes the files as a
+# GitHub release.
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    # macOS, so that lipo can build the file for both kinds of Mac.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: version matches the tag
+        run: |
+          v="v$(scripts/calculate_version.sh)"
+          if [ "$v" != "$GITHUB_REF_NAME" ]; then
+            echo "tag $GITHUB_REF_NAME, but the commits say $v" >&2
+            exit 1
+          fi
+      - run: go test ./...
+      - run: scripts/dist
+      - name: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --title "kardboard ${GITHUB_REF_NAME#v}" --generate-notes
