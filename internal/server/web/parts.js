@@ -19,6 +19,7 @@ const ICONS = {
   moved: () => html`<path d="M5 12h14M13 6l6 6-6 6"/>`,
   added: () => html`<path d="M12 5v14M5 12h14"/>`,
   removed: () => html`<path d="M5 12h14"/>`,
+  branch: () => html`<circle cx="6.5" cy="5.5" r="2"/><circle cx="6.5" cy="18.5" r="2"/><circle cx="17.5" cy="7.5" r="2"/><path d="M6.5 7.5v9M17.5 9.5c0 4.5-11 3-11 7"/>`,
   commit: () => html`<circle cx="12" cy="12" r="3.5"/><path d="M12 3v5.5M12 15.5V21"/>`,
   // the menu: bring a board level with its remote
   remote: () => html`<path d="M4 11a8 8 0 0 1 14-4.6l2 2.1"/><path d="M20 4v4.5h-4.5"/><path d="M20 13a8 8 0 0 1-14 4.6l-2-2.1"/><path d="M4 20v-4.5h4.5"/>`,

@@ -574,9 +574,14 @@ func (a *app) change(b *board.Board, id string, ch board.Change) error {
 	return err
 }
 
-// gitNote says what Git did for an action, for boards that sync.
+// gitNote says what Git did for an action, for boards that sync, and on
+// boards in a code repository whether the change is only on a side branch.
 func gitNote(o gitsync.Outcome) string {
 	switch {
+	case o.Branch != nil && o.Branch.Detached:
+		return fmt.Sprintf("  (at commit %s, on no branch: %s does not get this)", o.Branch.Name, o.Branch.Main)
+	case o.Branch != nil:
+		return fmt.Sprintf("  (on branch %s: %s gets this when it is merged)", o.Branch.Name, o.Branch.Main)
 	case o.Commit == "":
 		return ""
 	case o.Pushed:

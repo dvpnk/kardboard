@@ -41,6 +41,10 @@ type Outcome struct {
 	Commit string `json:"commit,omitempty"`
 	// Pushed is true if the commit reached the remote.
 	Pushed bool `json:"pushed,omitempty"`
+	// Branch is set on boards with sync: none in a code repository when
+	// the change was made on a branch other than the main one: it is only
+	// there until that branch is merged.
+	Branch *Branch `json:"branch,omitempty"`
 }
 
 // Result is what Change did.
@@ -299,7 +303,11 @@ func Change(ctx context.Context, b *board.Board, id string, ch board.Change) (*R
 		if err != nil {
 			return nil, err
 		}
-		return &Result{ChangeResult: res}, nil
+		out := &Result{ChangeResult: res}
+		if res.Changed() {
+			out.Branch = SideBranch(ctx, b)
+		}
+		return out, nil
 	}
 	if err := ready(ctx, b); err != nil {
 		return nil, err
@@ -388,6 +396,9 @@ func New(ctx context.Context, b *board.Board, title string, opt board.NewOptions
 	var out Outcome
 	if b.Config == nil || b.Config.Sync == ModeNone {
 		c, err := b.New(title, opt)
+		if err == nil {
+			out.Branch = SideBranch(ctx, b)
+		}
 		return c, out, err
 	}
 	if err := ready(ctx, b); err != nil {
@@ -428,6 +439,9 @@ func Rename(ctx context.Context, b *board.Board, id, newID string, opt board.Ren
 	var out Outcome
 	if b.Config == nil || b.Config.Sync == ModeNone {
 		res, err := b.Rename(id, newID, opt)
+		if err == nil {
+			out.Branch = SideBranch(ctx, b)
+		}
 		return res, out, err
 	}
 	if err := ready(ctx, b); err != nil {

@@ -703,6 +703,25 @@ func syncRepo(t *testing.T, mode string) string {
 	return root
 }
 
+func TestChangeOnASideBranch(t *testing.T) {
+	asUser(t, "alex")
+	root := syncRepo(t, "none")
+
+	code, out, _ := kard(t, "move", "print-templates", "planning", "-C", root)
+	if code != ExitOK || strings.Contains(out, "branch") {
+		t.Fatalf("on main: code %d, out %q", code, out)
+	}
+	gitIn(t, root, "switch", "-q", "-c", "feature/pdf")
+	code, out, _ = kard(t, "move", "print-templates", "backlog", "-C", root)
+	if code != ExitOK || !strings.HasSuffix(out, "  (on branch feature/pdf: main gets this when it is merged)\n") {
+		t.Fatalf("on a branch: code %d, out %q", code, out)
+	}
+	code, out, _ = kard(t, "move", "print-templates", "planning", "-C", root, "--json")
+	if code != ExitOK || !strings.Contains(out, `"branch": {`) || !strings.Contains(out, `"main": "main"`) {
+		t.Errorf("json: code %d, out %q", code, out)
+	}
+}
+
 func TestCommitBoard(t *testing.T) {
 	asUser(t, "alex")
 	root := syncRepo(t, "commit")

@@ -6,6 +6,9 @@ const TEXTS = {
     filter: "Filter cards", projects: "Projects", only: "show only this project", all: "show all projects",
     allProjects: (n) => `All projects (${n})`, someProjects: (n, of) => `${n} of ${of} projects`, noProjects: "No project",
     pickHint: "Tick to show or hide. Click a name to see that project alone.",
+    onBranch: (b) => b.detached
+      ? `Commit ${b.name} is checked out, not a branch. This board shows that commit's state; ${b.main} does not see changes made here.`
+      : `Branch ${b.name} is checked out. This board shows that branch's state; ${b.main} sees changes made here once the branch is merged.`,
     settings: "Settings", theme: "Appearance", system: "System", light: "Light", dark: "Dark",
     you: (name) => `You are ${name}`, youOn: (name, board) => `${board}: you are ${name}`,
     source: {
@@ -48,6 +51,9 @@ const TEXTS = {
     filter: "Karten filtern", projects: "Projekte", only: "nur dieses Projekt zeigen", all: "alle Projekte zeigen",
     allProjects: (n) => `Alle Projekte (${n})`, someProjects: (n, of) => `${n} von ${of} Projekten`, noProjects: "Kein Projekt",
     pickHint: "Haken blendet ein oder aus. Ein Klick auf den Namen zeigt das Projekt allein.",
+    onBranch: (b) => b.detached
+      ? `Ausgecheckt ist Commit ${b.name}, kein Branch. Das Board zeigt den Stand dieses Commits; ${b.main} sieht Änderungen von hier nicht.`
+      : `Ausgecheckt ist Branch ${b.name}. Das Board zeigt den Stand dieses Branches; ${b.main} sieht Änderungen von hier erst nach dem Merge.`,
     settings: "Einstellungen", theme: "Darstellung", system: "System", light: "Hell", dark: "Dunkel",
     you: (name) => `Du bist ${name}`, youOn: (name, board) => `${board}: du bist ${name}`,
     source: {

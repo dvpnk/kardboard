@@ -182,6 +182,7 @@ function ProjectMenu() {
   const label = html`
     ${visible.length === 1 && html`<${Dot} colour=${colourOf(visible[0])} />`}
     <span class="menu-label">${name}</span>
+    ${visible.length === 1 && html`<${BranchTag} board=${visible[0]} />`}
     <span class="menu-caret" aria-hidden="true">▾</span>`;
 
   return html`<${Menu} name="projects" label=${label} title=${t.projects} content=${() => html`
@@ -192,12 +193,23 @@ function ProjectMenu() {
         <button type="button" class="proj-pick" title=${(isAlone ? t.all : t.only) + "\n" + b.root} onClick=${() => alone(b)}>
           <${Dot} colour=${colourOf(b)} />
           <span class="proj-name">${b.name}</span>
+          <${BranchTag} board=${b} />
           <span class="proj-count">${b.error ? "!" : String(b.cards.length)}</span>
         </button>
       </div>`;
     })}
     <p class="menu-hint">${t.pickHint}</p>
     <button class="proj-rescan" type="button" onClick=${() => load(true)}>${t.rescan}</button>`} />`;
+}
+
+// BranchTag names the branch a board in a code repository is seen on, when
+// it is not the main one: the board then shows that branch's state, and
+// changes made here stay on it until it is merged. On the main branch it
+// says nothing.
+function BranchTag({ board }) {
+  const b = board.branch;
+  if (!b) return null;
+  return html`<span class="branch-tag" title=${t.onBranch(b)}><${Icon} name="branch" /><span class="branch-name">${b.name}</span></span>`;
 }
 
 // The menu behind the three dots holds everything that is not needed all

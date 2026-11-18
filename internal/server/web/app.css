@@ -425,6 +425,9 @@ button { cursor: pointer; }
 }
 .proj-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .proj-count { font: 12px var(--mono); color: var(--dim); }
+.branch-tag { display: inline-flex; align-items: center; gap: 3px; min-width: 0; max-width: 20ch; font: 12px var(--mono); text-transform: none; letter-spacing: 0; color: var(--warn); }
+.branch-tag svg { flex: none; width: 13px; height: 13px; }
+.branch-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .proj-rescan {
   background: none; border: 0; padding: 4px 6px; margin-top: 2px;
   font: 12px var(--mono); color: var(--dim); text-decoration: underline; text-underline-offset: 2px;

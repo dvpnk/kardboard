@@ -156,6 +156,9 @@ type boardJSON struct {
 	Writable bool `json:"writable"`
 	// Git is set for boards with sync: commit or push.
 	Git *gitJSON `json:"git,omitempty"`
+	// Branch is set when a board with sync: none is seen on a branch other
+	// than its repository's main one: what it shows is that branch's state.
+	Branch *gitsync.Branch `json:"branch,omitempty"`
 	// User is who the user is on this board, or nil if kard does not know.
 	// UserError then says why.
 	User      *people.Identity `json:"user"`
@@ -247,6 +250,7 @@ func (s *Server) describe(ctx context.Context, l *registry.Loaded) boardJSON {
 		out.Git.Unreachable = s.unreachable[b.Root] != ""
 		s.remoteMu.Unlock()
 	}
+	out.Branch = gitsync.SideBranch(ctx, b)
 	if b.Config.Name != "" {
 		out.Name = b.Config.Name
 	} else {
