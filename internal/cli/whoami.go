@@ -38,7 +38,7 @@ in the board's directory outside one. The .kard directory ignores itself,
 so the name never gets committed.`,
 		Example: `  kard whoami
   kard whoami --all
-  kard whoami --set angelique-l`,
+  kard whoami --set arnold-s`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if all {

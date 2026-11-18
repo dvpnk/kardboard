@@ -74,8 +74,8 @@ func TestMeTakesTheFirstSource(t *testing.T) {
 	run(t, dir, "config", "user.email", "Angelique.Lambert@Firma.de")
 	check(t, b, "angelique.lambert@firma.de", FromGit)
 
-	write(t, filepath.Join(dir, "config", "kardboard", "config.yaml"), "user: alex\n")
-	check(t, b, "alex", FromUser)
+	write(t, filepath.Join(dir, "config", "kardboard", "config.yaml"), "user: arnold\n")
+	check(t, b, "arnold", FromUser)
 
 	write(t, filepath.Join(dir, ".kard", "config.yaml"), "user: angelique-l\n")
 	check(t, b, "angelique-l", FromProject)
@@ -84,10 +84,10 @@ func TestMeTakesTheFirstSource(t *testing.T) {
 	write(t, filepath.Join(b, ".kard", "config.yaml"), "user: board-only\n")
 	check(t, b, "board-only", FromProject)
 
-	t.Setenv(EnvUser, "sam")
-	check(t, b, "sam", FromEnv)
+	t.Setenv(EnvUser, "sly")
+	check(t, b, "sly", FromEnv)
 
-	t.Setenv(EnvUser, "Sam Smith")
+	t.Setenv(EnvUser, "Sly Smith")
 	if _, err := Me(b); err == nil || !strings.Contains(err.Error(), "neither a short name") {
 		t.Errorf("invalid name: err = %v", err)
 	}
@@ -113,7 +113,7 @@ func TestKardAboveTheRepositoryIsNotRead(t *testing.T) {
 
 func TestProjectFileRejectsOtherKeys(t *testing.T) {
 	dir := clean(t)
-	write(t, filepath.Join(dir, ".kard", "config.yaml"), "user: alex\ncolour: red\n")
+	write(t, filepath.Join(dir, ".kard", "config.yaml"), "user: arnold\ncolour: red\n")
 	if _, err := Me(dir); err == nil || !strings.Contains(err.Error(), "colour") {
 		t.Errorf("err = %v", err)
 	}
@@ -157,21 +157,21 @@ func TestSetProject(t *testing.T) {
 
 func TestSetProjectOutsideARepository(t *testing.T) {
 	dir := clean(t)
-	path, err := SetProject(dir, "alex@privat.de")
+	path, err := SetProject(dir, "arnold@privat.de")
 	if err != nil || path != filepath.Join(dir, ".kard", "config.yaml") {
 		t.Fatalf("path %s, err %v", path, err)
 	}
 	if _, err := os.Stat(filepath.Join(dir, ".kard", ".gitignore")); err != nil {
 		t.Error(err)
 	}
-	check(t, dir, "alex@privat.de", FromProject)
+	check(t, dir, "arnold@privat.de", FromProject)
 }
 
 func TestKnownFromHistoryCardsAndMailmap(t *testing.T) {
 	dir := clean(t)
 	b := repo(t, dir)
 	write(t, filepath.Join(b, "board.yaml"), "kardboard: 1\nid: demo\ncolumns:\n  - id: todo\n")
-	write(t, filepath.Join(b, "todo", "eins.md"), "---\nassignee: [sam, alt@privat.de]\n---\n\n# Eins\n")
+	write(t, filepath.Join(b, "todo", "eins.md"), "---\nassignee: [sly, alt@privat.de]\n---\n\n# Eins\n")
 	run(t, dir, "add", "-A")
 	run(t, dir, "-c", "user.name=Angélique Lambert", "-c", "user.email=angelique@firma.de", "commit", "-q", "-m", "eins")
 	write(t, filepath.Join(b, "todo", "zwei.md"), "# Zwei\n")
@@ -189,7 +189,7 @@ func TestKnownFromHistoryCardsAndMailmap(t *testing.T) {
 	for _, p := range known {
 		got = append(got, p.ID+"="+p.Name)
 	}
-	if want := "angelique@firma.de=Angélique Lambert anna@firma.de=Anna Lang sam="; strings.Join(got, " ") != want {
+	if want := "angelique@firma.de=Angélique Lambert anna@firma.de=Anna Lang sly="; strings.Join(got, " ") != want {
 		t.Errorf("known = %v, want %s", got, want)
 	}
 	if !bd.SamePerson("alt@privat.de", "Angelique@Firma.de") {
@@ -201,7 +201,7 @@ func TestKnownFromHistoryCardsAndMailmap(t *testing.T) {
 	}
 
 	for name, want := range map[string]string{
-		"sam":             "sam",
+		"sly":             "sly",
 		"Angelique":       "angelique@firma.de", // name in Git, without the accent
 		"lang":            "anna@firma.de",      // any word of the name
 		"anna@":           "anna@firma.de",
@@ -216,12 +216,12 @@ func TestKnownFromHistoryCardsAndMailmap(t *testing.T) {
 	if _, err := Resolve("an", known); !errors.As(err, &amb) || len(amb.Candidates) != 2 {
 		t.Errorf("Resolve(an): err = %v", err)
 	}
-	if _, err := Resolve("Sam Smith", known); err == nil {
-		t.Error("Resolve(Sam Smith) must fail")
+	if _, err := Resolve("Sly Smith", known); err == nil {
+		t.Error("Resolve(Sly Smith) must fail")
 	}
 
-	set, err := ResolveSet(bd.Config, []string{"assignee=sam,lang", "tags=bug", "assignee="}, known)
-	if err != nil || strings.Join(set, " ") != "assignee=sam,anna@firma.de tags=bug assignee=" {
+	set, err := ResolveSet(bd.Config, []string{"assignee=sly,lang", "tags=bug", "assignee="}, known)
+	if err != nil || strings.Join(set, " ") != "assignee=sly,anna@firma.de tags=bug assignee=" {
 		t.Errorf("ResolveSet = %v, %v", set, err)
 	}
 }

@@ -133,14 +133,14 @@ func getState(t *testing.T, s *Server, query string) state {
 }
 
 func TestStateOfOneBoard(t *testing.T) {
-	settings(t, "user: sam\nhidden: [atlas]\n")
+	settings(t, "user: sly\nhidden: [atlas]\n")
 	root := copyOfExample(t)
 	st := getState(t, New(root), "")
 
 	if len(st.Hidden) != 1 || st.Hidden[0] != "atlas" {
 		t.Errorf("hidden %v", st.Hidden)
 	}
-	if b := st.Boards[0]; b.User == nil || b.User.Name != "sam" || b.User.Source != "user" || fmt.Sprint(b.Me) != "[sam]" {
+	if b := st.Boards[0]; b.User == nil || b.User.Name != "sly" || b.User.Source != "user" || fmt.Sprint(b.Me) != "[sly]" {
 		t.Errorf("user %+v, me %v", b.User, b.Me)
 	}
 	if len(st.Boards) != 1 {
@@ -163,7 +163,7 @@ func TestStateOfOneBoard(t *testing.T) {
 	for _, c := range b.Cards {
 		if c.ID == "export-as-pdf" {
 			who, _ := c.Fields["assignee"].([]any)
-			if c.Column != "backlog" || c.Title != "Export as PDF" || len(who) != 1 || who[0] != "sam" {
+			if c.Column != "backlog" || c.Title != "Export as PDF" || len(who) != 1 || who[0] != "sly" {
 				t.Errorf("card = %+v", c)
 			}
 			return
@@ -486,7 +486,7 @@ func readFile(t *testing.T, root, rel string) string {
 }
 
 func TestActions(t *testing.T) {
-	settings(t, "user: sam\n")
+	settings(t, "user: sly\n")
 	root := copyOfExample(t)
 	s := New(root)
 
@@ -498,9 +498,9 @@ func TestActions(t *testing.T) {
 	}{
 		{`{"board":"demo","card":"print-templates","action":"take"}`, 200, `"to":"working_on"`, "working_on/print-templates.md"},
 		{`{"board":"demo","card":"print-templates","action":"take"}`, 200, `"moved":false`, "working_on/print-templates.md"},
-		{`{"board":"demo","card":"print-templates","action":"assign","people":["alex"],"add":true}`, 200, `"assignee":["sam","alex"]`, ""},
-		{`{"board":"demo","card":"print-templates","action":"unassign","people":["sam"]}`, 200, `"assignee":["alex"]`, ""},
-		// now it is alex's card: sam is refused, and may force it
+		{`{"board":"demo","card":"print-templates","action":"assign","people":["arnold"],"add":true}`, 200, `"assignee":["sly","arnold"]`, ""},
+		{`{"board":"demo","card":"print-templates","action":"unassign","people":["sly"]}`, 200, `"assignee":["arnold"]`, ""},
+		// now it is arnold's card: sly is refused, and may force it
 		{`{"board":"demo","card":"print-templates","action":"done"}`, 409, `"refused":true`, "working_on/print-templates.md"},
 		{`{"board":"demo","card":"print-templates","action":"done","force":true}`, 200, `"to":"done"`, "done/print-templates.md"},
 		{`{"board":"demo","card":"offline-mode","action":"move","column":"backlog"}`, 409, "would lack size", "planning/offline-mode.md"},
@@ -531,7 +531,7 @@ func TestActions(t *testing.T) {
 		}
 	}
 
-	if got, want := readFile(t, root, "done/print-templates.md"), "assignee: alex\n"; !strings.Contains(got, want) {
+	if got, want := readFile(t, root, "done/print-templates.md"), "assignee: arnold\n"; !strings.Contains(got, want) {
 		t.Errorf("file = %q", got)
 	}
 	if got := readFile(t, root, "backlog/offline-mode.md"); !strings.HasSuffix(got, "# Offline mode\n\nNeu.\n") {
@@ -575,7 +575,7 @@ func git(t *testing.T, dir string, args ...string) string {
 	}
 	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
 	t.Setenv("GIT_CONFIG_SYSTEM", "/dev/null")
-	cmd := exec.Command("git", append([]string{"-C", dir, "-c", "user.name=alex", "-c", "user.email=alex@example.com"}, args...)...)
+	cmd := exec.Command("git", append([]string{"-C", dir, "-c", "user.name=arnold", "-c", "user.email=arnold@example.com"}, args...)...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("git %s: %v\n%s", strings.Join(args, " "), err, out)
@@ -595,8 +595,8 @@ func syncBoard(t *testing.T, mode string) string {
 func commitAll(t *testing.T, root string) {
 	t.Helper()
 	git(t, root, "init", "-q", "-b", "main")
-	git(t, root, "config", "user.name", "alex")
-	git(t, root, "config", "user.email", "alex@example.com")
+	git(t, root, "config", "user.name", "arnold")
+	git(t, root, "config", "user.email", "arnold@example.com")
 	git(t, root, "add", "-A")
 	git(t, root, "commit", "-q", "-m", "start")
 }
@@ -665,7 +665,7 @@ func TestPushBoardFollowsItsRemote(t *testing.T) {
 		}
 		return real
 	}
-	mine, theirs := clone("alex"), clone("sam")
+	mine, theirs := clone("arnold"), clone("sly")
 	s := New(mine)
 
 	// An action is pushed.
@@ -711,7 +711,7 @@ func TestPushBoardFollowsItsRemote(t *testing.T) {
 // A page on another website can make the browser send requests to the
 // port. None of them may change a card.
 func TestOtherSitesCannotChangeCards(t *testing.T) {
-	settings(t, "user: sam\n")
+	settings(t, "user: sly\n")
 	root := copyOfExample(t)
 	s := New(root)
 	const body = `{"board":"demo","card":"print-templates","action":"move","column":"done"}`
@@ -928,7 +928,7 @@ func TestHistory(t *testing.T) {
 	git := func(args ...string) {
 		t.Helper()
 		cmd := exec.Command("git", append([]string{
-			"-C", root, "-c", "user.name=Alex Example", "-c", "user.email=alex@example.com",
+			"-C", root, "-c", "user.name=Arnold Example", "-c", "user.email=arnold@example.com",
 			"-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null",
 		}, args...)...)
 		cmd.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null")
@@ -980,7 +980,7 @@ func TestHistory(t *testing.T) {
 		t.Fatalf("board history: code %d, %+v", code, h)
 	}
 	top := h.Entries[0]
-	if top.Subject != "Print templates fertig" || top.Author != "Alex Example" || len(top.Changes) != 1 ||
+	if top.Subject != "Print templates fertig" || top.Author != "Arnold Example" || len(top.Changes) != 1 ||
 		top.Changes[0].Kind != "moved" || top.Changes[0].Card != "print-templates" || top.Changes[0].From != "backlog" || top.Changes[0].To != "done" {
 		t.Errorf("newest entry = %+v", top)
 	}

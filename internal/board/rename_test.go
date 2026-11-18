@@ -50,7 +50,7 @@ func TestRenameRules(t *testing.T) {
 	b := load(t, map[string]string{
 		"backlog/a.md":    "---\nsize: S\n---\n\n# A\n",
 		"backlog/b.md":    "---\nsize: S\n---\n\n# B\n",
-		"working_on/s.md": "---\nassignee: sam\nsize: S\n---\n\n# S\n",
+		"working_on/s.md": "---\nassignee: sly\nsize: S\n---\n\n# S\n",
 	})
 	for name, newID := range map[string]string{
 		"taken":   "b",
@@ -65,13 +65,13 @@ func TestRenameRules(t *testing.T) {
 		t.Error("renamed a card that does not exist")
 	}
 	var refused *RefusedError
-	if _, err := b.Rename("s", "x", RenameOptions{User: "alex"}); !errors.As(err, &refused) {
+	if _, err := b.Rename("s", "x", RenameOptions{User: "arnold"}); !errors.As(err, &refused) {
 		t.Errorf("someone else's card: err = %v, want refused", err)
 	}
 	if _, err := b.Rename("s", "x", RenameOptions{}); !errors.Is(err, ErrNeedUser) {
 		t.Errorf("unknown user: err = %v", err)
 	}
-	if _, err := b.Rename("s", "x", RenameOptions{User: "sam"}); err != nil {
+	if _, err := b.Rename("s", "x", RenameOptions{User: "sly"}); err != nil {
 		t.Errorf("own card: %v", err)
 	}
 	if !has(t, b, "backlog/a.md") || !has(t, b, "working_on/x.md") {

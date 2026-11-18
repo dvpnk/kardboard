@@ -46,16 +46,16 @@ func TestLoad(t *testing.T) {
 		t.Fatalf("missing file: cfg %+v, err %v", cfg, err)
 	}
 
-	write(t, file, "user: alex\nboards:\n  - ~/a\nscan:\n  - ~/Repos\nhidden: [atlas]\n")
+	write(t, file, "user: arnold\nboards:\n  - ~/a\nscan:\n  - ~/Repos\nhidden: [atlas]\n")
 	cfg, err = Load()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.User != "alex" || !slices.Equal(cfg.Boards, []string{"~/a"}) || !slices.Equal(cfg.Scan, []string{"~/Repos"}) || !slices.Equal(cfg.Hidden, []string{"atlas"}) {
+	if cfg.User != "arnold" || !slices.Equal(cfg.Boards, []string{"~/a"}) || !slices.Equal(cfg.Scan, []string{"~/Repos"}) || !slices.Equal(cfg.Hidden, []string{"atlas"}) {
 		t.Errorf("cfg = %+v", cfg)
 	}
 
-	write(t, file, "user: alex\ncolour: red\n")
+	write(t, file, "user: arnold\ncolour: red\n")
 	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "colour") {
 		t.Errorf("unknown key: err = %v", err)
 	}
@@ -123,12 +123,12 @@ func TestEditKeepsCommentsAndOtherSettings(t *testing.T) {
 	homeDir, file := home(t)
 	// Comments, other settings and the order of keys survive. Blank lines
 	// do not: the YAML library drops them when it writes the file.
-	write(t, file, "# my settings\nuser: alex # that's me\n\nboards:\n  # work\n  - ~/atlas-board\nhidden:\n  - atlas\n")
+	write(t, file, "# my settings\nuser: arnold # that's me\n\nboards:\n  # work\n  - ~/atlas-board\nhidden:\n  - atlas\n")
 
 	if _, err := AddToList(KeyBoards, filepath.Join(homeDir, "demo")); err != nil {
 		t.Fatal(err)
 	}
-	want := "# my settings\nuser: alex # that's me\nboards:\n  # work\n  - ~/atlas-board\n  - ~/demo\nhidden:\n  - atlas\n"
+	want := "# my settings\nuser: arnold # that's me\nboards:\n  # work\n  - ~/atlas-board\n  - ~/demo\nhidden:\n  - atlas\n"
 	if got := read(t, file); got != want {
 		t.Errorf("file:\n%s\nwant:\n%s", got, want)
 	}

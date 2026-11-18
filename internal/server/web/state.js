@@ -84,7 +84,7 @@ export const personTitle = (person) => (person.name ? `${person.name} · ${perso
 
 // monogram gives a person two letters: the first of the first and the last
 // word of the name, else of the address before the @ or of the short name
-// (Angélique Lambert → AL, anna.lang@… → AL, sam → SA).
+// (Arnold Schwarzengerman → AS, anna.lang@… → AL, sly → SL).
 const LETTER = /[\p{L}\p{N}]/u;
 export function monogram(person) {
   const words = (person.name || person.id.split("@")[0]).split(/[\s._+-]+/).filter(Boolean);

@@ -34,7 +34,7 @@ func (r *repo) git(args ...string) {
 	r.t.Helper()
 	cmd := exec.Command("git", append([]string{
 		"-C", r.root,
-		"-c", "user.name=Alex Example", "-c", "user.email=alex@example.com",
+		"-c", "user.name=Arnold Example", "-c", "user.email=arnold@example.com",
 		"-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null",
 	}, args...)...)
 	// Keep the user's own Git settings out of the test.
@@ -161,7 +161,7 @@ func TestBoardHistory(t *testing.T) {
 	}
 
 	e := log.Entries[0]
-	if e.Author != "Alex Example" || len(e.Hash) != 40 || !strings.HasPrefix(e.Hash, e.Short) || len(e.Date) < 20 {
+	if e.Author != "Arnold Example" || len(e.Hash) != 40 || !strings.HasPrefix(e.Hash, e.Short) || len(e.Date) < 20 {
 		t.Errorf("entry = %+v", e)
 	}
 	// Paths are relative to the board, not to the repository.

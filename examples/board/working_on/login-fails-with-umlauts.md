@@ -1,5 +1,5 @@
 ---
-assignee: alex
+assignee: arnold
 size: XS
 tags: [bug]
 created: 2026-11-10

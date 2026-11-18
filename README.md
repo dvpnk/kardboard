@@ -97,21 +97,21 @@ cp -R examples/board /tmp/kard-demo && cd /tmp/kard-demo
 example's cards carry short names, so set the name for the demo yourself:
 
 ```bash
-export KARDBOARD_USER=alex
+export KARDBOARD_USER=arnold
 ```
 
 `kard whoami` shows the name and where it comes from. `kard whoami --set
 <name>` stores a name of your own for one project in `.kard/config.yaml`;
 the folder ignores itself and is never committed. When assigning, the
 beginning of a name or address the board knows, from its commits or its
-cards, is enough: `kard assign <card> sam`.
+cards, is enough: `kard assign <card> sly`.
 
 ```bash
 kard new "Dark mode" -c backlog --set size=M --set tags=feature,ui
 ```
 
 ```bash
-kard assign dark-mode alex
+kard assign dark-mode arnold
 ```
 
 ```bash
@@ -119,7 +119,7 @@ kard take dark-mode
 ```
 
 ```bash
-kard assign dark-mode sam --add
+kard assign dark-mode sly --add
 ```
 
 ```bash
@@ -234,7 +234,7 @@ the card is now. `git log` is the board's record:
 
 ```
 move export-as-pdf: backlog -> working_on
-assign export-as-pdf: alex
+assign export-as-pdf: arnold
 ```
 
 What was left behind, for instance without a network, is fetched and sent

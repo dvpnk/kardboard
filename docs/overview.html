@@ -323,7 +323,7 @@ section { scroll-margin-top: 12px; }
       <div class="num">2</div>
       <div class="what">Check who you are</div>
 <div class="term">kard whoami
-<span class="c">alex.berger@example.com
+<span class="c">arnold.schwarzengerman@example.com
 (from git config user.email)</span></div>
       <div class="why">Nothing to set up: the name comes from Git, per repo. A name of your own with <code>kard whoami --set</code>.</div>
     </div>
@@ -391,7 +391,7 @@ kard take check-login</div>
   <div class="layers">
     <div class="layer">
       <div class="top"><span class="label">for you, on this machine</span><div class="scope">Person</div><div class="file-name">~/.config/kardboard/config.yaml</div></div>
-<pre><span class="k">user:</span> alex  <span class="c"># optional</span>
+<pre><span class="k">user:</span> arnold  <span class="c"># optional</span>
 <span class="k">boards:</span>
   - ~/Repos/demo/board
 <span class="k">scan:</span>
@@ -402,7 +402,7 @@ kard take check-login</div>
     </div>
     <div class="layer">
       <div class="top"><span class="label">for you, in this repo</span><div class="scope">Project</div><div class="file-name">.kard/config.yaml</div></div>
-<pre><span class="k">user:</span> alex-b
+<pre><span class="k">user:</span> arnold-s
 
 <span class="c"># .kard/.gitignore</span>
 *</pre>
@@ -457,13 +457,13 @@ kard take check-login</div>
       <span class="label">On the card · on the board</span>
       <div class="ba">
 <div class="mtree"><span class="ig">---</span>
-assignee: [alex.berger@example.com,
-           sam]
+assignee: [arnold.schwarzengerman@example.com,
+           sly]
 <span class="ig">---</span></div>
         <div class="arrow">→</div>
         <div class="mono-row">
-          <span class="msq me" title="Alex Berger · alex.berger@example.com">AB</span>
-          <span class="msq" title="sam">SA</span>
+          <span class="msq me" title="Arnold Schwarzengerman · arnold.schwarzengerman@example.com">AS</span>
+          <span class="msq" title="sly">SL</span>
         </div>
       </div>
       <div class="small">Short name or address. Two letters from the name in Git; your own monogram is filled with ink. The tooltip shows name and address. <code>.mailmap</code> merges old and new addresses.</div>
@@ -471,10 +471,10 @@ assignee: [alex.berger@example.com,
     <div class="branch">
       <span class="label">Assign · without typing addresses</span>
 <div class="term">kard assign export-as-pdf ort
-<span class="c">assignee = sam.ortmann@example.com</span>
+<span class="c">assignee = sylvester.calzone@example.com</span>
 kard assign export-as-pdf a
 <span class="c">kard: "a" fits 2 people:
-  alex.berger@example.com (Alex Berger),
+  arnold.schwarzengerman@example.com (Arnold Schwarzengerman),
   anna@example.com (Anna Lang)</span></div>
       <div class="small">kard searches the board's commit authors and the people on its cards, by the beginning of address or name, ignoring accents. No match: a valid name counts as a new person.</div>
     </div>
@@ -503,14 +503,14 @@ kard assign export-as-pdf a
         <div class="card"><div class="t">Offline mode</div><div class="meta"><span class="tg">#feature</span></div></div>
       </div>
       <div class="col"><h4>Backlog <span class="n">2</span></h4><span class="path">backlog/</span>
-        <div class="card"><div class="t">Export as PDF</div><div class="meta"><span class="b v">M</span><span class="b v">release</span><span class="mg" title="sam">SA</span></div></div>
+        <div class="card"><div class="t">Export as PDF</div><div class="meta"><span class="b v">M</span><span class="b v">release</span><span class="mg" title="sly">SL</span></div></div>
         <div class="card"><div class="t">Print templates</div><div class="meta"><span class="b v">S</span></div></div>
       </div>
       <div class="col doing"><h4>In progress <span class="n">1/3</span></h4><span class="path">working_on/</span>
-        <div class="card"><div class="t">Login fails with umlauts</div><div class="meta"><span class="b v">S</span><span class="tg">#bug</span><span class="mg me" title="alex">AL</span></div></div>
+        <div class="card"><div class="t">Login fails with umlauts</div><div class="meta"><span class="b v">S</span><span class="tg">#bug</span><span class="mg me" title="arnold">AR</span></div></div>
       </div>
       <div class="col"><h4>Done <span class="n">1</span></h4><span class="path">done/</span>
-        <div class="card"><div class="t">Set up the project</div><div class="meta"><span class="mg me" title="alex">AL</span></div></div>
+        <div class="card"><div class="t">Set up the project</div><div class="meta"><span class="mg me" title="arnold">AR</span></div></div>
       </div>
     </div>
   </div>
@@ -523,7 +523,7 @@ kard assign export-as-pdf a
     <div class="file">
       <div class="bar"><span class="pin">1</span> board/<mark>backlog</mark>/<mark>export-as-pdf</mark>.md</div>
 <pre><span class="k">---</span>                 <span class="pin">2</span>
-<span class="k">assignee:</span> sam
+<span class="k">assignee:</span> sly
 <span class="k">size:</span> M
 <span class="k">milestone:</span> release
 <span class="k">tags:</span> [feature]
@@ -591,19 +591,19 @@ The layout comes from …</pre>
     <div class="step now">
       <div class="cmd">kard take export-as-pdf</div>
       <div class="where">→ <span class="col-chip">working_on</span></div>
-      <div class="mini"><div class="t">Export as PDF</div><div class="meta"><span class="b v">M</span><span class="mg me" title="alex">AL</span></div></div>
-      <div class="commit">move export-as-pdf: backlog -&gt; working_on<br>assign export-as-pdf: alex</div>
+      <div class="mini"><div class="t">Export as PDF</div><div class="meta"><span class="b v">M</span><span class="mg me" title="arnold">AR</span></div></div>
+      <div class="commit">move export-as-pdf: backlog -&gt; working_on<br>assign export-as-pdf: arnold</div>
     </div>
     <div class="step">
-      <div class="cmd">kard assign … sam --add</div>
+      <div class="cmd">kard assign … sly --add</div>
       <div class="where">stays <span class="col-chip">working_on</span></div>
-      <div class="mini"><div class="t">Export as PDF</div><div class="meta"><span class="b v">M</span><span class="mg me" title="alex">AL</span><span class="mg" title="sam">SA</span></div></div>
-      <div class="commit">assign export-as-pdf: alex, sam</div>
+      <div class="mini"><div class="t">Export as PDF</div><div class="meta"><span class="b v">M</span><span class="mg me" title="arnold">AR</span><span class="mg" title="sly">SL</span></div></div>
+      <div class="commit">assign export-as-pdf: arnold, sly</div>
     </div>
     <div class="step">
       <div class="cmd">kard done export-as-pdf</div>
       <div class="where">→ <span class="col-chip">done</span></div>
-      <div class="mini"><div class="t">Export as PDF</div><div class="meta"><span class="b v">M</span><span class="mg me" title="alex">AL</span><span class="mg" title="sam">SA</span></div></div>
+      <div class="mini"><div class="t">Export as PDF</div><div class="meta"><span class="b v">M</span><span class="mg me" title="arnold">AR</span><span class="mg" title="sly">SL</span></div></div>
       <div class="commit">move export-as-pdf: working_on -&gt; done</div>
     </div>
   </div>
@@ -699,7 +699,7 @@ scan:    ← kard scan ~/Repos</div>
       <div class="card"><div class="t">Title in the header instead of a heading?</div><div class="why">Other tools do it that way.</div><div class="meta"><span class="b decide">Format</span></div></div>
       <div class="card"><div class="t"><code>take --add</code> without <code>--force</code></div><div class="why">Joining takes nothing away from anyone.</div><div class="meta"><span class="b decide">CLI</span></div></div>
       <div class="card"><div class="t">Limit per person</div><div class="why"><code>limit</code> counts only per column today.</div><div class="meta"><span class="b decide">Format</span></div></div>
-      <div class="card"><div class="t">Switch short names to addresses</div><div class="why">Whoever removes <code>user: alex</code> loses their old cards. A command for it, or keep <code>user</code>?</div><div class="meta"><span class="b decide">People</span></div></div>
+      <div class="card"><div class="t">Switch short names to addresses</div><div class="why">Whoever removes <code>user: arnold</code> loses their old cards. A command for it, or keep <code>user</code>?</div><div class="meta"><span class="b decide">People</span></div></div>
       <div class="card"><div class="t">People across boards</div><div class="why">"Only mine" across several boards when you have a different name in each.</div><div class="meta"><span class="b decide">People</span></div></div>
     </div>
     <div class="col doing"><h4>Waiting <span class="n">2</span></h4><span class="path">open on purpose</span>

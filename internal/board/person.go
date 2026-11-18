@@ -9,8 +9,8 @@ import (
 	"strings"
 )
 
-// A person on a card is a short name (alex) or an e-mail address
-// (alex@firma.de). Addresses are written and compared in lower case.
+// A person on a card is a short name (arnold) or an e-mail address
+// (arnold@firma.de). Addresses are written and compared in lower case.
 
 // addressRe accepts what Git accepts as an author's address, minus what
 // would break a YAML list or a comma separated value.

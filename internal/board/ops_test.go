@@ -62,17 +62,17 @@ func TestMoveRenamesWithoutTouchingTheText(t *testing.T) {
 func TestTakeAssignsAndMovesInOneStep(t *testing.T) {
 	b := load(t, map[string]string{"backlog/a.md": sized})
 
-	res, err := b.Change("a", Change{Column: "working_on", Set: []string{"assignee=alex"}, User: "alex"})
+	res, err := b.Change("a", Change{Column: "working_on", Set: []string{"assignee=arnold"}, User: "arnold"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !res.Moved || res.To != "working_on" || !reflect.DeepEqual(res.Set, map[string]any{"assignee": []string{"alex"}}) {
+	if !res.Moved || res.To != "working_on" || !reflect.DeepEqual(res.Set, map[string]any{"assignee": []string{"arnold"}}) {
 		t.Errorf("result = %+v", res)
 	}
-	if got, want := read(t, b, "working_on/a.md"), "---\nsize: S\nassignee: alex\n---\n\n# Sized\n"; got != want {
+	if got, want := read(t, b, "working_on/a.md"), "---\nsize: S\nassignee: arnold\n---\n\n# Sized\n"; got != want {
 		t.Errorf("file = %q, want %q", got, want)
 	}
-	if c, _ := reload(t, b).Card("a"); who(c) != "alex" {
+	if c, _ := reload(t, b).Card("a"); who(c) != "arnold" {
 		t.Errorf("assignee = %q", who(c))
 	}
 }
@@ -94,11 +94,11 @@ func TestAssignWithoutMoving(t *testing.T) {
 
 	// The card is laura's now. She can hand it over and drop it.
 	b = reload(t, b)
-	if _, err = b.Change("a", Change{Set: []string{"assignee=sam"}, User: "laura"}); err != nil {
+	if _, err = b.Change("a", Change{Set: []string{"assignee=sly"}, User: "laura"}); err != nil {
 		t.Fatal(err)
 	}
 	b = reload(t, b)
-	res, err = b.Change("a", Change{Set: []string{"assignee="}, User: "sam"})
+	res, err = b.Change("a", Change{Set: []string{"assignee="}, User: "sly"})
 	if err != nil || !slices.Equal(res.Removed, []string{"assignee"}) {
 		t.Fatalf("res %+v, err %v", res, err)
 	}
@@ -111,50 +111,50 @@ func TestSeveralPeopleOnOneCard(t *testing.T) {
 	b := load(t, map[string]string{"backlog/a.md": sized})
 
 	// Two people are written as a list, one as a plain name.
-	res, err := b.Change("a", Change{Set: []string{"assignee=alex, sam"}})
-	if err != nil || !reflect.DeepEqual(res.Set, map[string]any{"assignee": []string{"alex", "sam"}}) {
+	res, err := b.Change("a", Change{Set: []string{"assignee=arnold, sly"}})
+	if err != nil || !reflect.DeepEqual(res.Set, map[string]any{"assignee": []string{"arnold", "sly"}}) {
 		t.Fatalf("res %+v, err %v", res, err)
 	}
-	if got, want := read(t, b, "backlog/a.md"), "---\nsize: S\nassignee: [alex, sam]\n---\n\n# Sized\n"; got != want {
+	if got, want := read(t, b, "backlog/a.md"), "---\nsize: S\nassignee: [arnold, sly]\n---\n\n# Sized\n"; got != want {
 		t.Errorf("file = %q, want %q", got, want)
 	}
 	b = reload(t, b)
-	if c, _ := b.Card("a"); who(c) != "alex,sam" {
+	if c, _ := b.Card("a"); who(c) != "arnold,sly" {
 		t.Errorf("assignees = %q", who(c))
 	}
 
 	// The card belongs to both of them, and to nobody else.
-	if _, err = b.Change("a", Change{Column: "working_on", User: "laura"}); err == nil || !strings.Contains(err.Error(), "is assigned to alex, sam") {
+	if _, err = b.Change("a", Change{Column: "working_on", User: "laura"}); err == nil || !strings.Contains(err.Error(), "is assigned to arnold, sly") {
 		t.Errorf("laura: err = %v", err)
 	}
-	if _, err = b.Change("a", Change{Column: "working_on", User: "sam"}); err != nil {
-		t.Errorf("sam: %v", err)
+	if _, err = b.Change("a", Change{Column: "working_on", User: "sly"}); err != nil {
+		t.Errorf("sly: %v", err)
 	}
 
 	// Down to one person, the list becomes a plain name again.
 	b = reload(t, b)
-	if _, err = b.Change("a", Change{Set: []string{"assignee=sam"}, User: "alex"}); err != nil {
+	if _, err = b.Change("a", Change{Set: []string{"assignee=sly"}, User: "arnold"}); err != nil {
 		t.Fatal(err)
 	}
-	if got, want := read(t, b, "working_on/a.md"), "---\nsize: S\nassignee: sam\n---\n\n# Sized\n"; got != want {
+	if got, want := read(t, b, "working_on/a.md"), "---\nsize: S\nassignee: sly\n---\n\n# Sized\n"; got != want {
 		t.Errorf("file = %q, want %q", got, want)
 	}
 
 	// The same people in the same order are no change.
-	b = load(t, map[string]string{"backlog/a.md": "---\nassignee: [alex, sam]\nsize: S\n---\n# A\n"})
-	if res, err = b.Change("a", Change{Set: []string{"assignee=alex,sam"}}); err != nil || res.Changed() {
+	b = load(t, map[string]string{"backlog/a.md": "---\nassignee: [arnold, sly]\nsize: S\n---\n# A\n"})
+	if res, err = b.Change("a", Change{Set: []string{"assignee=arnold,sly"}}); err != nil || res.Changed() {
 		t.Errorf("res %+v, err %v", res, err)
 	}
 }
 
 func TestNothingToChange(t *testing.T) {
-	const card = "---\nassignee: alex\nsize: S\ntags: [bug]\n---\n\n# A\n"
+	const card = "---\nassignee: arnold\nsize: S\ntags: [bug]\n---\n\n# A\n"
 	b := load(t, map[string]string{"working_on/a.md": card})
 
 	// Same column, same values: allowed for anyone, and the file stays as it is.
 	for _, ch := range []Change{
 		{Column: "working_on"},
-		{Set: []string{"assignee=alex"}},
+		{Set: []string{"assignee=arnold"}},
 		{Column: "working_on", Set: []string{"size=S", "tags=bug"}},
 		{Set: []string{"owner="}}, // removing what is not there
 	} {
@@ -173,8 +173,8 @@ func TestChangeRules(t *testing.T) {
 		return map[string]string{
 			"planning/unsized.md": "# No size\n",
 			"backlog/sized.md":    sized,
-			"backlog/sams.md":     "---\nassignee: sam\nsize: S\n---\n\n# Sam's, not started\n",
-			"working_on/busy.md":  "---\nassignee: sam\nsize: S\n---\n\n# Sam's, in progress\n",
+			"backlog/slys.md":     "---\nassignee: sly\nsize: S\n---\n\n# Sly's, not started\n",
+			"working_on/busy.md":  "---\nassignee: sly\nsize: S\n---\n\n# Sly's, in progress\n",
 			"planning/twice.md":   "# A\n",
 			"done/twice.md":       "# A\n",
 		}
@@ -192,7 +192,7 @@ func TestChangeRules(t *testing.T) {
 		{"unknown field", "sized", Change{Set: []string{"prio=1"}}, false, `unknown field "prio"`},
 		{"reserved field", "sized", Change{Set: []string{"status=done"}}, false, "cannot be set"},
 		{"wrong value", "sized", Change{Set: []string{"size=XXL"}}, false, "size: must be one of"},
-		{"invalid person", "sized", Change{Set: []string{"assignee=Sam Smith"}}, false, `assignee: "Sam Smith" is neither a short name`},
+		{"invalid person", "sized", Change{Set: []string{"assignee=Sly Smith"}}, false, `assignee: "Sly Smith" is neither a short name`},
 		{"field twice", "sized", Change{Set: []string{"size=S", "size=M"}}, false, "given twice"},
 
 		{"required field missing in target", "unsized", Change{Column: "backlog"}, true, "would lack size, required in backlog"},
@@ -204,18 +204,18 @@ func TestChangeRules(t *testing.T) {
 		{"removing a required field while moving where it is optional", "sized", Change{Column: "planning", Set: []string{"size="}}, false, ""},
 		{"a field missing before does not block other edits", "unsized", Change{Set: []string{"owner=Einkauf"}}, false, ""},
 
-		{"someone else's card, move", "busy", Change{Column: "done", User: "alex"}, true, "is assigned to sam"},
-		{"someone else's card, reassign", "busy", Change{Set: []string{"assignee=alex"}, User: "alex"}, true, "is assigned to sam"},
-		{"someone else's card, edit", "busy", Change{Set: []string{"tags=bug"}, User: "alex"}, true, "is assigned to sam"},
-		{"someone else's card in the backlog", "sams", Change{Column: "working_on", Set: []string{"assignee=alex"}, User: "alex"}, true, "is assigned to sam"},
-		{"someone else's card, forced", "busy", Change{Column: "done", User: "alex", Force: true}, false, ""},
+		{"someone else's card, move", "busy", Change{Column: "done", User: "arnold"}, true, "is assigned to sly"},
+		{"someone else's card, reassign", "busy", Change{Set: []string{"assignee=arnold"}, User: "arnold"}, true, "is assigned to sly"},
+		{"someone else's card, edit", "busy", Change{Set: []string{"tags=bug"}, User: "arnold"}, true, "is assigned to sly"},
+		{"someone else's card in the backlog", "slys", Change{Column: "working_on", Set: []string{"assignee=arnold"}, User: "arnold"}, true, "is assigned to sly"},
+		{"someone else's card, forced", "busy", Change{Column: "done", User: "arnold", Force: true}, false, ""},
 		{"someone else's card, user unknown", "busy", Change{Column: "done"}, false, ErrNeedUser.Error()},
 		{"someone else's card, user unknown, forced", "busy", Change{Column: "done", Force: true}, false, ""},
-		{"own card", "busy", Change{Column: "done", User: "sam"}, false, ""},
-		{"own card handed over", "busy", Change{Set: []string{"assignee=alex"}, User: "sam"}, false, ""},
-		{"own card given up where an assignee is required", "busy", Change{Set: []string{"assignee="}, User: "sam"}, true, "would lack assignee"},
+		{"own card", "busy", Change{Column: "done", User: "sly"}, false, ""},
+		{"own card handed over", "busy", Change{Set: []string{"assignee=arnold"}, User: "sly"}, false, ""},
+		{"own card given up where an assignee is required", "busy", Change{Set: []string{"assignee="}, User: "sly"}, true, "would lack assignee"},
 		{"nobody's card needs no user", "sized", Change{Column: "done"}, false, ""},
-		{"nobody's card assigned to someone else", "sized", Change{Set: []string{"assignee=sam"}, User: "alex"}, false, ""},
+		{"nobody's card assigned to someone else", "sized", Change{Set: []string{"assignee=sly"}, User: "arnold"}, false, ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -318,50 +318,50 @@ func TestEditHead(t *testing.T) {
 		value *yaml.Node
 		want  string
 	}{
-		{"add to a card without header", "# A\n\nText\n", "assignee", str("alex"),
-			"---\nassignee: alex\n---\n\n# A\n\nText\n"},
-		{"add to a card without header and leading blank lines", "\n\n# A\n", "assignee", str("alex"),
-			"---\nassignee: alex\n---\n\n# A\n"},
-		{"add as the last field", "---\nsize: S\n---\n\n# A\n", "assignee", str("alex"),
-			"---\nsize: S\nassignee: alex\n---\n\n# A\n"},
-		{"add to an empty header", "---\n---\n# A\n", "assignee", str("alex"),
-			"---\nassignee: alex\n---\n# A\n"},
-		{"replace in place", "---\nsize: S\nassignee: alex\ntags: [bug]\n---\n# A\n", "assignee", str("sam"),
-			"---\nsize: S\nassignee: sam\ntags: [bug]\n---\n# A\n"},
-		{"replace the first field", "---\nassignee: alex\nsize: S\n---\n# A\n", "assignee", str("sam"),
-			"---\nassignee: sam\nsize: S\n---\n# A\n"},
-		{"replace the last field", "---\nsize: S\nassignee: alex\n---\n# A\n", "assignee", str("sam"),
-			"---\nsize: S\nassignee: sam\n---\n# A\n"},
+		{"add to a card without header", "# A\n\nText\n", "assignee", str("arnold"),
+			"---\nassignee: arnold\n---\n\n# A\n\nText\n"},
+		{"add to a card without header and leading blank lines", "\n\n# A\n", "assignee", str("arnold"),
+			"---\nassignee: arnold\n---\n\n# A\n"},
+		{"add as the last field", "---\nsize: S\n---\n\n# A\n", "assignee", str("arnold"),
+			"---\nsize: S\nassignee: arnold\n---\n\n# A\n"},
+		{"add to an empty header", "---\n---\n# A\n", "assignee", str("arnold"),
+			"---\nassignee: arnold\n---\n# A\n"},
+		{"replace in place", "---\nsize: S\nassignee: arnold\ntags: [bug]\n---\n# A\n", "assignee", str("sly"),
+			"---\nsize: S\nassignee: sly\ntags: [bug]\n---\n# A\n"},
+		{"replace the first field", "---\nassignee: arnold\nsize: S\n---\n# A\n", "assignee", str("sly"),
+			"---\nassignee: sly\nsize: S\n---\n# A\n"},
+		{"replace the last field", "---\nsize: S\nassignee: arnold\n---\n# A\n", "assignee", str("sly"),
+			"---\nsize: S\nassignee: sly\n---\n# A\n"},
 		{"replace a list written over several lines", "---\ntags:\n  - bug\n  - ui\nsize: S\n---\n# A\n", "tags", list("feature"),
 			"---\ntags: [feature]\nsize: S\n---\n# A\n"},
 		{"keep comments and blank lines of other fields",
-			"---\n# who\nassignee: alex\n\n# how big\nsize: S\n---\n# A\n", "assignee", str("sam"),
-			"---\n# who\nassignee: sam\n\n# how big\nsize: S\n---\n# A\n"},
-		{"keep a comment at the end of the header", "---\nassignee: alex\n# end\n---\n# A\n", "assignee", str("sam"),
-			"---\nassignee: sam\n# end\n---\n# A\n"},
-		{"keep other formatting untouched", "---\nsize:    S\ntags: [ bug ,ui ]\n---\n# A\n", "assignee", str("alex"),
-			"---\nsize:    S\ntags: [ bug ,ui ]\nassignee: alex\n---\n# A\n"},
+			"---\n# who\nassignee: arnold\n\n# how big\nsize: S\n---\n# A\n", "assignee", str("sly"),
+			"---\n# who\nassignee: sly\n\n# how big\nsize: S\n---\n# A\n"},
+		{"keep a comment at the end of the header", "---\nassignee: arnold\n# end\n---\n# A\n", "assignee", str("sly"),
+			"---\nassignee: sly\n# end\n---\n# A\n"},
+		{"keep other formatting untouched", "---\nsize:    S\ntags: [ bug ,ui ]\n---\n# A\n", "assignee", str("arnold"),
+			"---\nsize:    S\ntags: [ bug ,ui ]\nassignee: arnold\n---\n# A\n"},
 		{"quote a value that needs it", "# A\n", "owner", str("Einkauf: Nord"),
 			"---\nowner: 'Einkauf: Nord'\n---\n\n# A\n"},
 		{"quote a name that looks like something else", "# A\n", "assignee", str("true"),
 			"---\nassignee: \"true\"\n---\n\n# A\n"},
 
-		{"remove one of several", "---\nsize: S\nassignee: alex\ntags: [bug]\n---\n# A\n", "assignee", nil,
+		{"remove one of several", "---\nsize: S\nassignee: arnold\ntags: [bug]\n---\n# A\n", "assignee", nil,
 			"---\nsize: S\ntags: [bug]\n---\n# A\n"},
 		{"remove a list written over several lines", "---\ntags:\n  - bug\n  - ui\nsize: S\n---\n# A\n", "tags", nil,
 			"---\nsize: S\n---\n# A\n"},
-		{"remove the only field drops the header", "---\nassignee: alex\n---\n\n# A\n", "assignee", nil,
+		{"remove the only field drops the header", "---\nassignee: arnold\n---\n\n# A\n", "assignee", nil,
 			"# A\n"},
 		{"remove what is not there", "---\nsize: S\n---\n# A\n", "assignee", nil,
 			"---\nsize: S\n---\n# A\n"},
 		{"remove from a card without header", "# A\n", "assignee", nil, "# A\n"},
 
-		{"windows line endings stay", "---\r\nsize: S\r\n---\r\n\r\n# A\r\n", "assignee", str("alex"),
-			"---\r\nsize: S\r\nassignee: alex\r\n---\r\n\r\n# A\r\n"},
-		{"byte order mark stays", "\uFEFF---\nsize: S\n---\n# A\n", "assignee", str("alex"),
-			"\uFEFF---\nsize: S\nassignee: alex\n---\n# A\n"},
-		{"text that looks like a header later on is left alone", "# A\n\n---\nsize: S\n---\n", "assignee", str("alex"),
-			"---\nassignee: alex\n---\n\n# A\n\n---\nsize: S\n---\n"},
+		{"windows line endings stay", "---\r\nsize: S\r\n---\r\n\r\n# A\r\n", "assignee", str("arnold"),
+			"---\r\nsize: S\r\nassignee: arnold\r\n---\r\n\r\n# A\r\n"},
+		{"byte order mark stays", "\uFEFF---\nsize: S\n---\n# A\n", "assignee", str("arnold"),
+			"\uFEFF---\nsize: S\nassignee: arnold\n---\n# A\n"},
+		{"text that looks like a header later on is left alone", "# A\n\n---\nsize: S\n---\n", "assignee", str("arnold"),
+			"---\nassignee: arnold\n---\n\n# A\n\n---\nsize: S\n---\n"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -381,7 +381,7 @@ func TestEditHead(t *testing.T) {
 		"header is a list":   "---\n- a\n---\n# A\n",
 		"header in one line": "---\n{size: S}\n---\n# A\n",
 	} {
-		if _, err := editHead(in, []string{"assignee"}, map[string]*yaml.Node{"assignee": str("alex")}); err == nil {
+		if _, err := editHead(in, []string{"assignee"}, map[string]*yaml.Node{"assignee": str("arnold")}); err == nil {
 			t.Errorf("%s: no error", name)
 		}
 	}
@@ -389,11 +389,11 @@ func TestEditHead(t *testing.T) {
 
 func TestEditHeadSeveralFields(t *testing.T) {
 	str := func(s string) *yaml.Node { return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: s} }
-	in := "---\nsize: S\nassignee: alex\nowner: x\n---\n# A\n"
+	in := "---\nsize: S\nassignee: arnold\nowner: x\n---\n# A\n"
 	got, err := editHead(in, []string{"owner", "assignee", "size"}, map[string]*yaml.Node{
-		"owner": nil, "assignee": str("sam"), "size": str("M"),
+		"owner": nil, "assignee": str("sly"), "size": str("M"),
 	})
-	if want := "---\nsize: M\nassignee: sam\n---\n# A\n"; err != nil || got != want {
+	if want := "---\nsize: M\nassignee: sly\n---\n# A\n"; err != nil || got != want {
 		t.Errorf("got %q, err %v, want %q", got, err, want)
 	}
 }
@@ -415,8 +415,8 @@ func TestNew(t *testing.T) {
 	c, err = b.New("With everything", NewOptions{
 		Column: "working_on", Today: "2026-11-11",
 		Set: []string{
-			"size=M", "tags=bug, feature", "owner=Einkauf: Nord", "estimate=2.5", "blocked=true", "assignee=alex",
-			"related=[other]", "depends_on=other,groesse-aendern", "due = 2026-12-24", "created=2026-01-01", "reviewer=sam",
+			"size=M", "tags=bug, feature", "owner=Einkauf: Nord", "estimate=2.5", "blocked=true", "assignee=arnold",
+			"related=[other]", "depends_on=other,groesse-aendern", "due = 2026-12-24", "created=2026-01-01", "reviewer=sly",
 		},
 	})
 	if err != nil {
@@ -424,14 +424,14 @@ func TestNew(t *testing.T) {
 	}
 	// The header follows the order of the fields in board.yaml, not of --set.
 	want := "---\n" +
-		"assignee: alex\n" +
+		"assignee: arnold\n" +
 		"size: M\n" +
 		"tags: [bug, feature]\n" +
 		"owner: 'Einkauf: Nord'\n" +
 		"estimate: 2.5\n" +
 		"blocked: true\n" +
 		"related: [other]\n" +
-		"reviewer: sam\n" +
+		"reviewer: sly\n" +
 		"due: 2026-12-24\n" +
 		"depends_on: [other, groesse-aendern]\n" +
 		"created: 2026-01-01\n" +
@@ -439,7 +439,7 @@ func TestNew(t *testing.T) {
 	if got := read(t, b, "working_on/with-everything.md"); got != want {
 		t.Errorf("file:\n%s\nwant:\n%s", got, want)
 	}
-	if who(c) != "alex" || c.Fields["estimate"] != 2.5 || c.Fields["blocked"] != true {
+	if who(c) != "arnold" || c.Fields["estimate"] != 2.5 || c.Fields["blocked"] != true {
 		t.Errorf("card = %+v", c)
 	}
 
@@ -492,9 +492,9 @@ func TestNewRules(t *testing.T) {
 		{"set wrong date", "A", NewOptions{Set: []string{"due=morgen"}}, false, "due: must be a date"},
 		{"set wrong number", "A", NewOptions{Set: []string{"estimate=viel"}}, false, "estimate: must be a number"},
 		{"set wrong list value", "A", NewOptions{Set: []string{"tags=bug,nope"}}, false, `"nope" is not one of`},
-		{"set person outside the values", "A", NewOptions{Set: []string{"reviewer=laura"}}, false, `reviewer: "laura" is not one of alex, sam`},
+		{"set person outside the values", "A", NewOptions{Set: []string{"reviewer=laura"}}, false, `reviewer: "laura" is not one of arnold, sly`},
 		{"set no person", "A", NewOptions{Set: []string{"assignee="}}, false, "assignee: must name one person"},
-		{"set a person twice", "A", NewOptions{Set: []string{"assignee=alex,sam,alex"}}, false, `"alex" is named twice`},
+		{"set a person twice", "A", NewOptions{Set: []string{"assignee=arnold,sly,arnold"}}, false, `"arnold" is named twice`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

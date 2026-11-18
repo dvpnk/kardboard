@@ -111,7 +111,7 @@ Unknown keys in `board.yaml` are an error.
 
 ```markdown
 ---
-assignee: sam
+assignee: sly
 size: M
 milestone: release
 tags: [feature]
@@ -165,11 +165,11 @@ the same information drift apart.
 as a list (see [People](#people)):
 
 ```yaml
-assignee: sam
+assignee: sly
 ```
 
 ```yaml
-assignee: [alex, sam]
+assignee: [arnold, sly]
 ```
 
 The field applies in every column: A card in the backlog can already be set
@@ -202,7 +202,7 @@ fields:
 | `date` | `YYYY-MM-DD` | `due: 2026-12-01` |
 | `number` | number | `estimate: 3` |
 | `bool` | `true` or `false` | `blocked: true` |
-| `person` | short name of a person, `[a-z0-9][a-z0-9-]*`, or their email address, or a list of these; with `values` only those | `reviewer: sam` |
+| `person` | short name of a person, `[a-z0-9][a-z0-9-]*`, or their email address, or a list of these; with `values` only those | `reviewer: sly` |
 | `cards` | list of card references | `depends_on: [print-templates]` |
 
 Keys of a field declaration:
@@ -292,7 +292,7 @@ Commit messages have a fixed form, so that `git log` is the board's record:
 
 ```
 move export-as-pdf: backlog -> working_on
-assign export-as-pdf: alex, sam
+assign export-as-pdf: arnold, sly
 unassign export-as-pdf
 edit export-as-pdf
 new export-as-pdf
@@ -419,7 +419,7 @@ What to keep in mind:
 `~/.config/kardboard/config.yaml`, per machine and person:
 
 ```yaml
-user: alex
+user: arnold
 boards:
   - ~/Repos/demo/board
   - ~/Repos/atlas-board
@@ -571,7 +571,7 @@ On creating:
   becomes `ae`), anything other than `a–z` and `0–9` becomes a hyphen. If the
   short name already exists, `kard new` refuses and asks for `--id`.
 - `--set` may be repeated. Lists go as `tags=bug,ui` or `tags=[bug, ui]`. The
-  person comes with `--set assignee=sam`.
+  person comes with `--set assignee=sly`.
 
 On changing:
 
@@ -711,7 +711,7 @@ finds:
 | 5 | the account name in the operating system | machines without Git or without a Git address |
 
 What is set explicitly takes precedence over what is derived. So whoever
-already has `user: alex` set notices no difference.
+already has `user: arnold` set notices no difference.
 
 On the sources:
 
@@ -739,7 +739,7 @@ On the sources:
 project/
   .kard/
     .gitignore      contains only: *
-    config.yaml     user: angelique-l
+    config.yaml     user: arnold-s
   board/
     board.yaml
 ```
@@ -765,11 +765,11 @@ kardboard writes the address in lower case and compares without regard to
 case.
 
 ```yaml
-assignee: angelique.lambert@example.com
+assignee: arnold.schwarzengerman@example.com
 ```
 
 ```yaml
-assignee: [angelique.lambert@example.com, sam]
+assignee: [arnold.schwarzengerman@example.com, sly]
 ```
 
 The file stays readable without kardboard, and `grep` finds the person. The
@@ -796,8 +796,8 @@ like this:
 
 1. If the value is a short name or an address the board knows, it applies.
 2. Otherwise `kard` searches the known people for the start of an address or
-   a name, ignoring case and umlauts. `sam` finds `sam@example.com` and Sam
-   Berger. Exactly one match applies.
+   a name, ignoring case and umlauts. `sly` finds `sly@example.com`, `syl`
+   finds Sylvester Calzone. Exactly one match applies.
 3. Several matches are an error that names them. With `--json` it has the
    kind `ambiguous` and a list `candidates`.
 4. No match: A valid short name or a valid address is taken as it stands.
@@ -807,10 +807,10 @@ like this:
 ### In the UI
 
 - **A monogram instead of the name.** Two letters, from the name in Git,
-  otherwise from the address before the `@` or from the short name: Angélique
-  Lambert becomes AL, `sam@example.com` becomes SA. The monogram is square and
-  set in mono, like everything the tool says. Your own is filled with ink,
-  the others have a hairline.
+  otherwise from the address before the `@` or from the short name: Arnold
+  Schwarzengerman becomes AS, `sly@example.com` becomes SL. The monogram is
+  square and set in mono, like everything the tool says. Your own is filled
+  with ink, the others have a hairline.
 - **Name and address on hover.** Only that tells apart two people with the
   same letters; the monogram is not meant to do more.
 - **Assigning from a list** of the board's known people, with the same search
@@ -821,7 +821,7 @@ like this:
 
 ## Open questions
 
-- **Switching short names in existing cards.** Whoever had `user: alex` set
+- **Switching short names in existing cards.** Whoever had `user: arnold` set
   and removes it is then named after their Git address, and their old cards
   are no longer theirs. Whether this needs a command that replaces a short
   name with an address in all cards of a board, or whether a set `user` is

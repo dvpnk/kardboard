@@ -1,5 +1,5 @@
 ---
-assignee: sam
+assignee: sly
 size: M
 milestone: release
 tags: [feature]
@@ -12,7 +12,7 @@ created: 2026-11-11
 
 A note can be saved as a PDF. The layout comes from the print templates,
 so the card `print-templates` comes first. The card is already set aside for
-Sam but still sits in the backlog.
+Sly but still sits in the backlog.
 
 ## Done when
 

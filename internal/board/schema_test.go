@@ -168,25 +168,25 @@ func TestSchemaAcceptsTheExampleCards(t *testing.T) {
 func TestSchemaRejectsWhatLintRejects(t *testing.T) {
 	cfg := load(t, map[string]string{}).Config
 	all, backlog := schemaOf(t, cfg, ""), schemaOf(t, cfg, "backlog")
-	good := "size: S\ntags: [bug]\ndue: 2026-12-01\nestimate: 3\nblocked: true\nreviewer: [alex, sam]\nrelated: [a, other/b]\nowner: Einkauf\n"
+	good := "size: S\ntags: [bug]\ndue: 2026-12-01\nestimate: 3\nblocked: true\nreviewer: [arnold, sly]\nrelated: [a, other/b]\nowner: Einkauf\n"
 	if errs := validate(backlog, header(t, good)); len(errs) > 0 {
 		t.Fatalf("a good header is rejected: %v", errs)
 	}
 	for head, want := range map[string]string{
-		"size: XXL\n":                 "not one of",
-		"tags: [nope]\n":              "not one of",
-		"due: 1.12.2026\n":            "does not match",
-		"estimate: many\n":            "not of type",
-		"blocked: maybe\n":            "not of type",
-		"reviewer: Alex\n":            "matches 0 of oneOf",
-		"reviewer: [alex, alex]\n":    "matches 0 of oneOf",
-		"related: [Not A Card]\n":     "does not match",
-		"colour: red\n":               "not allowed",
-		"title: Something\n":          "not allowed",
-		"size: S\nowner: [a, b]\n":    "not of type",
-		"tags: [bug]\n# no size\n":    "", // fine for every column ...
-		"assignee: alex\nsize: S\n":   "",
-		"assignee: [alex]\nsize: S\n": "",
+		"size: XXL\n":                   "not one of",
+		"tags: [nope]\n":                "not one of",
+		"due: 1.12.2026\n":              "does not match",
+		"estimate: many\n":              "not of type",
+		"blocked: maybe\n":              "not of type",
+		"reviewer: Arnold\n":            "matches 0 of oneOf",
+		"reviewer: [arnold, arnold]\n":  "matches 0 of oneOf",
+		"related: [Not A Card]\n":       "does not match",
+		"colour: red\n":                 "not allowed",
+		"title: Something\n":            "not allowed",
+		"size: S\nowner: [a, b]\n":      "not of type",
+		"tags: [bug]\n# no size\n":      "", // fine for every column ...
+		"assignee: arnold\nsize: S\n":   "",
+		"assignee: [arnold]\nsize: S\n": "",
 	} {
 		errs := validate(all, header(t, head))
 		switch {

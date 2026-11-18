@@ -77,19 +77,19 @@ func TestTextRefusesAStaleBase(t *testing.T) {
 
 func TestTextRules(t *testing.T) {
 	b := load(t, map[string]string{
-		"working_on/mine.md": "---\nassignee: sam\nsize: S\n---\n\n# Mine\n",
+		"working_on/mine.md": "---\nassignee: sly\nsize: S\n---\n\n# Mine\n",
 		"planning/open.md":   "---\nsize: S\n# no end\n# Open\n",
 	})
 	// Someone else's card: refused, unless forced.
 	var refused *RefusedError
-	if _, err := b.Change("mine", Change{User: "alex", Text: &Text{Title: "Mine", Body: "x"}}); !errors.As(err, &refused) {
+	if _, err := b.Change("mine", Change{User: "arnold", Text: &Text{Title: "Mine", Body: "x"}}); !errors.As(err, &refused) {
 		t.Errorf("other's card: err = %v, want refused", err)
 	}
-	if _, err := b.Change("mine", Change{User: "alex", Force: true, Text: &Text{Title: "Mine", Body: "x"}}); err != nil {
+	if _, err := b.Change("mine", Change{User: "arnold", Force: true, Text: &Text{Title: "Mine", Body: "x"}}); err != nil {
 		t.Errorf("forced: %v", err)
 	}
 	// A title must be one line, and a broken header stays untouched.
-	if _, err := b.Change("mine", Change{User: "sam", Text: &Text{Title: " "}}); err == nil {
+	if _, err := b.Change("mine", Change{User: "sly", Text: &Text{Title: " "}}); err == nil {
 		t.Error("empty title was accepted")
 	}
 	if _, err := b.Change("open", Change{Text: &Text{Title: "Open", Body: "x"}}); err == nil {
@@ -100,12 +100,12 @@ func TestTextRules(t *testing.T) {
 func TestFileReplacesEverythingAndNamesTheFields(t *testing.T) {
 	b := load(t, map[string]string{"backlog/a.md": "---\nsize: S\ntags: [bug]\n---\n\n# A\n\nText.\n"})
 	c, _ := b.Card("a")
-	file := "---\nsize: M\nassignee: alex\n---\n\n# A\n\nNew text.\n"
+	file := "---\nsize: M\nassignee: arnold\n---\n\n# A\n\nNew text.\n"
 	res, err := b.Change("a", Change{Base: c.Sum, File: &file})
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]any{"size": "M", "assignee": []string{"alex"}}
+	want := map[string]any{"size": "M", "assignee": []string{"arnold"}}
 	if !reflect.DeepEqual(res.Set, want) || !reflect.DeepEqual(res.Removed, []string{"tags"}) || !res.Text {
 		t.Errorf("result = %+v", res)
 	}

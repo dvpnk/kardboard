@@ -467,7 +467,7 @@ func ResolveAll(names []string, known []Person) ([]string, error) {
 }
 
 // ResolveSet resolves the people in "field=value" items for fields of type
-// person, so --set assignee=sam works like kard assign. Other items stay
+// person, so --set assignee=sly works like kard assign. Other items stay
 // as they are, and so does an empty value, which removes the field.
 func ResolveSet(cfg *board.Config, set []string, known []Person) ([]string, error) {
 	out := slices.Clone(set)

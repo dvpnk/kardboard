@@ -151,10 +151,10 @@ func TestList(t *testing.T) {
 	want := `Planning (1)
     offline-mode              Offline mode
 Backlog (2)
-    export-as-pdf             Export as PDF  @sam
+    export-as-pdf             Export as PDF  @sly
     print-templates           Print templates
 In progress (1)
-    login-fails-with-umlauts  Login fails with umlauts in the password  @alex
+    login-fails-with-umlauts  Login fails with umlauts in the password  @arnold
 Done (1)
     set-up-project            Set up the project
 `
@@ -169,8 +169,8 @@ Done (1)
 }
 
 func TestListMine(t *testing.T) {
-	// sam's card is still in the backlog: --mine finds it in any column.
-	asUser(t, "sam")
+	// sly's card is still in the backlog: --mine finds it in any column.
+	asUser(t, "sly")
 	code, out, _ := kard(t, "list", "--mine", "--json", "-C", example)
 	var res struct {
 		Board struct{ ID, Name string }
@@ -183,7 +183,7 @@ func TestListMine(t *testing.T) {
 		t.Fatalf("%v\n%s", err, out)
 	}
 	if code != ExitOK || res.Board.ID != "demo" || len(res.Cards) != 1 ||
-		res.Cards[0].ID != "export-as-pdf" || res.Cards[0].Column != "backlog" || fmt.Sprint(res.Cards[0].Fields["assignee"]) != "[sam]" {
+		res.Cards[0].ID != "export-as-pdf" || res.Cards[0].Column != "backlog" || fmt.Sprint(res.Cards[0].Fields["assignee"]) != "[sly]" {
 		t.Errorf("code %d, result %+v", code, res)
 	}
 
@@ -200,7 +200,7 @@ func TestShow(t *testing.T) {
 	for _, want := range []string{
 		"path:      working_on/login-fails-with-umlauts.md",
 		"column:    In progress",
-		"assignee:  alex",
+		"assignee:  arnold",
 		"tags:      bug",
 		"# Login fails with umlauts in the password",
 	} {
@@ -263,7 +263,7 @@ func TestNewCommand(t *testing.T) {
 		t.Errorf("code %d, stderr %q", code, errOut)
 	}
 	code, out, _ = kard(t, "new", "Export als CSV", "-c", "backlog",
-		"--set", "size=S", "--set", "tags=feature,ui", "--set", "assignee=sam", "--json", "-C", root)
+		"--set", "size=S", "--set", "tags=feature,ui", "--set", "assignee=sly", "--json", "-C", root)
 	var res struct {
 		ID, Path string
 		Fields   map[string]any
@@ -271,11 +271,11 @@ func TestNewCommand(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &res); err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}
-	if code != ExitOK || res.Path != "backlog/export-als-csv.md" || res.Fields["size"] != "S" || fmt.Sprint(res.Fields["assignee"]) != "[sam]" {
+	if code != ExitOK || res.Path != "backlog/export-als-csv.md" || res.Fields["size"] != "S" || fmt.Sprint(res.Fields["assignee"]) != "[sly]" {
 		t.Errorf("code %d, result %+v", code, res)
 	}
 
-	code, out, _ = kard(t, "new", "Mit Namen", "-c", "working_on", "--id", "eigener-name", "--set", "size=S", "--set", "assignee=sam", "-C", root)
+	code, out, _ = kard(t, "new", "Mit Namen", "-c", "working_on", "--id", "eigener-name", "--set", "size=S", "--set", "assignee=sly", "-C", root)
 	if code != ExitOK || out != "working_on/eigener-name.md\n" {
 		t.Errorf("code %d, out %q", code, out)
 	}
@@ -286,7 +286,7 @@ func TestNewCommand(t *testing.T) {
 }
 
 func TestChangeCommands(t *testing.T) {
-	asUser(t, "sam")
+	asUser(t, "sly")
 	root := copyOfExample(t)
 
 	steps := []struct {
@@ -296,23 +296,23 @@ func TestChangeCommands(t *testing.T) {
 		wantFile string
 	}{
 		// take assigns and moves in one step
-		{[]string{"take", "print-templates"}, ExitOK, "print-templates: backlog -> working_on, assignee = sam\n", "working_on/print-templates.md"},
+		{[]string{"take", "print-templates"}, ExitOK, "print-templates: backlog -> working_on, assignee = sly\n", "working_on/print-templates.md"},
 		{[]string{"take", "print-templates"}, ExitOK, "print-templates: nothing to change\n", "working_on/print-templates.md"},
 		// planning cards have no size, which working_on requires
 		{[]string{"take", "offline-mode"}, ExitViolation, "would lack size", "planning/offline-mode.md"},
-		{[]string{"take", "offline-mode", "--force"}, ExitOK, "offline-mode: planning -> working_on, assignee = sam\n", "working_on/offline-mode.md"},
+		{[]string{"take", "offline-mode", "--force"}, ExitOK, "offline-mode: planning -> working_on, assignee = sly\n", "working_on/offline-mode.md"},
 		{[]string{"set", "offline-mode", "size=S", "tags=feature,ui"}, ExitOK, "offline-mode: size = S, tags = feature, ui\n", ""},
-		// sam's own card from the backlog: only the column changes
+		// sly's own card from the backlog: only the column changes
 		{[]string{"take", "export-as-pdf"}, ExitOK, "export-as-pdf: backlog -> working_on\n", "working_on/export-as-pdf.md"},
-		// alex's card is protected
-		{[]string{"done", "login-fails-with-umlauts"}, ExitViolation, "is assigned to alex", "working_on/login-fails-with-umlauts.md"},
-		{[]string{"take", "login-fails-with-umlauts"}, ExitViolation, "is assigned to alex", ""},
-		{[]string{"take", "login-fails-with-umlauts", "--force"}, ExitOK, "login-fails-with-umlauts: assignee = sam\n", ""},
+		// arnold's card is protected
+		{[]string{"done", "login-fails-with-umlauts"}, ExitViolation, "is assigned to arnold", "working_on/login-fails-with-umlauts.md"},
+		{[]string{"take", "login-fails-with-umlauts"}, ExitViolation, "is assigned to arnold", ""},
+		{[]string{"take", "login-fails-with-umlauts", "--force"}, ExitOK, "login-fails-with-umlauts: assignee = sly\n", ""},
 		{[]string{"done", "login-fails-with-umlauts"}, ExitOK, "login-fails-with-umlauts: working_on -> done\n", "done/login-fails-with-umlauts.md"},
 		// assigning does not move; give is the same command
-		{[]string{"assign", "print-templates", "alex"}, ExitOK, "print-templates: assignee = alex\n", "working_on/print-templates.md"},
-		{[]string{"give", "print-templates", "sam"}, ExitViolation, "is assigned to alex", ""},
-		{[]string{"give", "export-as-pdf", "alex"}, ExitOK, "export-as-pdf: assignee = alex\n", "working_on/export-as-pdf.md"},
+		{[]string{"assign", "print-templates", "arnold"}, ExitOK, "print-templates: assignee = arnold\n", "working_on/print-templates.md"},
+		{[]string{"give", "print-templates", "sly"}, ExitViolation, "is assigned to arnold", ""},
+		{[]string{"give", "export-as-pdf", "arnold"}, ExitOK, "export-as-pdf: assignee = arnold\n", "working_on/export-as-pdf.md"},
 		// a card in progress needs someone
 		{[]string{"unassign", "offline-mode"}, ExitViolation, "would lack assignee", ""},
 		{[]string{"move", "offline-mode", "backlog"}, ExitOK, "offline-mode: working_on -> backlog\n", "backlog/offline-mode.md"},
@@ -360,7 +360,7 @@ func TestChangeCommands(t *testing.T) {
 }
 
 func TestSeveralPeople(t *testing.T) {
-	asUser(t, "sam")
+	asUser(t, "sly")
 	root := copyOfExample(t)
 	const card = "print-templates"
 
@@ -370,24 +370,24 @@ func TestSeveralPeople(t *testing.T) {
 		out  string // expected stdout, or part of stderr on failure
 		file string // expected header line, "" for no assignee
 	}{
-		{[]string{"assign", card, "alex", "laura"}, ExitOK, "print-templates: assignee = alex, laura\n", "assignee: [alex, laura]"},
-		// sam is not on the card: joining it is a change to someone else's card
-		{[]string{"take", card, "--add"}, ExitViolation, "is assigned to alex, laura", "assignee: [alex, laura]"},
-		{[]string{"take", card, "--add", "--force"}, ExitOK, "print-templates: backlog -> working_on, assignee = alex, laura, sam\n", "assignee: [alex, laura, sam]"},
-		// now it is sam's card too
-		{[]string{"take", card, "--add"}, ExitOK, "print-templates: nothing to change\n", "assignee: [alex, laura, sam]"},
-		{[]string{"unassign", card, "laura"}, ExitOK, "print-templates: assignee = alex, sam\n", "assignee: [alex, sam]"},
-		{[]string{"unassign", card, "laura"}, ExitOK, "print-templates: nothing to change\n", "assignee: [alex, sam]"},
-		{[]string{"assign", card, "--add", "laura", "sam"}, ExitOK, "print-templates: assignee = alex, sam, laura\n", "assignee: [alex, sam, laura]"},
-		{[]string{"unassign", card, "alex", "laura"}, ExitOK, "print-templates: assignee = sam\n", "assignee: sam"},
+		{[]string{"assign", card, "arnold", "laura"}, ExitOK, "print-templates: assignee = arnold, laura\n", "assignee: [arnold, laura]"},
+		// sly is not on the card: joining it is a change to someone else's card
+		{[]string{"take", card, "--add"}, ExitViolation, "is assigned to arnold, laura", "assignee: [arnold, laura]"},
+		{[]string{"take", card, "--add", "--force"}, ExitOK, "print-templates: backlog -> working_on, assignee = arnold, laura, sly\n", "assignee: [arnold, laura, sly]"},
+		// now it is sly's card too
+		{[]string{"take", card, "--add"}, ExitOK, "print-templates: nothing to change\n", "assignee: [arnold, laura, sly]"},
+		{[]string{"unassign", card, "laura"}, ExitOK, "print-templates: assignee = arnold, sly\n", "assignee: [arnold, sly]"},
+		{[]string{"unassign", card, "laura"}, ExitOK, "print-templates: nothing to change\n", "assignee: [arnold, sly]"},
+		{[]string{"assign", card, "--add", "laura", "sly"}, ExitOK, "print-templates: assignee = arnold, sly, laura\n", "assignee: [arnold, sly, laura]"},
+		{[]string{"unassign", card, "arnold", "laura"}, ExitOK, "print-templates: assignee = sly\n", "assignee: sly"},
 		// in progress, the last person cannot leave
-		{[]string{"unassign", card, "sam"}, ExitViolation, "would lack assignee", "assignee: sam"},
+		{[]string{"unassign", card, "sly"}, ExitViolation, "would lack assignee", "assignee: sly"},
 		// without --add, take and assign replace everyone
-		{[]string{"assign", card, "alex,laura"}, ExitOK, "print-templates: assignee = alex, laura\n", "assignee: [alex, laura]"},
-		{[]string{"take", card, "--force"}, ExitOK, "print-templates: assignee = sam\n", "assignee: sam"},
-		{[]string{"set", card, "assignee=sam,alex"}, ExitOK, "print-templates: assignee = sam, alex\n", "assignee: [sam, alex]"},
-		{[]string{"assign", card, "Sam Smith"}, ExitUsage, "is neither a short name", "assignee: [sam, alex]"},
-		{[]string{"assign", card, ""}, ExitUsage, "no person named", "assignee: [sam, alex]"},
+		{[]string{"assign", card, "arnold,laura"}, ExitOK, "print-templates: assignee = arnold, laura\n", "assignee: [arnold, laura]"},
+		{[]string{"take", card, "--force"}, ExitOK, "print-templates: assignee = sly\n", "assignee: sly"},
+		{[]string{"set", card, "assignee=sly,arnold"}, ExitOK, "print-templates: assignee = sly, arnold\n", "assignee: [sly, arnold]"},
+		{[]string{"assign", card, "Sly Smith"}, ExitUsage, "is neither a short name", "assignee: [sly, arnold]"},
+		{[]string{"assign", card, ""}, ExitUsage, "no person named", "assignee: [sly, arnold]"},
 	}
 	for _, s := range steps {
 		code, out, errOut := kard(t, append(s.args, "-C", root)...)
@@ -411,10 +411,10 @@ func TestSeveralPeople(t *testing.T) {
 
 	// Both people see the card as theirs.
 	_, out, _ := kard(t, "list", "working_on", "-C", root)
-	if !strings.Contains(out, "Print templates  @sam @alex\n") {
+	if !strings.Contains(out, "Print templates  @sly @arnold\n") {
 		t.Errorf("list:\n%s", out)
 	}
-	for _, name := range []string{"sam", "alex"} {
+	for _, name := range []string{"sly", "arnold"} {
 		asUser(t, name)
 		if _, out, _ := kard(t, "list", "working_on", "--mine", "-C", root); !strings.Contains(out, "print-templates") {
 			t.Errorf("--mine for %s:\n%s", name, out)
@@ -452,7 +452,7 @@ func TestWhoYouAreMattersOnlyForAssignedCards(t *testing.T) {
 }
 
 func TestBoardWithoutSpecialColumns(t *testing.T) {
-	asUser(t, "sam")
+	asUser(t, "sly")
 	root := t.TempDir()
 	files := map[string]string{
 		"board.yaml":    "kardboard: 1\nid: plain\ncolumns:\n  - id: todo\n",
@@ -470,10 +470,10 @@ func TestBoardWithoutSpecialColumns(t *testing.T) {
 
 	// Without a doing column, taking a card only assigns it.
 	code, out, _ := kard(t, "take", "karte", "-C", root)
-	if code != ExitOK || out != "karte: assignee = sam\n" {
+	if code != ExitOK || out != "karte: assignee = sly\n" {
 		t.Errorf("take: code %d, out %q", code, out)
 	}
-	if got, want := readFile(t, root, "todo/karte.md"), "---\nassignee: sam\n---\n\n# Karte\n"; got != want {
+	if got, want := readFile(t, root, "todo/karte.md"), "---\nassignee: sly\n---\n\n# Karte\n"; got != want {
 		t.Errorf("file = %q, want %q", got, want)
 	}
 	code, _, errOut := kard(t, "done", "karte", "-C", root)
@@ -697,15 +697,15 @@ func syncRepo(t *testing.T, mode string) string {
 		t.Fatal(err)
 	}
 	gitIn(t, root, "init", "-q", "-b", "main")
-	gitIn(t, root, "config", "user.name", "alex")
-	gitIn(t, root, "config", "user.email", "alex@example.com")
+	gitIn(t, root, "config", "user.name", "arnold")
+	gitIn(t, root, "config", "user.email", "arnold@example.com")
 	gitIn(t, root, "add", "-A")
 	gitIn(t, root, "commit", "-q", "-m", "start")
 	return root
 }
 
 func TestChangeOnASideBranch(t *testing.T) {
-	asUser(t, "alex")
+	asUser(t, "arnold")
 	root := syncRepo(t, "none")
 
 	code, out, _ := kard(t, "move", "print-templates", "planning", "-C", root)
@@ -724,22 +724,22 @@ func TestChangeOnASideBranch(t *testing.T) {
 }
 
 func TestCommitBoard(t *testing.T) {
-	asUser(t, "alex")
+	asUser(t, "arnold")
 	root := syncRepo(t, "commit")
 
 	code, out, errOut := kard(t, "new", "Dunkles Design", "-c", "planning", "-C", root)
 	if code != ExitOK || !strings.HasPrefix(out, "planning/dunkles-design.md  (commit ") {
 		t.Fatalf("new: code %d, out %q, err %q", code, out, errOut)
 	}
-	code, out, errOut = kard(t, "assign", "dunkles-design", "sam", "-C", root)
-	if code != ExitOK || !strings.HasPrefix(out, "dunkles-design: assignee = sam  (commit ") {
+	code, out, errOut = kard(t, "assign", "dunkles-design", "sly", "-C", root)
+	if code != ExitOK || !strings.HasPrefix(out, "dunkles-design: assignee = sly  (commit ") {
 		t.Fatalf("assign: code %d, out %q, err %q", code, out, errOut)
 	}
-	code, out, _ = kard(t, "assign", "dunkles-design", "sam", "-C", root, "--force")
+	code, out, _ = kard(t, "assign", "dunkles-design", "sly", "-C", root, "--force")
 	if code != ExitOK || out != "dunkles-design: nothing to change\n" {
 		t.Errorf("assign again: code %d, out %q", code, out)
 	}
-	if got := gitIn(t, root, "log", "--format=%s"); got != "assign dunkles-design: sam\nnew dunkles-design\nstart" {
+	if got := gitIn(t, root, "log", "--format=%s"); got != "assign dunkles-design: sly\nnew dunkles-design\nstart" {
 		t.Errorf("log = %q", got)
 	}
 
@@ -750,7 +750,7 @@ func TestCommitBoard(t *testing.T) {
 }
 
 func TestPushBoard(t *testing.T) {
-	asUser(t, "alex")
+	asUser(t, "arnold")
 	seed := syncRepo(t, "push")
 	remote := filepath.Join(t.TempDir(), "remote.git")
 	gitIn(t, seed, "clone", "-q", "--bare", seed, remote)
@@ -761,37 +761,37 @@ func TestPushBoard(t *testing.T) {
 		gitIn(t, dir, "config", "user.email", name+"@example.com")
 		return dir
 	}
-	alex, sam := clone("alex"), clone("sam")
+	arnold, sly := clone("arnold"), clone("sly")
 
-	code, out, errOut := kard(t, "take", "print-templates", "-C", alex, "--force")
+	code, out, errOut := kard(t, "take", "print-templates", "-C", arnold, "--force")
 	if code != ExitOK || !strings.Contains(out, "backlog -> working_on") || !strings.HasSuffix(out, ", pushed)\n") {
 		t.Fatalf("take: code %d, out %q, err %q", code, out, errOut)
 	}
 
-	// Sam's command pulls first, so it sees that the card is Alex's.
-	t.Setenv("KARDBOARD_USER", "sam")
-	code, _, errOut = kard(t, "done", "print-templates", "-C", sam)
-	if code != ExitViolation || !strings.Contains(errOut, "assigned to alex") {
+	// Sly's command pulls first, so it sees that the card is Arnold's.
+	t.Setenv("KARDBOARD_USER", "sly")
+	code, _, errOut = kard(t, "done", "print-templates", "-C", sly)
+	if code != ExitViolation || !strings.Contains(errOut, "assigned to arnold") {
 		t.Errorf("done: code %d, err %q", code, errOut)
 	}
-	if !isFile(sam, "working_on/print-templates.md") {
-		t.Error("sam did not get alex's change")
+	if !isFile(sly, "working_on/print-templates.md") {
+		t.Error("sly did not get arnold's change")
 	}
 
 	// A commit made by hand goes out with kard sync.
-	gitIn(t, sam, "commit", "-q", "--allow-empty", "-m", "by hand")
-	code, out, errOut = kard(t, "sync", "-C", sam)
+	gitIn(t, sly, "commit", "-q", "--allow-empty", "-m", "by hand")
+	code, out, errOut = kard(t, "sync", "-C", sly)
 	if code != ExitOK || out != "demo: 0 commits pulled, 1 commit pushed\n" {
 		t.Errorf("sync: code %d, out %q, err %q", code, out, errOut)
 	}
-	if code, out, _ = kard(t, "sync", "-C", sam); code != ExitOK || out != "demo: up to date\n" {
+	if code, out, _ = kard(t, "sync", "-C", sly); code != ExitOK || out != "demo: up to date\n" {
 		t.Errorf("sync again: code %d, out %q", code, out)
 	}
 
 	// Without the remote the change stays here, and kard says so.
-	gitIn(t, sam, "remote", "set-url", "origin", filepath.Join(t.TempDir(), "gone.git"))
-	code, _, errOut = kard(t, "move", "offline-mode", "backlog", "-C", sam, "--force")
-	if code != ExitUsage || !strings.Contains(errOut, "nothing was changed") || !isFile(sam, "planning/offline-mode.md") {
+	gitIn(t, sly, "remote", "set-url", "origin", filepath.Join(t.TempDir(), "gone.git"))
+	code, _, errOut = kard(t, "move", "offline-mode", "backlog", "-C", sly, "--force")
+	if code != ExitUsage || !strings.Contains(errOut, "nothing was changed") || !isFile(sly, "planning/offline-mode.md") {
 		t.Errorf("move: code %d, err %q", code, errOut)
 	}
 }
@@ -852,7 +852,7 @@ func TestInitAdoptsDirectoriesWithCards(t *testing.T) {
 	root := filepath.Join(home, "zettel")
 	put(t, root,
 		"done/a.md", "backlog/b.md", "backlog/c.md", "planning/d.md",
-		"working_on/sam/e.md",      // a directory per person still makes a column
+		"working_on/sly/e.md",      // a directory per person still makes a column
 		"reference/notes.md",       // unknown name: goes in the middle
 		"bin/tool.sh", "README.md", // no cards: not columns
 		".github/x.md", "Mit Leerzeichen/y.md", // not usable as column ids
@@ -869,7 +869,7 @@ func TestInitAdoptsDirectoriesWithCards(t *testing.T) {
 		t.Errorf("out = %q", out)
 	}
 	// Nothing was moved or changed.
-	if readFile(t, root, "working_on/sam/e.md") != "# working_on/sam/e.md\n" || isFile(root, "bin/board.yaml") {
+	if readFile(t, root, "working_on/sly/e.md") != "# working_on/sly/e.md\n" || isFile(root, "bin/board.yaml") {
 		t.Error("init touched the files")
 	}
 	if code, out, _ := kard(t, "boards"); code != ExitOK || strings.Contains(out, "zettel") {
@@ -928,7 +928,7 @@ func editorWrites(t *testing.T, text string) {
 }
 
 func TestEditCommand(t *testing.T) {
-	asUser(t, "alex")
+	asUser(t, "arnold")
 	root := syncRepo(t, "commit")
 	before := readFile(t, root, "backlog/print-templates.md")
 
@@ -976,7 +976,7 @@ func TestEditCommand(t *testing.T) {
 }
 
 func TestRenameCommand(t *testing.T) {
-	asUser(t, "alex")
+	asUser(t, "arnold")
 	root := syncRepo(t, "commit")
 
 	code, out, errOut := kard(t, "rename", "print-templates", "pdf-templates", "-C", root)
@@ -1037,7 +1037,7 @@ func TestSchemaCommand(t *testing.T) {
 func TestAllBoards(t *testing.T) {
 	home, _ := machine(t)
 	t.Chdir(home) // no board here, and no repository with one
-	t.Setenv("KARDBOARD_USER", "alex")
+	t.Setenv("KARDBOARD_USER", "arnold")
 
 	if code, _, errOut := kard(t, "lint", "--all"); code != ExitUsage || !strings.Contains(errOut, "no boards known") {
 		t.Errorf("no boards: code %d, err %q", code, errOut)
@@ -1045,7 +1045,7 @@ func TestAllBoards(t *testing.T) {
 
 	alpha := makeBoard(t, filepath.Join(home, "repos", "alpha"), "alpha")
 	beta := makeBoard(t, filepath.Join(home, "repos", "beta"), "beta")
-	for rel, text := range map[string]string{"todo/zwei.md": "---\nassignee: alex\n---\n\n# Zwei\n", "done/kaputt.md": "no title\n"} {
+	for rel, text := range map[string]string{"todo/zwei.md": "---\nassignee: arnold\n---\n\n# Zwei\n", "done/kaputt.md": "no title\n"} {
 		path := filepath.Join(beta, filepath.FromSlash(rel))
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			t.Fatal(err)
@@ -1076,7 +1076,7 @@ func TestAllBoards(t *testing.T) {
 
 	code, out, _ = kard(t, "list", "--all", "--mine")
 	want = "== alpha (~/repos/alpha)\ntodo (0)\ndone (0)\n\n" +
-		"== beta (~/repos/beta)\ntodo (1)\n    zwei  Zwei  @alex\ndone (0)\n"
+		"== beta (~/repos/beta)\ntodo (1)\n    zwei  Zwei  @arnold\ndone (0)\n"
 	if code != ExitOK || out != want {
 		t.Errorf("list --all --mine: code %d, out\n%s\nwant\n%s", code, out, want)
 	}
@@ -1094,7 +1094,7 @@ func TestAllBoards(t *testing.T) {
 }
 
 func TestLogCommand(t *testing.T) {
-	asUser(t, "alex")
+	asUser(t, "arnold")
 	root := syncRepo(t, "commit")
 	for _, args := range [][]string{
 		{"move", "print-templates", "working_on", "--force"},
@@ -1233,7 +1233,7 @@ func TestHelpExamplesAreValidCalls(t *testing.T) {
 }
 
 func TestAgentFriendlyCalls(t *testing.T) {
-	asUser(t, "alex")
+	asUser(t, "arnold")
 	root := syncRepo(t, "commit")
 
 	// A card with text, from stdin.
@@ -1290,24 +1290,24 @@ func TestAgentFriendlyCalls(t *testing.T) {
 }
 
 func TestAssignFindsPeopleByTheBeginningOfTheirName(t *testing.T) {
-	asUser(t, "alex")
+	asUser(t, "arnold")
 	root := copyOfExample(t)
 
-	// sam is on a card already, so "sa" means sam.
-	if code, _, errOut := kard(t, "assign", "print-templates", "sa", "-C", root); code != ExitOK {
-		t.Fatalf("assign sa: code %d, %s", code, errOut)
+	// sly is on a card already, so "sl" means sly.
+	if code, _, errOut := kard(t, "assign", "print-templates", "sl", "-C", root); code != ExitOK {
+		t.Fatalf("assign sl: code %d, %s", code, errOut)
 	}
-	if got := readFile(t, root, "backlog/print-templates.md"); !strings.Contains(got, "assignee: sam\n") {
+	if got := readFile(t, root, "backlog/print-templates.md"); !strings.Contains(got, "assignee: sly\n") {
 		t.Errorf("card = %q", got)
 	}
-	// A new person is taken as given; now "sa" fits two.
-	if code, _, errOut := kard(t, "assign", "offline-mode", "Sabine@Example.org", "-C", root); code != ExitOK {
-		t.Fatalf("assign sabine: code %d, %s", code, errOut)
+	// A new person is taken as given; now "sl" fits two.
+	if code, _, errOut := kard(t, "assign", "offline-mode", "Slim@Example.org", "-C", root); code != ExitOK {
+		t.Fatalf("assign slim: code %d, %s", code, errOut)
 	}
-	if got := readFile(t, root, "planning/offline-mode.md"); !strings.Contains(got, "assignee: sabine@example.org\n") {
+	if got := readFile(t, root, "planning/offline-mode.md"); !strings.Contains(got, "assignee: slim@example.org\n") {
 		t.Errorf("addresses are written in lower case: %q", got)
 	}
-	code, _, errOut := kard(t, "assign", "print-templates", "sa", "--json", "-C", root)
+	code, _, errOut := kard(t, "assign", "print-templates", "sl", "--json", "-C", root)
 	var res struct {
 		Kind       string
 		Candidates []struct{ ID string }

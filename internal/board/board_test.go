@@ -42,7 +42,7 @@ fields:
     type: cards
   reviewer:
     type: person
-    values: [alex, sam]
+    values: [arnold, sly]
 `
 
 // writeBoard creates a board directory from a map of relative paths to file
@@ -74,7 +74,7 @@ func load(t *testing.T, files map[string]string) *Board {
 	return b
 }
 
-// who returns the people on a card as "alex,sam", or "" for nobody.
+// who returns the people on a card as "arnold,sly", or "" for nobody.
 func who(c *Card) string {
 	return strings.Join(c.Assignees(), ",")
 }
@@ -104,7 +104,7 @@ func TestExampleBoardIsValid(t *testing.T) {
 		t.Fatal("card export-as-pdf not found")
 	}
 	want := map[string]any{
-		"assignee":   []string{"sam"},
+		"assignee":   []string{"sly"},
 		"size":       "M",
 		"milestone":  "release",
 		"tags":       []string{"feature"},
@@ -115,12 +115,12 @@ func TestExampleBoardIsValid(t *testing.T) {
 	if !reflect.DeepEqual(c.Fields, want) {
 		t.Errorf("fields = %#v, want %#v", c.Fields, want)
 	}
-	if c.Title != "Export as PDF" || c.Column != "backlog" || who(c) != "sam" {
+	if c.Title != "Export as PDF" || c.Column != "backlog" || who(c) != "sly" {
 		t.Errorf("card = %+v", c)
 	}
 
 	c, _ = b.Card("login-fails-with-umlauts")
-	if who(c) != "alex" || c.Path != "working_on/login-fails-with-umlauts.md" {
+	if who(c) != "arnold" || c.Path != "working_on/login-fails-with-umlauts.md" {
 		t.Errorf("assigned card = %+v", c)
 	}
 	if c, _ = b.Card("offline-mode"); who(c) != "" {
@@ -130,7 +130,7 @@ func TestExampleBoardIsValid(t *testing.T) {
 
 func TestCardRules(t *testing.T) {
 	const ok = "---\nsize: S\n---\n\n# Fine\n"
-	const taken = "---\nassignee: alex\nsize: S\n---\n\n# Fine\n"
+	const taken = "---\nassignee: arnold\nsize: S\n---\n\n# Fine\n"
 	tests := []struct {
 		name  string
 		files map[string]string
@@ -141,7 +141,7 @@ func TestCardRules(t *testing.T) {
 		{"blank lines before the title", map[string]string{"planning/a.md": "\n\n# A\n"}, nil},
 		{"windows line endings and BOM", map[string]string{"backlog/a.md": "\uFEFF---\r\nsize: M\r\n---\r\n\r\n# A\r\n"}, nil},
 		{"every type accepted", map[string]string{
-			"backlog/a.md": "---\nassignee: alex\nreviewer: sam\nsize: L\ntags: [bug, feature]\nowner: Einkauf\nestimate: 2.5\nblocked: false\n" +
+			"backlog/a.md": "---\nassignee: arnold\nreviewer: sly\nsize: L\ntags: [bug, feature]\nowner: Einkauf\nestimate: 2.5\nblocked: false\n" +
 				"related: [b]\ndue: 2026-12-01\ncreated: 2026-01-31\ndepends_on: [b]\n---\n# A\n",
 			"backlog/b.md": ok,
 		}, nil},
@@ -153,12 +153,12 @@ func TestCardRules(t *testing.T) {
 
 		{"E03 unknown field", map[string]string{"planning/a.md": "---\nprio: 1\n---\n# A\n"}, []string{"E03"}},
 		{"E04 reserved field", map[string]string{"planning/a.md": "---\nstatus: done\ncolumn: backlog\n---\n# A\n"}, []string{"E04", "E04"}},
-		{"assigned in any column", map[string]string{"planning/a.md": "---\nassignee: alex\n---\n# A\n", "done/b.md": "---\nassignee: sam-2\n---\n# B\n"}, nil},
+		{"assigned in any column", map[string]string{"planning/a.md": "---\nassignee: arnold\n---\n# A\n", "done/b.md": "---\nassignee: sly-2\n---\n# B\n"}, nil},
 		{"in progress and assigned", map[string]string{"working_on/a.md": taken}, nil},
 		{"several people on one card", map[string]string{
-			"working_on/a.md": "---\nassignee: [alex, sam]\nsize: S\n---\n# A\n",
-			"backlog/b.md":    "---\nassignee:\n  - alex\n  - sam\nreviewer: [sam, alex]\nsize: S\n---\n# B\n",
-			"done/c.md":       "---\nassignee: [alex]\n---\n# C\n",
+			"working_on/a.md": "---\nassignee: [arnold, sly]\nsize: S\n---\n# A\n",
+			"backlog/b.md":    "---\nassignee:\n  - arnold\n  - sly\nreviewer: [sly, arnold]\nsize: S\n---\n# B\n",
+			"done/c.md":       "---\nassignee: [arnold]\n---\n# C\n",
 		}, nil},
 
 		{"E05 enum", map[string]string{"planning/a.md": "---\nsize: XXL\n---\n# A\n"}, []string{"E05"}},
@@ -171,13 +171,13 @@ func TestCardRules(t *testing.T) {
 		{"E05 bool", map[string]string{"planning/a.md": "---\nblocked: vielleicht\n---\n# A\n"}, []string{"E05"}},
 		{"E05 text over several lines", map[string]string{"planning/a.md": "---\nowner: |\n  a\n  b\n---\n# A\n"}, []string{"E05"}},
 		{"E05 empty value", map[string]string{"planning/a.md": "---\nowner:\n---\n# A\n"}, []string{"E05"}},
-		{"E05 person is not a short name", map[string]string{"planning/a.md": "---\nassignee: Alex Smith\n---\n# A\n"}, []string{"E05"}},
-		{"E05 person in a list is not a short name", map[string]string{"planning/a.md": "---\nassignee: [alex, Sam Smith]\n---\n# A\n"}, []string{"E05"}},
-		{"E05 person named twice", map[string]string{"planning/a.md": "---\nassignee: [alex, sam, alex]\n---\n# A\n"}, []string{"E05"}},
+		{"E05 person is not a short name", map[string]string{"planning/a.md": "---\nassignee: Arnold Smith\n---\n# A\n"}, []string{"E05"}},
+		{"E05 person in a list is not a short name", map[string]string{"planning/a.md": "---\nassignee: [arnold, Sly Smith]\n---\n# A\n"}, []string{"E05"}},
+		{"E05 person named twice", map[string]string{"planning/a.md": "---\nassignee: [arnold, sly, arnold]\n---\n# A\n"}, []string{"E05"}},
 		{"E05 empty list of people", map[string]string{"planning/a.md": "---\nassignee: []\n---\n# A\n"}, []string{"E05"}},
-		{"E05 people as a mapping", map[string]string{"planning/a.md": "---\nassignee: {alex: true}\n---\n# A\n"}, []string{"E05"}},
+		{"E05 people as a mapping", map[string]string{"planning/a.md": "---\nassignee: {arnold: true}\n---\n# A\n"}, []string{"E05"}},
 		{"E05 person not among the values", map[string]string{"planning/a.md": "---\nreviewer: laura\n---\n# A\n"}, []string{"E05"}},
-		{"E05 one of several people not among the values", map[string]string{"planning/a.md": "---\nreviewer: [alex, laura]\n---\n# A\n"}, []string{"E05"}},
+		{"E05 one of several people not among the values", map[string]string{"planning/a.md": "---\nreviewer: [arnold, laura]\n---\n# A\n"}, []string{"E05"}},
 		{"E05 empty list where an assignee is required", map[string]string{"working_on/a.md": "---\nassignee: []\nsize: S\n---\n# A\n"}, []string{"E05"}},
 		{"E05 card reference", map[string]string{"planning/a.md": "---\nrelated: [Not_A_Card]\n---\n# A\n"}, []string{"E05"}},
 
@@ -217,15 +217,15 @@ func TestCardRules(t *testing.T) {
 
 func TestOnlyCardsInColumnsAreRead(t *testing.T) {
 	b := load(t, map[string]string{
-		"planning/a.md":         "# A\n",
-		"planning/.hidden.md":   "not a card",
-		"planning/notes.txt":    "not a card",
-		"planning/sub/deep.md":  "ignored: columns have no subdirectories",
-		"working_on/alex/y.md":  "ignored: columns have no subdirectories",
-		"working_on/.keep/z.md": "ignored: hidden directory",
-		"reference/mock.md":     "ignored: not a column",
-		"README.md":             "ignored: not in a column",
-		"done/.gitkeep":         "",
+		"planning/a.md":          "# A\n",
+		"planning/.hidden.md":    "not a card",
+		"planning/notes.txt":     "not a card",
+		"planning/sub/deep.md":   "ignored: columns have no subdirectories",
+		"working_on/arnold/y.md": "ignored: columns have no subdirectories",
+		"working_on/.keep/z.md":  "ignored: hidden directory",
+		"reference/mock.md":      "ignored: not a column",
+		"README.md":              "ignored: not in a column",
+		"done/.gitkeep":          "",
 	})
 	if got := codes(b); len(got) != 0 {
 		t.Fatalf("problems: %+v", b.Problems())
