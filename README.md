@@ -14,6 +14,24 @@ every change into a commit and syncs the board with its remote.
 - [Format and CLI](docs/spec.md)
 - [Example board](examples/board)
 
+## Install
+
+Each [release](https://github.com/dvpnk/kardboard/releases) has one file
+per system: `kard-<version>-macos` for every Mac, `-linux-amd64`,
+`-linux-arm64` and `-windows-amd64.exe`, plus `SHA256SUMS`. Rename it to
+`kard`, make it executable and put it somewhere in your path, such as
+`~/.local/bin`:
+
+```bash
+chmod +x kard-*-macos && mv kard-*-macos ~/.local/bin/kard
+```
+
+With Go 1.27 or newer, this builds and installs it in one step:
+
+```bash
+go install github.com/dvpnk/kardboard/cmd/kard@latest
+```
+
 ## Build and try it
 
 Needs Go 1.27 or newer.
@@ -44,11 +62,12 @@ scripts/dist mac windows
 the last `vX.Y.Z` tag, following Conventional Commits: `feat:` raises the
 second number, `fix:`, `refactor:` and `build:` the third, `feat!:` the
 first; `docs:` and `chore:` do not count. `scripts/dist` passes it to the
-program, and `kard version` shows it. When you hand out a build, fix the
-version as a tag:
+program, and `kard version` shows it. A release is a tag: once it is
+pushed, GitHub builds every system with `scripts/dist` and publishes the
+files.
 
 ```bash
-git tag "v$(scripts/calculate_version.sh)" && scripts/dist
+git tag "v$(scripts/calculate_version.sh)" && git push origin --tags
 ```
 
 The files are not signed. When one reaches a Mac through a browser or a
