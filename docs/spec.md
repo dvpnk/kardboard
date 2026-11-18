@@ -349,11 +349,34 @@ If two branches move the same card to different columns, Git reports a
 conflict when merging, as for any file moved to two places. Whoever merges
 keeps one of the two files.
 
-### Board on a branch of its own
+### A board of its own
 
-When the team should see the board's state at once, whichever branch anyone
-works on, the board gets a branch of its own without the code, checked out
-next to the project as a Git worktree, with `sync: push`:
+When the team should see every move at once, whichever branch anyone works
+on, the board must not live in the code's working tree. Two ways, both with
+`sync: push`. In both, a card can no longer change in the same pull request
+as the code.
+
+**A repository of its own** is the simplest: an ordinary repository with
+only the board, cloned by everyone next to the project. Nothing about it is
+special; see [A board for a team](../README.md#a-board-for-a-team).
+
+**A branch of its own in the code repository** keeps board and code in one
+repository, as GitHub Pages does with `gh-pages`. The board gets an orphan
+branch: a branch with a history of its own and no files of `main`, so it
+holds only `board.yaml` and the cards. It is checked out as a Git worktree,
+a second working directory of the same repository with its own branch, next
+to the project:
+
+```
+myproject/          main, feature/x, … (the code)
+myproject-board/    always kardboard (only the cards)
+     └── .git       a file that points to myproject/.git
+```
+
+Switching branches in `myproject` leaves `myproject-board` alone. Both share
+one `.git`, so a commit in one is known in the other at once.
+
+Setting it up, once per repository (Git 2.42 or newer):
 
 ```bash
 git worktree add --orphan -b kardboard ../myproject-board
@@ -366,11 +389,30 @@ Set `sync: push` in `board.yaml`, then:
 git add -A && git commit -m "new board" && git push -u origin kardboard
 ```
 
-`kard init` has registered the directory, so `kard ui` shows it. Others get
-it with `git worktree add ../myproject-board kardboard`. Switching branches
-in the project leaves the board alone. In exchange, a card can no longer
-change in the same pull request as the code. A repository of its own for the
-board works the same way.
+With older Git, the first line is two steps:
+
+```bash
+git worktree add --detach ../myproject-board
+cd ../myproject-board && git switch --orphan kardboard
+```
+
+Everyone else, once, in their clone of the project:
+
+```bash
+git fetch && git worktree add ../myproject-board kardboard
+kard add ../myproject-board
+```
+
+What to keep in mind:
+
+- Never merge `kardboard` into `main`. It shares nothing with it; GitHub may
+  still offer a pull request.
+- After moving the project or the board directory, run
+  `git worktree repair <board directory>` in the project. If the board
+  directory moved, also `kard remove` the old path and `kard add` the new
+  one.
+- A branch can be checked out in only one worktree at a time. Do not
+  `git switch kardboard` in the project itself.
 
 ## User settings
 

@@ -259,19 +259,11 @@ main one, the line ends with `(on branch feature/pdf: main gets this when it
 is merged)`, and the UI shows the branch next to the board's name.
 
 If the team should see every move at once, whatever branch anyone is on,
-give the board a branch of its own, checked out next to the project:
-
-```bash
-git worktree add --orphan -b kardboard ../myproject-board
-```
-
-```bash
-cd ../myproject-board && kard init .
-```
-
-Then set `sync: push` in `board.yaml`, commit, and push once with
-`git push -u origin kardboard`. Switching branches in the project no longer
-touches the board. See [Git in the spec](docs/spec.md#git) for the details.
+give the board a home of its own with `sync: push`. The simplest is a
+repository of its own, as in [A board for a team](#a-board-for-a-team).
+If board and code should stay in one repository, the board can live on a
+branch of its own, next to the project as a Git worktree; the
+[spec](docs/spec.md#a-board-of-its-own) shows how to set it up.
 
 ## For scripts and AI agents
 
