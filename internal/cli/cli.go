@@ -15,10 +15,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"kardboard/internal/board"
-	"kardboard/internal/gitsync"
-	"kardboard/internal/people"
-	"kardboard/internal/registry"
+	"github.com/dvpnk/kardboard/internal/board"
+	"github.com/dvpnk/kardboard/internal/gitsync"
+	"github.com/dvpnk/kardboard/internal/people"
+	"github.com/dvpnk/kardboard/internal/registry"
 )
 
 // Exit codes of kard.

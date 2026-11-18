@@ -13,11 +13,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"kardboard/internal/board"
-	"kardboard/internal/gitsync"
-	"kardboard/internal/registry"
-	"kardboard/internal/server"
-	"kardboard/internal/userconfig"
+	"github.com/dvpnk/kardboard/internal/board"
+	"github.com/dvpnk/kardboard/internal/gitsync"
+	"github.com/dvpnk/kardboard/internal/registry"
+	"github.com/dvpnk/kardboard/internal/server"
+	"github.com/dvpnk/kardboard/internal/userconfig"
 )
 
 // known loads every board known on this machine. here, if not empty, is a

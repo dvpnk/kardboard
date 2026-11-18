@@ -5,7 +5,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"kardboard/internal/board"
+	"github.com/dvpnk/kardboard/internal/board"
 )
 
 // Branch is the branch a board in a code repository is seen on, when that

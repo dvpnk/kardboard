@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"kardboard/internal/userconfig"
+	"github.com/dvpnk/kardboard/internal/userconfig"
 )
 
 // tree creates files below a fresh directory. A path ending in "/" is an

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"kardboard/internal/board"
+	"github.com/dvpnk/kardboard/internal/board"
 )
 
 // clean gives the test empty settings, no Git identity and no account.

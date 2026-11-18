@@ -13,8 +13,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"kardboard/internal/board"
-	"kardboard/internal/gitsync"
+	"github.com/dvpnk/kardboard/internal/board"
+	"github.com/dvpnk/kardboard/internal/gitsync"
 )
 
 // editCmd opens a card in the user's editor and saves what comes back as

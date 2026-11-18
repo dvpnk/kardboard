@@ -5,8 +5,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"kardboard/internal/people"
-	"kardboard/internal/userconfig"
+	"github.com/dvpnk/kardboard/internal/people"
+	"github.com/dvpnk/kardboard/internal/userconfig"
 )
 
 type whoamiResult struct {

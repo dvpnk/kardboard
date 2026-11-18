@@ -23,8 +23,8 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
-	"kardboard/internal/board"
-	"kardboard/internal/userconfig"
+	"github.com/dvpnk/kardboard/internal/board"
+	"github.com/dvpnk/kardboard/internal/userconfig"
 )
 
 // EnvUser overrides every other source of the user's name.

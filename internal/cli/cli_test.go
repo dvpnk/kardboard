@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"kardboard/internal/people"
+	"github.com/dvpnk/kardboard/internal/people"
 )
 
 var example = filepath.Join("..", "..", "examples", "board")

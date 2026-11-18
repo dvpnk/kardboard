@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"kardboard/internal/board"
-	"kardboard/internal/userconfig"
+	"github.com/dvpnk/kardboard/internal/board"
+	"github.com/dvpnk/kardboard/internal/userconfig"
 )
 
 // Source says how a board came to be known.

@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"kardboard/internal/board"
+	"github.com/dvpnk/kardboard/internal/board"
 )
 
 func TestSideBranch(t *testing.T) {

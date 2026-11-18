@@ -8,9 +8,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"kardboard/internal/board"
-	"kardboard/internal/gitsync"
-	"kardboard/internal/people"
+	"github.com/dvpnk/kardboard/internal/board"
+	"github.com/dvpnk/kardboard/internal/gitsync"
+	"github.com/dvpnk/kardboard/internal/people"
 )
 
 // renameCmd gives a card a new name and makes the references to it on the

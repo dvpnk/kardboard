@@ -19,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	"kardboard/internal/board"
+	"github.com/dvpnk/kardboard/internal/board"
 )
 
 // Sync modes of a board, as written in board.yaml.

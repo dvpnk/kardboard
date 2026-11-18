@@ -12,7 +12,7 @@ import (
 // version is set when building a release, by scripts/dist from
 // scripts/calculate_version.sh:
 //
-//	go build -ldflags "-X kardboard/internal/cli.version=v0.2.0"
+//	go build -ldflags "-X github.com/dvpnk/kardboard/internal/cli.version=v0.2.0"
 var version string
 
 // versionInfo is what kard knows about its own build. go build writes it

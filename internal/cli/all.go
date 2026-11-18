@@ -4,10 +4,10 @@ import (
 	"errors"
 	"fmt"
 
-	"kardboard/internal/board"
-	"kardboard/internal/people"
-	"kardboard/internal/registry"
-	"kardboard/internal/userconfig"
+	"github.com/dvpnk/kardboard/internal/board"
+	"github.com/dvpnk/kardboard/internal/people"
+	"github.com/dvpnk/kardboard/internal/registry"
+	"github.com/dvpnk/kardboard/internal/userconfig"
 )
 
 const allHelp = "every board known on this machine, see `kard boards`"

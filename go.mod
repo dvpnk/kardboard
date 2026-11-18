@@ -1,4 +1,4 @@
-module kardboard
+module github.com/dvpnk/kardboard
 
 go 1.27.4
 

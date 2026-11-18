@@ -4,7 +4,7 @@ package main
 import (
 	"os"
 
-	"kardboard/internal/cli"
+	"github.com/dvpnk/kardboard/internal/cli"
 )
 
 func main() {

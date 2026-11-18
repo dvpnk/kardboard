@@ -21,12 +21,12 @@ import (
 	"sync"
 	"time"
 
-	"kardboard/internal/board"
-	"kardboard/internal/gitlog"
-	"kardboard/internal/gitsync"
-	"kardboard/internal/people"
-	"kardboard/internal/registry"
-	"kardboard/internal/userconfig"
+	"github.com/dvpnk/kardboard/internal/board"
+	"github.com/dvpnk/kardboard/internal/gitlog"
+	"github.com/dvpnk/kardboard/internal/gitsync"
+	"github.com/dvpnk/kardboard/internal/people"
+	"github.com/dvpnk/kardboard/internal/registry"
+	"github.com/dvpnk/kardboard/internal/userconfig"
 )
 
 //go:embed web

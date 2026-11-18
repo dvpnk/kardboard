@@ -10,7 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"kardboard/internal/gitlog"
+	"github.com/dvpnk/kardboard/internal/gitlog"
 )
 
 // logCmd prints the Git history of the board or of one card, one line per
