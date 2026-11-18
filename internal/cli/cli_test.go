@@ -187,8 +187,9 @@ func TestListMine(t *testing.T) {
 		t.Errorf("code %d, result %+v", code, res)
 	}
 
+	// A copy outside this repository, whose own Git config may name someone.
 	asUser(t, "")
-	code, _, errOut := kard(t, "list", "--mine", "-C", example)
+	code, _, errOut := kard(t, "list", "--mine", "-C", copyOfExample(t))
 	if code != ExitUsage || !strings.Contains(errOut, "does not know who you are") {
 		t.Errorf("code %d, stderr %q", code, errOut)
 	}
