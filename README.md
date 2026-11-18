@@ -247,6 +247,32 @@ kard sync
 With `sync: commit`, `kard` only commits and does not push. Git must not
 ask for a password then; the key belongs in the agent or the keychain.
 
+## Cards and branches
+
+A board in the code repository, with `sync: none`, belongs to the branch
+that is checked out, like the code. Take a card on your feature branch, mark
+it done there, and it lands on main with the pull request. Until then main
+still has it where it was, and so does everyone else.
+
+kard says when that is the case: after a change on a branch other than the
+main one, the line ends with `(on branch feature/pdf: main gets this when it
+is merged)`, and the UI shows the branch next to the board's name.
+
+If the team should see every move at once, whatever branch anyone is on,
+give the board a branch of its own, checked out next to the project:
+
+```bash
+git worktree add --orphan -b kardboard ../myproject-board
+```
+
+```bash
+cd ../myproject-board && kard init .
+```
+
+Then set `sync: push` in `board.yaml`, commit, and push once with
+`git push -u origin kardboard`. Switching branches in the project no longer
+touches the board. See [Git in the spec](docs/spec.md#git) for the details.
+
 ## For scripts and AI agents
 
 `kard` needs no one at the keyboard. Every command explains itself with

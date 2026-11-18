@@ -322,8 +322,55 @@ push later.
 Git never asks for a password in this. Credentials must be in the agent or in
 the keychain.
 
-If the board is in the code repo, its state depends on the checked-out branch.
-kardboard always shows the working tree of the registered directory.
+### Board in the code repository
+
+With `sync: none` the board is part of the working tree, like the code. Its
+state is the state of the checked-out branch, and kardboard always shows the
+working tree of the registered directory. A card moved on a feature branch
+is moved only there; after `git switch main` it is back where main has it,
+and main sees the move when the branch is merged. This is meant: a card goes
+to `done` in the same pull request as the code that finishes it.
+
+So that this does not surprise anyone, kard says when a board is seen on a
+branch other than the repository's main one:
+
+- After a changing command, the line ends with
+  `(on branch feature/pdf: main gets this when it is merged)`; with `--json`
+  the result has `branch` with `name` and `main`. With no branch checked out,
+  only a commit, `detached` is true.
+- The UI shows the branch next to the board's name.
+
+The main branch is the one `origin/HEAD` points at, else Git's
+`init.defaultBranch`, `main` or `master`, as far as such a branch exists. If
+kard cannot tell, it says nothing. Boards with `sync: commit` or `push` are
+not marked: they live on the branch they are meant to.
+
+If two branches move the same card to different columns, Git reports a
+conflict when merging, as for any file moved to two places. Whoever merges
+keeps one of the two files.
+
+### Board on a branch of its own
+
+When the team should see the board's state at once, whichever branch anyone
+works on, the board gets a branch of its own without the code, checked out
+next to the project as a Git worktree, with `sync: push`:
+
+```bash
+git worktree add --orphan -b kardboard ../myproject-board
+cd ../myproject-board && kard init .
+```
+
+Set `sync: push` in `board.yaml`, then:
+
+```bash
+git add -A && git commit -m "new board" && git push -u origin kardboard
+```
+
+`kard init` has registered the directory, so `kard ui` shows it. Others get
+it with `git worktree add ../myproject-board kardboard`. Switching branches
+in the project leaves the board alone. In exchange, a card can no longer
+change in the same pull request as the code. A repository of its own for the
+board works the same way.
 
 ## User settings
 
