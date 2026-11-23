@@ -1,4 +1,9 @@
-# kardboard
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="output/branding/kardboard-wordmark-dark.svg">
+    <img src="output/branding/kardboard-wordmark.svg" alt="kardboard" width="316">
+  </picture>
+</h1>
 
 A board for cards that live as Markdown files in your project. The program
 runs once on your machine, finds the boards in your projects and shows them
