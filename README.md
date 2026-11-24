@@ -38,6 +38,21 @@ per system:
 The commands below always fetch the newest release. `kard version` says
 which one you have; to update, download it again the same way.
 
+### With a coding agent
+
+Give Claude Code, Codex or another coding agent this request, in the
+project that should get a board:
+
+```text
+Install kard and set up a board for this project, following
+https://raw.githubusercontent.com/dvpnk/kardboard/main/INSTALL-AGENT.md
+```
+
+[INSTALL-AGENT.md](INSTALL-AGENT.md) takes the agent step by step through
+download, checksum, path and board, and has it ask before it changes
+anything outside the project. Read it first if you like: it is short and
+runs no script.
+
 ### macOS and Linux
 
 Download the file as `kard` into `~/.local/bin` and make it executable. On
@@ -251,7 +266,13 @@ kard list --mine
 
 ## Create your own board
 
-In the project, in a new folder:
+The best place for a board is usually next to the project, as a Git
+repository of its own, such as `../myproject-board`: then it does not
+change when you switch branches in the code, and a team can share it with
+`sync: push`. A board inside the code repository follows the branches, see
+[Cards and branches](#cards-and-branches).
+
+In a new folder:
 
 ```bash
 kard init board
