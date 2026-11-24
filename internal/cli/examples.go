@@ -7,7 +7,7 @@ import "github.com/spf13/cobra"
 // works before they write their own. Commands that set their own Example
 // keep it.
 var examples = map[string]string{
-	"init":     "  kard init\n  kard init ~/Repos/notizen --columns backlog,doing,done --sync commit",
+	"init":     "  kard init\n  kard init ~/Repos/notes --columns backlog,doing,done --sync commit",
 	"lint":     "  kard lint\n  kard lint --all --json",
 	"schema":   "  kard schema > card.schema.json\n  kard schema working_on",
 	"list":     "  kard list\n  kard list working_on --json\n  kard list --mine --all",

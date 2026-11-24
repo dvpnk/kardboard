@@ -476,9 +476,9 @@ func (a *app) newCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "new <title>",
 		Short: "Create a card",
-		Example: `  kard new "Dunkles Design" -c backlog --set size=M --set tags=feature,ui
+		Example: `  kard new "Dark mode" -c backlog --set size=M --set tags=feature,ui
   kard new "Export as PDF" --text notes.md
-  echo "Was zu tun ist." | kard new "Login prüfen" --text -`,
+  echo "What needs doing." | kard new "Check login" --text -`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			if text != "" {
