@@ -289,6 +289,20 @@ kard init ~/Repos/notes
 `kard lint` then shows what about the existing cards does not fit the format
 yet.
 
+Next to the project, as a repository of its own:
+
+```bash
+mkdir ../myproject-board && cd ../myproject-board && git init
+```
+
+```bash
+kard init . --sync commit
+```
+
+With `--sync commit` or `--sync push`, `board.yaml` becomes the board's first
+commit, and every change after it is a commit too; see
+[A board for a team](#a-board-for-a-team).
+
 So that an editor or another tool can check the cards' header too,
 `kard schema` prints a JSON Schema from `board.yaml`. With a column, such as
 `kard schema working_on`, it also requires that column's required fields:

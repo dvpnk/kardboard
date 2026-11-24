@@ -141,14 +141,12 @@ mkdir ../myproject-board
 cd ../myproject-board
 git init
 kard init . --id myproject --name "My project" --sync commit
-git add board.yaml
-git commit -m "board: start"
 ```
 
-With `sync: commit`, every change kard makes is a commit. If the board
-gets a remote that others clone, set `sync: push` in `board.yaml`; then
-kard also fetches and pushes. Ask the person before you create a remote
-or push.
+With `sync: commit`, `board.yaml` is the first commit, and every change kard
+makes after it is one too. If the board gets a remote that others clone,
+push once with `git push -u` and set `sync: push` in `board.yaml`; then kard
+also fetches and pushes. Ask the person before you create a remote or push.
 
 Inside the project:
 

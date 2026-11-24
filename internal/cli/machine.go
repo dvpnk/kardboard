@@ -128,6 +128,11 @@ type initResult struct {
 	Errors int `json:"errors"`
 	// Added says whether the board is now known on this machine.
 	Added bool `json:"added"`
+	// Commit and Pushed say what Git did with board.yaml on boards with
+	// sync: commit or push; Git says why it did less.
+	Commit string `json:"commit,omitempty"`
+	Pushed bool   `json:"pushed,omitempty"`
+	Git    string `json:"git,omitempty"`
 }
 
 func (a *app) initCmd() *cobra.Command {
@@ -137,7 +142,7 @@ func (a *app) initCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init [dir]",
 		Short: "Turn a directory into a board",
-		Long:  "Write a board.yaml into a directory. Directories in it that already hold Markdown files become the columns, and no file is changed or moved. An empty directory gets the columns backlog, working_on and done. The board is then made known on this machine, like `kard add`.",
+		Long:  "Write a board.yaml into a directory. Directories in it that already hold Markdown files become the columns, and no file is changed or moved. An empty directory gets the columns backlog, working_on and done. The board is then made known on this machine, like `kard add`. With --sync commit or push, board.yaml becomes the first commit of the board, and with push it is pushed if the branch has an upstream.",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			dir := "."
@@ -162,6 +167,17 @@ func (a *app) initCmd() *cobra.Command {
 				return err
 			}
 			res.Cards = len(b.Cards)
+			// Like the add below, Git not doing its part is no reason to fail:
+			// the board exists, and the note says what is left to do.
+			var gitErr error
+			if b.Config != nil {
+				var done gitsync.Outcome
+				done, gitErr = gitsync.Init(context.Background(), b)
+				res.Commit, res.Pushed = done.Commit, done.Pushed
+				if gitErr != nil {
+					res.Git = gitErr.Error()
+				}
+			}
 			for _, p := range b.Problems() {
 				if p.Severity == board.SeverityError {
 					res.Errors++
@@ -184,6 +200,12 @@ func (a *app) initCmd() *cobra.Command {
 			}
 			fmt.Fprintf(a.out, "%s: board in %s\n", made.ID, userconfig.Abbrev(made.Root))
 			fmt.Fprintf(a.out, "  columns %s: %s\n", how, strings.Join(made.Columns, ", "))
+			if res.Commit != "" {
+				fmt.Fprintf(a.out, "  %s committed %s\n", board.ConfigFile, strings.TrimSpace(gitNote(gitsync.Outcome{Commit: res.Commit, Pushed: res.Pushed})))
+			}
+			if gitErr != nil {
+				fmt.Fprintf(a.errOut, "kard: %s\n", gitErr)
+			}
 			if res.Cards > 0 {
 				fmt.Fprintf(a.out, "  %s", plural(res.Cards, "card"))
 				if res.Errors > 0 {

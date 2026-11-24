@@ -915,6 +915,33 @@ func TestInitOptions(t *testing.T) {
 	}
 }
 
+func TestInitCommitsTheBoard(t *testing.T) {
+	home, _ := machine(t)
+	root := filepath.Join(home, "board")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	gitIn(t, root, "init", "-q", "-b", "main")
+	gitIn(t, root, "config", "user.name", "arnold")
+	gitIn(t, root, "config", "user.email", "arnold@example.com")
+
+	code, out, errOut := kard(t, "init", root, "--id", "plan", "--sync", "commit")
+	if code != ExitOK || !strings.Contains(out, "board.yaml committed (commit ") || errOut != "" {
+		t.Fatalf("code %d, out %q, err %q", code, out, errOut)
+	}
+	if got := gitIn(t, root, "log", "--format=%s"); got != "init board plan" {
+		t.Errorf("log %q", got)
+	}
+
+	// Outside a repository the board is made all the same, and kard says
+	// what is left to do.
+	other := filepath.Join(home, "loose")
+	code, out, errOut = kard(t, "init", other, "--id", "loose", "--sync", "commit", "--json")
+	if code != ExitOK || !isFile(other, "board.yaml") || !strings.Contains(out, `"git": "board.yaml is not committed`) {
+		t.Errorf("outside a repository: code %d, out %q, err %q", code, out, errOut)
+	}
+}
+
 // editorWrites makes kard edit see an editor that replaces the card with text.
 // It is `cp`, so the test needs no shell script.
 func editorWrites(t *testing.T, text string) {

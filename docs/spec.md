@@ -380,14 +380,12 @@ Setting it up, once per repository (Git 2.42 or newer):
 
 ```bash
 git worktree add --orphan -b kardboard ../myproject-board
-cd ../myproject-board && kard init .
+cd ../myproject-board && kard init . --sync push
+git push -u origin kardboard
 ```
 
-Set `sync: push` in `board.yaml`, then:
-
-```bash
-git add -A && git commit -m "new board" && git push -u origin kardboard
-```
+`kard init` commits the `board.yaml`; the push makes the branch known on
+the remote.
 
 With older Git, the first line is two steps:
 
@@ -555,7 +553,11 @@ On `kard init`:
 - **The `id`** comes from the directory name, formed like a card short name.
   If the directory is called `board`, `kanban` or `cards`, the name of the
   directory above it applies.
-- **`--sync`** sets the Git mode, default `none`. `kard init` itself commits
+- **`--sync`** sets the Git mode, default `none`. With `commit` or `push`,
+  `board.yaml` becomes a commit of its own, `init board <id>`, holding only
+  that file; with `push` it is pushed too if the branch has an upstream.
+  Without a Git repository, or without an upstream, the board is created all
+  the same and `kard` says what is left to do. With `none` it commits
   nothing.
 - **The board is registered on the machine**, as with `kard add`.
   `--no-add` leaves that out. If another board already has the same `id`, the
