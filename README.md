@@ -21,21 +21,113 @@ every change into a commit and syncs the board with its remote.
 
 ## Install
 
+`kard` is a single file with everything inside, the UI too. It needs no Go
+and no installer. Git is optional: `kard` uses it for history, `sync` and
+your name from `git config`.
+
 Each [release](https://github.com/dvpnk/kardboard/releases) has one file
-per system: `kard-<version>-macos` for every Mac, `-linux-amd64`,
-`-linux-arm64` and `-windows-amd64.exe`, plus `SHA256SUMS`. Rename it to
-`kard`, make it executable and put it somewhere in your path, such as
-`~/.local/bin`:
+per system:
+
+| System | File |
+| --- | --- |
+| Mac, Apple silicon or Intel | `kard-v<version>-macos` |
+| Linux on a PC or server | `kard-v<version>-linux-amd64` |
+| Linux on ARM, such as a Raspberry Pi with a 64-bit system | `kard-v<version>-linux-arm64` |
+| Windows | `kard-v<version>-windows-amd64.exe` |
+
+The commands below take the version from `v`; the newest is at the top of
+the releases page.
+
+### macOS and Linux
+
+Download the file as `kard` into `~/.local/bin` and make it executable. On
+Linux, write `linux-amd64` or `linux-arm64` instead of `macos`:
 
 ```bash
-chmod +x kard-*-macos && mv kard-*-macos ~/.local/bin/kard
+v=0.2.0
+mkdir -p ~/.local/bin
+curl -fL -o ~/.local/bin/kard "https://github.com/dvpnk/kardboard/releases/download/v$v/kard-v$v-macos"
+chmod +x ~/.local/bin/kard
 ```
+
+Check that your shell finds it:
+
+```bash
+kard version
+```
+
+If it says `command not found`, `~/.local/bin` is not in your path yet. Add
+it, then open a new terminal. On a Mac with zsh:
+
+```bash
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+```
+
+With bash, the line goes into `~/.bashrc` instead.
+
+The files are not signed. If you download one with the browser instead of
+`curl`, macOS stops it on first launch with a warning. This removes the
+mark the browser set:
+
+```bash
+xattr -d com.apple.quarantine ~/.local/bin/kard
+```
+
+### Windows
+
+In PowerShell, this puts `kard.exe` into a folder of its own and adds the
+folder to your path:
+
+```powershell
+$v = "0.2.0"
+$dir = "$env:LOCALAPPDATA\Programs\kard"
+New-Item -ItemType Directory -Force $dir | Out-Null
+Invoke-WebRequest "https://github.com/dvpnk/kardboard/releases/download/v$v/kard-v$v-windows-amd64.exe" -OutFile "$dir\kard.exe"
+[Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "User") + ";$dir", "User")
+```
+
+Open a new terminal and check it with `kard version`. If you downloaded the
+file with the browser, SmartScreen warns once: "More info", then "Run
+anyway".
+
+### Check the download
+
+`SHA256SUMS` in the release lists a checksum for every file. Compare it
+with the one of your file, on macOS and Linux with `shasum -a 256
+~/.local/bin/kard`, on Windows with `Get-FileHash "$dir\kard.exe"`.
+
+### With Go
 
 With Go 1.27 or newer, this builds and installs it in one step:
 
 ```bash
 go install github.com/dvpnk/kardboard/cmd/kard@latest
 ```
+
+### First steps
+
+In a project, create a board in a new folder:
+
+```bash
+kard init board
+```
+
+Or let `kard` find the boards in a folder of projects:
+
+```bash
+kard scan ~/Repos
+```
+
+Then open all boards in the browser:
+
+```bash
+kard ui
+```
+
+`kard --help` lists every command, and every command explains itself with
+`--help`. If you prefer something shorter than `kard`, set up an alias
+yourself, such as `alias kb=kard`. No short name is built in, because short
+names easily clash with other tools.
 
 ## Build and try it
 
@@ -75,17 +167,7 @@ files.
 git tag "v$(scripts/calculate_version.sh)" && git push origin --tags
 ```
 
-The files are not signed. When one reaches a Mac through a browser or a
-chat, Gatekeeper stops it on first launch; allowing it once is enough.
-Windows warns once through SmartScreen.
-
-```bash
-xattr -d com.apple.quarantine ~/.local/bin/kard
-```
-
-The command is called `kard`. If you prefer something shorter, set up an
-alias yourself, such as `alias kb=kard`. No short name is built in, because
-short names easily clash with other tools.
+Try it on the example board:
 
 ```bash
 ./bin/kard lint -C examples/board
