@@ -119,7 +119,8 @@ go install github.com/dvpnk/kardboard/cmd/kard@latest
 
 ### First steps
 
-In a project, create a board in a new folder:
+Create a board, best as in [Recommended setup](#recommended-setup), or
+simply in a new folder of a project:
 
 ```bash
 kard init board
@@ -141,6 +142,32 @@ kard ui
 `--help`. If you prefer something shorter than `kard`, set up an alias
 yourself, such as `alias kb=kard`. No short name is built in, because short
 names easily clash with other tools.
+
+## Recommended setup
+
+Give the board a Git repository of its own, next to the project, such as
+`myproject-board` beside `myproject`. Working alone, use `sync: commit`;
+once there is a remote, for a team or a second machine, `sync: push`.
+
+```bash
+mkdir ../myproject-board && cd ../myproject-board && git init
+```
+
+```bash
+kard init . --sync commit
+```
+
+`--sync` decides what kard does with Git:
+
+| Where the board is | `--sync` | What happens |
+| --- | --- | --- |
+| Next to the project, only you | `commit` | Every change is a commit of its own, so `kard log` shows each card's history. No remote needed. |
+| Next to the project, with a remote | `push` | Every change first pulls the others' work, then is committed and pushed. Everyone sees the same board at once. See [A board for a team](#a-board-for-a-team). |
+| Inside the code repository | `none` | kard changes the files and nothing else: no commit, no push. You commit the cards along with your code, and they follow its branches. See [Cards and branches](#cards-and-branches). |
+
+`none` is the default. It is also the safe way to try kard on cards that
+already exist: kard writes files, and Git sees them as changes you can look
+at with `git status` and keep or throw away.
 
 ## Build and try it
 
@@ -266,11 +293,7 @@ kard list --mine
 
 ## Create your own board
 
-The best place for a board is usually next to the project, as a Git
-repository of its own, such as `../myproject-board`: then it does not
-change when you switch branches in the code, and a team can share it with
-`sync: push`. A board inside the code repository follows the branches, see
-[Cards and branches](#cards-and-branches).
+Where a board is best kept is in [Recommended setup](#recommended-setup).
 
 In a new folder:
 
@@ -287,21 +310,8 @@ kard init ~/Repos/notes
 ```
 
 `kard lint` then shows what about the existing cards does not fit the format
-yet.
-
-Next to the project, as a repository of its own:
-
-```bash
-mkdir ../myproject-board && cd ../myproject-board && git init
-```
-
-```bash
-kard init . --sync commit
-```
-
-With `--sync commit` or `--sync push`, `board.yaml` becomes the board's first
-commit, and every change after it is a commit too; see
-[A board for a team](#a-board-for-a-team).
+yet. With `--sync commit` or `--sync push`, `board.yaml` becomes the board's
+first commit; with `none`, kard commits nothing.
 
 So that an editor or another tool can check the cards' header too,
 `kard schema` prints a JSON Schema from `board.yaml`. With a column, such as
