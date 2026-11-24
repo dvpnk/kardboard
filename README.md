@@ -30,13 +30,13 @@ per system:
 
 | System | File |
 | --- | --- |
-| Mac, Apple silicon or Intel | `kard-v<version>-macos` |
-| Linux on a PC or server | `kard-v<version>-linux-amd64` |
-| Linux on ARM, such as a Raspberry Pi with a 64-bit system | `kard-v<version>-linux-arm64` |
-| Windows | `kard-v<version>-windows-amd64.exe` |
+| Mac, Apple silicon or Intel | `kard-macos` |
+| Linux on a PC or server | `kard-linux-amd64` |
+| Linux on ARM, such as a Raspberry Pi with a 64-bit system | `kard-linux-arm64` |
+| Windows | `kard-windows-amd64.exe` |
 
-The commands below take the version from `v`; the newest is at the top of
-the releases page.
+The commands below always fetch the newest release. `kard version` says
+which one you have; to update, download it again the same way.
 
 ### macOS and Linux
 
@@ -44,9 +44,8 @@ Download the file as `kard` into `~/.local/bin` and make it executable. On
 Linux, write `linux-amd64` or `linux-arm64` instead of `macos`:
 
 ```bash
-v=0.2.0
 mkdir -p ~/.local/bin
-curl -fL -o ~/.local/bin/kard "https://github.com/dvpnk/kardboard/releases/download/v$v/kard-v$v-macos"
+curl -fL -o ~/.local/bin/kard https://github.com/dvpnk/kardboard/releases/latest/download/kard-macos
 chmod +x ~/.local/bin/kard
 ```
 
@@ -79,10 +78,9 @@ In PowerShell, this puts `kard.exe` into a folder of its own and adds the
 folder to your path:
 
 ```powershell
-$v = "0.2.0"
 $dir = "$env:LOCALAPPDATA\Programs\kard"
 New-Item -ItemType Directory -Force $dir | Out-Null
-Invoke-WebRequest "https://github.com/dvpnk/kardboard/releases/download/v$v/kard-v$v-windows-amd64.exe" -OutFile "$dir\kard.exe"
+Invoke-WebRequest "https://github.com/dvpnk/kardboard/releases/latest/download/kard-windows-amd64.exe" -OutFile "$dir\kard.exe"
 [Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "User") + ";$dir", "User")
 ```
 

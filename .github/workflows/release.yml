@@ -31,6 +31,17 @@ jobs:
           fi
       - run: go test ./...
       - run: scripts/dist
+      # Without the version in the name, releases/latest/download/kard-macos
+      # always gives the newest one. The version is in the release and in
+      # kard version.
+      - name: names without the version
+        working-directory: dist
+        run: |
+          for f in "kard-$GITHUB_REF_NAME-"*; do
+            mv "$f" "kard-${f#"kard-$GITHUB_REF_NAME-"}"
+          done
+          shasum -a 256 kard-* > SHA256SUMS
+          cat SHA256SUMS
       - name: publish
         env:
           GH_TOKEN: ${{ github.token }}
