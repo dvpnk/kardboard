@@ -19,6 +19,7 @@ import (
 	"github.com/dvpnk/kardboard/internal/gitsync"
 	"github.com/dvpnk/kardboard/internal/people"
 	"github.com/dvpnk/kardboard/internal/registry"
+	"github.com/dvpnk/kardboard/internal/userconfig"
 )
 
 // Exit codes of kard.
@@ -69,7 +70,7 @@ func run(args []string, in io.Reader, out, errOut io.Writer) int {
 	root.PersistentFlags().BoolVar(&a.asJSON, "json", false, "print JSON")
 	root.MarkFlagsMutuallyExclusive("dir", "board")
 	root.AddCommand(a.initCmd(), a.lintCmd(), a.schemaCmd(), a.listCmd(), a.showCmd(), a.logCmd())
-	root.AddCommand(a.newCmd(), a.moveCmd(), a.takeCmd(), a.doneCmd(), a.assignCmd(), a.unassignCmd(), a.setCmd(), a.editCmd(), a.renameCmd())
+	root.AddCommand(a.newCmd(), a.moveCmd(), a.takeCmd(), a.doneCmd(), a.assignCmd(), a.unassignCmd(), a.setCmd(), a.editCmd(), a.renameCmd(), a.commentCmd(), a.askCmd())
 	root.AddCommand(a.boardsCmd(), a.addCmd(), a.removeCmd(), a.scanCmd(), a.syncCmd(), a.uiCmd(), a.whoamiCmd(), a.versionCmd())
 
 	addExamples(root)
@@ -153,6 +154,9 @@ func (a *app) load() (*board.Board, error) {
 		return l.Board, nil
 	}
 	root := a.dir
+	if root == "" {
+		root = userconfig.Expand(os.Getenv(envBoard))
+	}
 	if root == "" {
 		found, err := board.FindRoot(".")
 		if err != nil {
@@ -307,8 +311,26 @@ type boardInfo struct {
 }
 
 type listResult struct {
-	Board boardInfo     `json:"board"`
-	Cards []*board.Card `json:"cards"`
+	Board boardInfo    `json:"board"`
+	Cards []listedCard `json:"cards"`
+}
+
+// listedCard is a card with its state, which follows from its activity.
+type listedCard struct {
+	*board.Card
+	// State is running, waiting, failed or queued; null for none.
+	State *string `json:"state"`
+	// WaitingFor names whom an open question is for, if anyone.
+	WaitingFor []string `json:"waiting_for,omitempty"`
+}
+
+func withState(b *board.Board, cards []*board.Card) []listedCard {
+	out := make([]listedCard, len(cards))
+	for i, c := range cards {
+		out[i].Card = c
+		out[i].State, out[i].WaitingFor = stateOf(b, c)
+	}
+	return out
 }
 
 func info(b *board.Board) boardInfo {
@@ -369,9 +391,9 @@ func (a *app) listCmd() *cobra.Command {
 			}
 			cards := listed(b, columns, me)
 			if a.asJSON {
-				return a.printJSON(listResult{Board: info(b), Cards: cards})
+				return a.printJSON(listResult{Board: info(b), Cards: withState(b, cards)})
 			}
-			a.printList(columns, cards)
+			a.printList(b, columns, cards)
 			return nil
 		},
 	}
@@ -390,7 +412,7 @@ func columnIDs(cfg *board.Config) string {
 
 // printList prints the cards grouped by column. A card that breaks a rule is
 // marked with "!", an assigned card ends with "@name" for each person.
-func (a *app) printList(columns []board.Column, cards []*board.Card) {
+func (a *app) printList(b *board.Board, columns []board.Column, cards []*board.Card) {
 	width := 0
 	for _, c := range cards {
 		width = max(width, len(c.ID))
@@ -414,7 +436,7 @@ func (a *app) printList(columns []board.Column, cards []*board.Card) {
 			if who := c.Assignees(); len(who) > 0 {
 				line += "  @" + strings.Join(who, " @")
 			}
-			fmt.Fprintln(a.out, line)
+			fmt.Fprintln(a.out, line+stateNote(b, c))
 		}
 	}
 }
@@ -425,6 +447,22 @@ type showResult struct {
 	Board boardInfo `json:"board"`
 	*board.Card
 	Body string `json:"body"`
+	// State is running, waiting, failed or queued; null for none.
+	State *string `json:"state"`
+	// WaitingFor names whom an open question is for, if anyone.
+	WaitingFor []string `json:"waiting_for,omitempty"`
+	// Activity is what was said about the card and every run on it,
+	// oldest first.
+	Activity []board.Entry `json:"activity"`
+}
+
+func showOf(b *board.Board, c *board.Card) showResult {
+	res := showResult{Board: info(b), Card: c, Body: c.Body, Activity: b.Activity(c.ID)}
+	if res.Activity == nil {
+		res.Activity = []board.Entry{}
+	}
+	res.State, res.WaitingFor = stateOf(b, c)
+	return res
 }
 
 func (a *app) showCmd() *cobra.Command {
@@ -442,11 +480,18 @@ func (a *app) showCmd() *cobra.Command {
 				return fmt.Errorf("no card %q on board %s", args[0], b.Config.ID)
 			}
 			if a.asJSON {
-				return a.printJSON(showResult{Board: info(b), Card: c, Body: c.Body})
+				return a.printJSON(showOf(b, c))
 			}
 
 			col, _ := b.Config.Column(c.Column)
 			rows := [][2]string{{"path", c.Path}, {"column", col.Label()}}
+			if st := b.State(c); st.State != "" {
+				state := st.State
+				if len(st.WaitingFor) > 0 {
+					state += " for " + strings.Join(st.WaitingFor, ", ")
+				}
+				rows = append(rows, [2]string{"state", state})
+			}
 			for _, f := range b.Config.AllFields() {
 				if v, has := c.Fields[f.Name]; has {
 					rows = append(rows, [2]string{f.Name, formatValue(v)})
@@ -463,6 +508,7 @@ func (a *app) showCmd() *cobra.Command {
 				fmt.Fprintf(a.out, "! %s %s\n", p.Code, p.Message)
 			}
 			fmt.Fprintf(a.out, "\n%s\n", strings.Trim(c.Body, "\n"))
+			a.printActivity(b.Activity(c.ID))
 			return nil
 		},
 	}
@@ -506,7 +552,7 @@ func (a *app) newCmd() *cobra.Command {
 			// A card that was created but not pushed is still printed; the
 			// error then says what is left to do.
 			if a.asJSON {
-				if jsonErr := a.printJSON(showResult{Board: info(b), Card: c, Body: c.Body}); jsonErr != nil {
+				if jsonErr := a.printJSON(showOf(b, c)); jsonErr != nil {
 					return jsonErr
 				}
 				return err

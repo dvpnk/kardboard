@@ -455,6 +455,9 @@ func Rename(ctx context.Context, b *board.Board, id, newID string, opt board.Ren
 			paths = append(paths, c.Path)
 		}
 	}
+	if b.HasActivity(id) {
+		paths = append(paths, board.ActivityPath(strings.TrimSuffix(id, ".md")))
+	}
 	lctx, cancel := local(ctx)
 	defer cancel()
 	if len(paths) > 0 {
@@ -471,16 +474,16 @@ func Rename(ctx context.Context, b *board.Board, id, newID string, opt board.Ren
 	if err != nil {
 		if res != nil {
 			// Renamed, but a reference could not be written: put it all back.
-			_ = os.Remove(filepath.Join(b.Root, filepath.FromSlash(res.NewPath)))
-			_, _ = git(lctx, b.Root, append([]string{"checkout", "--quiet", "HEAD", "--", res.Path}, res.Updated...)...)
+			undoRename(lctx, b.Root, res)
 		}
 		return nil, out, err
 	}
 	touched := append([]string{res.Path, res.NewPath}, res.Updated...)
+	if res.Activity != "" {
+		touched = append(touched, res.Activity, res.NewActivity)
+	}
 	if err := commit(lctx, b.Root, []string{fmt.Sprintf("rename %s -> %s", res.ID, res.NewID)}, touched...); err != nil {
-		_, _ = git(lctx, b.Root, "reset", "--quiet", "--", res.NewPath)
-		_ = os.Remove(filepath.Join(b.Root, filepath.FromSlash(res.NewPath)))
-		if _, undoErr := git(lctx, b.Root, append([]string{"checkout", "--quiet", "HEAD", "--", res.Path}, res.Updated...)...); undoErr != nil {
+		if undoErr := undoRename(lctx, b.Root, res); undoErr != nil {
 			return nil, out, fmt.Errorf("git commit failed (%w), and the cards could not be put back: %v", err, undoErr)
 		}
 		return nil, out, fmt.Errorf("nothing was renamed, because git commit failed: %w", err)
@@ -497,6 +500,22 @@ func Rename(ctx context.Context, b *board.Board, id, newID string, opt board.Ren
 		out.Commit, out.Pushed = head(lctx, b.Root), true
 	}
 	return res, out, nil
+}
+
+// undoRename puts the files of a rename back as the last commit has them.
+func undoRename(ctx context.Context, root string, res *board.RenameResult) error {
+	added := []string{res.NewPath}
+	restore := append([]string{res.Path}, res.Updated...)
+	if res.Activity != "" {
+		added = append(added, res.NewActivity)
+		restore = append(restore, res.Activity)
+	}
+	_, _ = git(ctx, root, append([]string{"reset", "--quiet", "--"}, added...)...)
+	for _, p := range added {
+		_ = os.Remove(filepath.Join(root, filepath.FromSlash(p)))
+	}
+	_, err := git(ctx, root, append([]string{"checkout", "--quiet", "HEAD", "--"}, restore...)...)
+	return err
 }
 
 // push sends the commit just made. If the remote refuses because someone

@@ -48,6 +48,8 @@ type Board struct {
 	problems []Problem
 	// mailmap is read on first use, see Canonical.
 	mailmap mailmap
+	// activity holds the activity file of each card that has one, by id.
+	activity map[string]*Activity
 }
 
 // Load reads the board in root. It returns an error only if the directory
@@ -80,6 +82,9 @@ func Load(root string) (*Board, error) {
 		if err := b.scanColumn(col); err != nil {
 			return nil, err
 		}
+	}
+	if err := b.scanActivity(); err != nil {
+		return nil, err
 	}
 	b.checkBoardRules()
 	return b, nil

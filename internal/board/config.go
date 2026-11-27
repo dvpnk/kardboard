@@ -65,7 +65,43 @@ type Config struct {
 	Sync    string   `yaml:"sync"`
 	Columns []Column `yaml:"columns"`
 	Fields  Fields   `yaml:"fields"`
+	// Agents names the people that are coding agents. A card assigned to
+	// one of them can be run in a column that has Agent.
+	Agents []string `yaml:"agents"`
+	// Agent holds what applies to every run on the board.
+	Agent *BoardAgent `yaml:"agent"`
 }
+
+// BoardAgent is the `agent` key of board.yaml: what every run is told and
+// how long it may take.
+type BoardAgent struct {
+	// Prompt is given to every run: the project and its rules.
+	Prompt string `yaml:"prompt"`
+	// MaxTurns is where a run ends at the latest. 0 leaves it to the runner.
+	MaxTurns int `yaml:"max_turns"`
+}
+
+// Modes of a column's agent.
+const (
+	// ModePlan: the session reads the project and writes to the card.
+	ModePlan = "plan"
+	// ModeBuild: the session changes the project.
+	ModeBuild = "build"
+)
+
+// ColumnAgent is the `agent` key of a column: what a card in it asks of an
+// agent. A column without one belongs to people.
+type ColumnAgent struct {
+	Mode string `yaml:"mode"`
+	// Next is the column a card goes to when its run is finished. Empty
+	// leaves the card where it is.
+	Next   string `yaml:"next"`
+	Prompt string `yaml:"prompt"`
+}
+
+// ActivityDir is the directory, next to the columns, that holds what was
+// said about each card and every run on it. It cannot be a column.
+const ActivityDir = "activity"
 
 // Column is one column of the board. Its ID is the directory name.
 type Column struct {
@@ -76,6 +112,8 @@ type Column struct {
 	// Done marks the column for finished work, the target of `kard done`.
 	Done  bool `yaml:"done"`
 	Limit int  `yaml:"limit"`
+	// Agent is set if agents work cards in this column.
+	Agent *ColumnAgent `yaml:"agent"`
 }
 
 // Label is the display name of the column.
@@ -241,11 +279,47 @@ func (c *Config) validate() []string {
 			fail("columns[%d]: id %q is not a valid directory name (a-z, 0-9, -, _)", i, col.ID)
 		case seen[col.ID]:
 			fail("columns[%d]: id %q is used twice", i, col.ID)
+		case col.ID == ActivityDir:
+			fail("columns[%d]: id %q is reserved for the activity of the cards", i, col.ID)
 		}
 		seen[col.ID] = true
 		if col.Limit < 0 {
 			fail("columns[%d]: limit must not be negative", i)
 		}
+	}
+
+	for i, col := range c.Columns {
+		if col.Agent == nil {
+			continue
+		}
+		switch col.Agent.Mode {
+		case ModePlan, ModeBuild:
+		case "":
+			fail("columns[%d].agent: mode is missing (plan or build)", i)
+		default:
+			fail("columns[%d].agent: mode %q is not one of plan, build", i, col.Agent.Mode)
+		}
+		switch next := col.Agent.Next; {
+		case next == "":
+		case next == col.ID:
+			fail("columns[%d].agent: next must be another column than %s itself", i, col.ID)
+		case !seen[next]:
+			fail("columns[%d].agent: next names unknown column %q", i, next)
+		}
+	}
+	if c.Agent != nil && c.Agent.MaxTurns < 0 {
+		fail("agent: max_turns must not be negative")
+	}
+	for i, raw := range c.Agents {
+		name, ok := NormalizePerson(raw)
+		switch {
+		case !ok:
+			fail("agents[%d]: %q is neither a short name (a-z, 0-9, -) nor an e-mail address", i, raw)
+			continue
+		case slices.Contains(c.Agents[:i], name):
+			fail("agents[%d]: %q is named twice", i, name)
+		}
+		c.Agents[i] = name
 	}
 
 	names := map[string]bool{}
@@ -286,6 +360,13 @@ func (c *Config) validate() []string {
 		for _, col := range f.Required.Columns {
 			if !seen[col] {
 				fail("fields.%s: required names unknown column %q", f.Name, col)
+			}
+		}
+		if f.Name == FieldAssignee && len(f.Values) > 0 {
+			for _, agent := range c.Agents {
+				if !slices.ContainsFunc(f.Values, func(v string) bool { return strings.EqualFold(v, agent) }) {
+					fail("agents: %q cannot be assigned, it is not among the values of fields.assignee", agent)
+				}
 			}
 		}
 	}

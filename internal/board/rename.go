@@ -31,6 +31,10 @@ type RenameResult struct {
 	// Updated holds the paths of the other cards whose references now name
 	// the new id.
 	Updated []string `json:"updated,omitempty"`
+	// Activity and NewActivity are where the card's activity file was and
+	// is now. Both are empty if the card has none.
+	Activity    string `json:"activity,omitempty"`
+	NewActivity string `json:"new_activity,omitempty"`
 }
 
 // refersTo reports whether ref names the card id on board boardID: plainly,
@@ -86,6 +90,18 @@ func (b *Board) Rename(id, newID string, opt RenameOptions) (*RenameResult, erro
 		return nil, err
 	}
 
+	var actSrc, actDst string
+	if b.HasActivity(c.ID) {
+		res.Activity, res.NewActivity = ActivityPath(c.ID), ActivityPath(newID)
+		actSrc = filepath.Join(b.Root, filepath.FromSlash(res.Activity))
+		actDst = filepath.Join(b.Root, filepath.FromSlash(res.NewActivity))
+		if _, err := os.Lstat(actDst); err == nil {
+			return nil, fmt.Errorf("%s already exists", res.NewActivity)
+		} else if !errors.Is(err, fs.ErrNotExist) {
+			return nil, err
+		}
+	}
+
 	// Work out every referencing card's new text before touching the disk.
 	type rewrite struct {
 		card *Card
@@ -131,6 +147,19 @@ func (b *Board) Rename(id, newID string, opt RenameOptions) (*RenameResult, erro
 
 	if err := os.Rename(src, dst); err != nil {
 		return nil, err
+	}
+	// The activity follows the card. If it cannot, the card goes back.
+	if actSrc != "" {
+		if err := os.Rename(actSrc, actDst); err != nil {
+			if undoErr := os.Rename(dst, src); undoErr != nil {
+				return res, fmt.Errorf("card %s is renamed, but its activity could not follow: %w", newID, err)
+			}
+			return nil, fmt.Errorf("the activity of card %s could not be renamed: %w", c.ID, err)
+		}
+		a := b.activity[c.ID]
+		delete(b.activity, c.ID)
+		a.Card, a.Path = newID, res.NewActivity
+		b.activity[newID] = a
 	}
 	c.ID, c.Path = newID, res.NewPath
 	for _, r := range rewrites {

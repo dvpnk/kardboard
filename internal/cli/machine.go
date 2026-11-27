@@ -36,6 +36,9 @@ func (a *app) here() string {
 	if a.dir != "" {
 		return userconfig.Expand(a.dir)
 	}
+	if dir := os.Getenv(envBoard); dir != "" && a.boardID == "" {
+		return userconfig.Expand(dir)
+	}
 	if root, err := board.FindRoot("."); err == nil {
 		return root
 	}

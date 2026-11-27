@@ -144,7 +144,7 @@ func (a *app) listAll(column string, mine bool) error {
 		}
 		cards := listed(b, columns, me)
 		if a.asJSON {
-			results = append(results, listResult{Board: info(b), Cards: cards})
+			results = append(results, listResult{Board: info(b), Cards: withState(b, cards)})
 			continue
 		}
 		if !first {
@@ -152,7 +152,7 @@ func (a *app) listAll(column string, mine bool) error {
 		}
 		first = false
 		fmt.Fprintf(a.out, "== %s\n", heading(l))
-		a.printList(columns, cards)
+		a.printList(b, columns, cards)
 	}
 	if column != "" && !found {
 		return fmt.Errorf("no board has a column %q", column)
