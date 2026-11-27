@@ -12,21 +12,12 @@ import (
 )
 
 // EntryMessage returns the commit message for an entry in a card's
-// activity: `comment <card>`, `ask <card>`, `run <card>: started in <column>`.
+// activity: `comment <card>` or `ask <card>`.
 func EntryMessage(id string, e board.Entry) string {
-	switch e.Kind {
-	case board.KindQuestion:
+	if e.Kind == board.KindQuestion {
 		return "ask " + id
-	case board.KindRunStarted:
-		if col := e.Values["column"]; col != "" {
-			return fmt.Sprintf("run %s: started in %s", id, col)
-		}
-		return fmt.Sprintf("run %s: started", id)
-	case board.KindRunPaused, board.KindRunFinished, board.KindRunFailed:
-		return fmt.Sprintf("run %s: %s", id, strings.TrimPrefix(e.Kind, "run "))
-	default:
-		return e.Kind + " " + id
 	}
+	return e.Kind + " " + id
 }
 
 // EntryResult is what AddEntry did.

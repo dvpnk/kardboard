@@ -12,37 +12,26 @@ import (
 	"time"
 )
 
-// The activity of a card is everything said about it and every run on it,
-// in activity/<card>.md next to the columns. Entries are only added, never
-// changed, and only by kard:
-//
-//	## 2026-11-27T14:02:31Z · vps-1 · run started
-//	column: planning
-//	session: 5f3c2a9e-41d7
+// The activity of a card is what was said about it, in activity/<card>.md
+// next to the columns. Entries are only added, never changed, and only by
+// kard:
 //
 //	## 2026-11-27T14:15:09Z · vps-1 · question to arnold
 //	Should the export keep the old CSV columns?
 //
-// The kind decides what follows the head: the entries of a run hold
-// `key: value` lines, all others free Markdown. A line of text that would
-// read as the head of an entry is written with a backslash in front.
+//	## 2026-11-27T14:31:40Z · arnold · comment
+//	Yes, keep them.
+//
+// What follows the head is free Markdown. A line of it that would read as
+// the head of an entry is written with a backslash in front.
 
 // Kinds of entries.
 const (
-	KindComment     = "comment"
-	KindQuestion    = "question"
-	KindRetry       = "retry"
-	KindStop        = "stop"
-	KindRunStarted  = "run started"
-	KindRunPaused   = "run paused"
-	KindRunFinished = "run finished"
-	KindRunFailed   = "run failed"
+	KindComment  = "comment"
+	KindQuestion = "question"
 )
 
-var entryKinds = []string{KindComment, KindQuestion, KindRetry, KindStop, KindRunStarted, KindRunPaused, KindRunFinished, KindRunFailed}
-
-// IsRun reports whether an entry of this kind belongs to a run.
-func IsRun(kind string) bool { return strings.HasPrefix(kind, "run ") }
+var entryKinds = []string{KindComment, KindQuestion}
 
 // Entry is one entry of a card's activity.
 type Entry struct {
@@ -51,11 +40,8 @@ type Entry struct {
 	Author string    `json:"author"`
 	Kind   string    `json:"kind"`
 	// To names whom a question is for. Empty: whoever sees it.
-	To []string `json:"to,omitempty"`
-	// Text is the Markdown of every kind but a run's.
-	Text string `json:"text,omitempty"`
-	// Values are the `key: value` lines of a run's entry.
-	Values map[string]string `json:"values,omitempty"`
+	To   []string `json:"to,omitempty"`
+	Text string   `json:"text"`
 }
 
 // Activity is the activity file of one card.
@@ -82,12 +68,7 @@ var (
 	// head that can be read.
 	looksLikeHead = regexp.MustCompile(`^## \d{4}-\d{2}-\d{2}`)
 	escapedHead   = regexp.MustCompile(`^\\+## \d{4}-\d{2}-\d{2}`)
-	valueKeyRe    = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 )
-
-// valueOrder is the order in which kard writes the values of a run. Keys it
-// does not know follow, sorted.
-var valueOrder = []string{"column", "session", "duration", "turns", "tokens", "cost", "by", "reason"}
 
 // parseHead reads the head line of an entry. ok is false if the line is no
 // head at all; a message says what is wrong with a line that looks like one.
@@ -129,60 +110,37 @@ func parseHead(line string) (e Entry, ok bool, msg string) {
 // ParseActivity reads an activity file. It returns the entries it could
 // read and a message for every line that breaks the format.
 func ParseActivity(text string) ([]Entry, []string) {
-	text = strings.TrimPrefix(text, "\uFEFF")
+	text = strings.TrimPrefix(text, string(rune(0xFEFF)))
 	text = strings.ReplaceAll(text, "\r\n", "\n")
 	var entries []Entry
 	var msgs []string
 	var body []string
-	var bodyStart int
-	cur := -1
 
 	flush := func() {
-		if cur < 0 {
+		if len(entries) == 0 {
 			return
 		}
-		e := &entries[cur]
 		lines := trimBlank(body)
-		if IsRun(e.Kind) {
-			for i, line := range lines {
-				if strings.TrimSpace(line) == "" {
-					continue
-				}
-				k, v, found := strings.Cut(line, ":")
-				k, v = strings.TrimSpace(k), strings.TrimSpace(v)
-				if !found || !valueKeyRe.MatchString(k) {
-					msgs = append(msgs, fmt.Sprintf("line %d: a run's entry holds only `key: value` lines", bodyStart+i))
-					continue
-				}
-				if e.Values == nil {
-					e.Values = map[string]string{}
-				}
-				e.Values[k] = v
+		for i, line := range lines {
+			if escapedHead.MatchString(line) {
+				lines[i] = line[1:]
 			}
-		} else {
-			for i, line := range lines {
-				if escapedHead.MatchString(line) {
-					lines[i] = line[1:]
-				}
-			}
-			e.Text = strings.Join(lines, "\n")
 		}
+		entries[len(entries)-1].Text = strings.Join(lines, "\n")
 		body = nil
 	}
 
 	for i, line := range strings.Split(text, "\n") {
-		n := i + 1
 		e, ok, msg := parseHead(line)
 		switch {
 		case ok:
 			flush()
 			entries = append(entries, e)
-			cur, bodyStart = len(entries)-1, n+1
 		case msg != "":
-			msgs = append(msgs, fmt.Sprintf("line %d: %s", n, msg))
-		case cur < 0:
+			msgs = append(msgs, fmt.Sprintf("line %d: %s", i+1, msg))
+		case len(entries) == 0:
 			if strings.TrimSpace(line) != "" {
-				msgs = append(msgs, fmt.Sprintf("line %d: text before the first entry", n))
+				msgs = append(msgs, fmt.Sprintf("line %d: text before the first entry", i+1))
 			}
 		default:
 			body = append(body, line)
@@ -222,24 +180,7 @@ func (e Entry) check() error {
 			return fmt.Errorf("%q is named twice", name)
 		}
 	}
-	if IsRun(e.Kind) {
-		if strings.TrimSpace(e.Text) != "" {
-			return errors.New("a run's entry holds values, no text")
-		}
-		for k, v := range e.Values {
-			if !valueKeyRe.MatchString(k) {
-				return fmt.Errorf("%q is not a key (a-z, 0-9, _)", k)
-			}
-			if strings.ContainsAny(v, "\r\n") {
-				return fmt.Errorf("value of %s must be one line", k)
-			}
-		}
-		return nil
-	}
-	if len(e.Values) > 0 {
-		return fmt.Errorf("only a run's entry holds values, not a %s", e.Kind)
-	}
-	if (e.Kind == KindComment || e.Kind == KindQuestion) && strings.TrimSpace(e.Text) == "" {
+	if strings.TrimSpace(e.Text) == "" {
 		return fmt.Errorf("the %s is empty", e.Kind)
 	}
 	return nil
@@ -253,12 +194,6 @@ func (e Entry) Format() string {
 		kind += " to " + strings.Join(e.To, ", ")
 	}
 	fmt.Fprintf(&b, "## %s%s%s%s%s\n", e.Time.UTC().Format(timeLayout), headSep, e.Author, headSep, kind)
-	if IsRun(e.Kind) {
-		for _, k := range valueKeys(e.Values) {
-			fmt.Fprintf(&b, "%s: %s\n", k, strings.TrimSpace(e.Values[k]))
-		}
-		return b.String()
-	}
 	text := strings.ReplaceAll(e.Text, "\r\n", "\n")
 	for _, line := range trimBlank(strings.Split(text, "\n")) {
 		if looksLikeHead.MatchString(line) || escapedHead.MatchString(line) {
@@ -267,22 +202,6 @@ func (e Entry) Format() string {
 		b.WriteString(strings.TrimRight(line, " \t") + "\n")
 	}
 	return b.String()
-}
-
-func valueKeys(values map[string]string) []string {
-	var keys, rest []string
-	for _, k := range valueOrder {
-		if _, ok := values[k]; ok {
-			keys = append(keys, k)
-		}
-	}
-	for k := range values {
-		if !slices.Contains(valueOrder, k) {
-			rest = append(rest, k)
-		}
-	}
-	slices.Sort(rest)
-	return append(keys, rest...)
 }
 
 // scanActivity reads the activity directory. A file whose card does not

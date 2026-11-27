@@ -18,14 +18,8 @@ func comment(who, text string) board.Entry {
 
 func TestEntryMessage(t *testing.T) {
 	cases := map[string]board.Entry{
-		"comment a":                  {Kind: board.KindComment},
-		"ask a":                      {Kind: board.KindQuestion},
-		"stop a":                     {Kind: board.KindStop},
-		"retry a":                    {Kind: board.KindRetry},
-		"run a: started in planning": {Kind: board.KindRunStarted, Values: map[string]string{"column": "planning"}},
-		"run a: paused":              {Kind: board.KindRunPaused},
-		"run a: finished":            {Kind: board.KindRunFinished},
-		"run a: failed":              {Kind: board.KindRunFailed},
+		"comment a": {Kind: board.KindComment},
+		"ask a":     {Kind: board.KindQuestion},
 	}
 	for want, e := range cases {
 		if got := EntryMessage("a", e); got != want {

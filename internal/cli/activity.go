@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -15,8 +16,8 @@ import (
 	"github.com/dvpnk/kardboard/internal/people"
 )
 
-// Environment variables a runner sets for its session, so the session's
-// kard calls need no names. Anyone else may set them too.
+// Environment variables for whoever starts an agent, so the agent's kard
+// calls need no names. Anyone else may set them too.
 const (
 	// envBoard names the board directory, as -C does.
 	envBoard = "KARD_BOARD"
@@ -177,6 +178,39 @@ The question comes after the card, or with --text from a file or, with
 
 // ── State in kard list and kard show ─────────────────────────────────────────
 
+// agentInfo is what a card's column asks of an agent, as kard show --json
+// hands it out.
+type agentInfo struct {
+	// Prompt is the board's: the project and its rules.
+	Prompt string `json:"prompt"`
+	// ColumnPrompt says what to do with a card in this column.
+	ColumnPrompt string `json:"column_prompt"`
+	// Next is the column to move the card to when the work here is done.
+	Next string `json:"next"`
+}
+
+// agentOf returns what the card's column asks of an agent, or nil if the
+// column belongs to people.
+func agentOf(b *board.Board, c *board.Card) *agentInfo {
+	col, ok := b.Config.Column(c.Column)
+	if !ok || col.Agent == nil {
+		return nil
+	}
+	info := &agentInfo{ColumnPrompt: col.Agent.Prompt, Next: col.Agent.Next}
+	if b.Config.Agent != nil {
+		info.Prompt = b.Config.Agent.Prompt
+	}
+	return info
+}
+
+// checkState insists that a state given to kard list --state is one.
+func checkState(state string) error {
+	if state != "" && !slices.Contains(board.States, state) {
+		return fmt.Errorf("no state %q, a card is %s or in none", state, strings.Join(board.States, ", "))
+	}
+	return nil
+}
+
 // stateOf returns the state of a card for JSON: nil if it has none.
 func stateOf(b *board.Board, c *board.Card) (*string, []string) {
 	st := b.State(c)
@@ -212,12 +246,6 @@ func (a *app) printActivity(entries []board.Entry) {
 			kind += " to " + strings.Join(e.To, ", ")
 		}
 		fmt.Fprintf(a.out, "\n%s · %s · %s\n", e.Time.Local().Format("2006-01-02 15:04"), e.Author, kind)
-		if board.IsRun(e.Kind) {
-			for _, line := range strings.Split(strings.TrimRight(board.Entry{Kind: e.Kind, Values: e.Values}.Format(), "\n"), "\n")[1:] {
-				fmt.Fprintln(a.out, "  "+line)
-			}
-			continue
-		}
 		for _, line := range strings.Split(e.Text, "\n") {
 			fmt.Fprintln(a.out, strings.TrimRight("  "+line, " "))
 		}

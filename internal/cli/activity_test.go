@@ -15,7 +15,7 @@ func agentBoard(t *testing.T) string {
 	root := copyOfExample(t)
 	yaml := readFile(t, root, "board.yaml")
 	yaml = strings.Replace(yaml, "columns:\n  - id: planning\n    title: Planning\n",
-		"agents: [vps-1]\n\ncolumns:\n  - id: planning\n    title: Planning\n    agent:\n      mode: plan\n      next: backlog\n", 1)
+		"agents: [vps-1]\n\nagent:\n  prompt: Read CLAUDE.md first.\n\ncolumns:\n  - id: planning\n    title: Planning\n    agent:\n      next: done\n      prompt: Write a plan into the card.\n", 1)
 	if err := os.WriteFile(filepath.Join(root, "board.yaml"), []byte(yaml), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -26,7 +26,12 @@ type shown struct {
 	ID         string
 	State      *string
 	WaitingFor []string `json:"waiting_for"`
-	Activity   []struct {
+	Agent      *struct {
+		Prompt       string
+		ColumnPrompt string `json:"column_prompt"`
+		Next         string
+	}
+	Activity []struct {
 		Author, Kind, Text string
 		To                 []string
 	}
@@ -67,11 +72,22 @@ func TestConversationOnACard(t *testing.T) {
 		t.Errorf("assigned to the agent in its column: state %q", state(s))
 	}
 
-	// The script is the agent: the runner would set these.
+	// The script is the agent: whoever starts it sets these.
 	t.Setenv("KARDBOARD_USER", "vps-1")
 	t.Setenv("KARD_BOARD", root)
 	t.Setenv("KARD_CARD", "offline-mode")
-	code, out, errOut := kard(t, "comment", "Read the code. Writing is the open point.")
+	// It finds its card, and with it what the board and the column ask.
+	code, out, errOut := kard(t, "list", "--state", "queued", "--mine")
+	if code != ExitOK || out != "Planning (1)\n    offline-mode  Offline mode  @vps-1  [queued]\nBacklog (0)\nIn progress (0)\nDone (0)\n" {
+		t.Fatalf("list: code %d, out %q, err %q", code, out, errOut)
+	}
+	if s := show(t, root, "offline-mode"); s.Agent == nil || s.Agent.Prompt != "Read CLAUDE.md first." || s.Agent.ColumnPrompt != "Write a plan into the card." || s.Agent.Next != "done" {
+		t.Fatalf("agent = %+v", s.Agent)
+	}
+	if s := show(t, root, "export-as-pdf"); s.Agent != nil {
+		t.Errorf("a column of people hands out %+v", s.Agent)
+	}
+	code, out, errOut = kard(t, "comment", "Read the code. Writing is the open point.")
 	if code != ExitOK || out != "offline-mode: comment added to activity/offline-mode.md\n" {
 		t.Fatalf("comment: code %d, out %q, err %q", code, out, errOut)
 	}
@@ -88,7 +104,11 @@ func TestConversationOnACard(t *testing.T) {
 		t.Errorf("list: %q", out)
 	}
 
-	// The person answers, from a file; the card can run again.
+	if code, out, _ = kard(t, "list", "--state", "queued", "-C", root, "--json"); code != ExitOK || strings.Contains(out, "offline-mode") {
+		t.Errorf("a waiting card is listed as queued: %s", out)
+	}
+
+	// The person answers, from a file; it is the agent's turn again.
 	t.Setenv("KARDBOARD_USER", "arnold")
 	t.Setenv("KARD_CARD", "")
 	t.Setenv("KARD_BOARD", "")
@@ -130,6 +150,18 @@ func TestConversationOnACard(t *testing.T) {
 	// The card's own file stayed as it was.
 	if got, want := readFile(t, root, "planning/offline-mode.md"), readFile(t, example, "planning/offline-mode.md"); !strings.HasSuffix(got, want) {
 		t.Errorf("card = %q", got)
+	}
+
+	// The agent ends its work by moving the card on.
+	t.Setenv("KARDBOARD_USER", "vps-1")
+	if code, _, errOut := kard(t, "move", "offline-mode", "done", "-C", root); code != ExitOK {
+		t.Fatalf("move: %q", errOut)
+	}
+	if s := show(t, root, "offline-mode"); state(s) != "none" || s.Agent != nil {
+		t.Errorf("moved on: %+v", s)
+	}
+	if code, _, errOut := kard(t, "list", "--state", "running", "-C", root); code != ExitUsage || !strings.Contains(errOut, `no state "running"`) {
+		t.Errorf("unknown state: code %d, err %q", code, errOut)
 	}
 }
 

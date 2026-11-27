@@ -107,7 +107,7 @@ func (a *app) lintAll() error {
 // listAll lists the cards of every known board, board by board. A column
 // narrows each board to the column of that name; boards without one are
 // left out. Boards that cannot be read are named on stderr.
-func (a *app) listAll(column string, mine bool) error {
+func (a *app) listAll(column string, mine bool, state string) error {
 	loaded, err := a.everyBoard()
 	if err != nil {
 		return err
@@ -142,7 +142,7 @@ func (a *app) listAll(column string, mine bool) error {
 			}
 			me = id.Name
 		}
-		cards := listed(b, columns, me)
+		cards := listed(b, columns, me, state)
 		if a.asJSON {
 			results = append(results, listResult{Board: info(b), Cards: withState(b, cards)})
 			continue

@@ -318,7 +318,7 @@ type listResult struct {
 // listedCard is a card with its state, which follows from its activity.
 type listedCard struct {
 	*board.Card
-	// State is running, waiting, failed or queued; null for none.
+	// State is queued or waiting; null for none.
 	State *string `json:"state"`
 	// WaitingFor names whom an open question is for, if anyone.
 	WaitingFor []string `json:"waiting_for,omitempty"`
@@ -341,13 +341,13 @@ func info(b *board.Board) boardInfo {
 	return boardInfo{ID: b.Config.ID, Name: name, Root: b.Root}
 }
 
-// listed picks the cards of a board to list: of one column or all, and
-// with mine only those assigned to me.
-func listed(b *board.Board, columns []board.Column, me string) []*board.Card {
+// listed picks the cards of a board to list: of one column or all, with
+// mine only those assigned to me, and with a state only those in it.
+func listed(b *board.Board, columns []board.Column, me, state string) []*board.Card {
 	cards := []*board.Card{}
 	for _, col := range columns {
 		for _, c := range b.Cards {
-			if c.Column == col.ID && (me == "" || b.HasPerson(c.Assignees(), me)) {
+			if c.Column == col.ID && (me == "" || b.HasPerson(c.Assignees(), me)) && (state == "" || b.State(c).State == state) {
 				cards = append(cards, c)
 			}
 		}
@@ -357,6 +357,7 @@ func listed(b *board.Board, columns []board.Column, me string) []*board.Card {
 
 func (a *app) listCmd() *cobra.Command {
 	var mine, all bool
+	var state string
 	cmd := &cobra.Command{
 		Use:   "list [column]",
 		Short: "List the cards of the board",
@@ -366,8 +367,11 @@ func (a *app) listCmd() *cobra.Command {
 			if len(args) == 1 {
 				column = args[0]
 			}
+			if err := checkState(state); err != nil {
+				return err
+			}
 			if all {
-				return a.listAll(column, mine)
+				return a.listAll(column, mine, state)
 			}
 			b, err := a.loadValid()
 			if err != nil {
@@ -389,7 +393,7 @@ func (a *app) listCmd() *cobra.Command {
 				}
 				columns = []board.Column{col}
 			}
-			cards := listed(b, columns, me)
+			cards := listed(b, columns, me, state)
 			if a.asJSON {
 				return a.printJSON(listResult{Board: info(b), Cards: withState(b, cards)})
 			}
@@ -399,6 +403,7 @@ func (a *app) listCmd() *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&mine, "mine", false, "only cards assigned to you")
 	cmd.Flags().BoolVar(&all, "all", false, allHelp)
+	cmd.Flags().StringVar(&state, "state", "", "only cards in this `state`: queued (an agent's turn) or waiting (a question is open)")
 	return cmd
 }
 
@@ -447,17 +452,19 @@ type showResult struct {
 	Board boardInfo `json:"board"`
 	*board.Card
 	Body string `json:"body"`
-	// State is running, waiting, failed or queued; null for none.
+	// State is queued or waiting; null for none.
 	State *string `json:"state"`
 	// WaitingFor names whom an open question is for, if anyone.
 	WaitingFor []string `json:"waiting_for,omitempty"`
-	// Activity is what was said about the card and every run on it,
-	// oldest first.
+	// Agent is what the card's column asks of an agent: the prompts and
+	// where the card goes next. Left out in a column that belongs to people.
+	Agent *agentInfo `json:"agent,omitempty"`
+	// Activity is what was said about the card, oldest first.
 	Activity []board.Entry `json:"activity"`
 }
 
 func showOf(b *board.Board, c *board.Card) showResult {
-	res := showResult{Board: info(b), Card: c, Body: c.Body, Activity: b.Activity(c.ID)}
+	res := showResult{Board: info(b), Card: c, Body: c.Body, Agent: agentOf(b, c), Activity: b.Activity(c.ID)}
 	if res.Activity == nil {
 		res.Activity = []board.Entry{}
 	}
